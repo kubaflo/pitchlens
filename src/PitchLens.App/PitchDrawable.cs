@@ -15,7 +15,7 @@ public sealed class PitchDrawable(Match match) : IDrawable
         var transform = PitchTransform.Fit(dirtyRect.Width, dirtyRect.Height);
         var scale = (float)transform.Scale;
         canvas.SaveState();
-        canvas.FillColor = Color.FromArgb("#283F34");
+        canvas.FillColor = Color.FromArgb("#242333");
         canvas.FillRectangle(dirtyRect);
         canvas.Translate((float)transform.Left, (float)transform.Top);
         canvas.Scale(scale, scale);
@@ -39,7 +39,7 @@ public sealed class PitchDrawable(Match match) : IDrawable
         if (SelectedId is not null)
         {
             var selected = match.Player(SelectedId);
-            canvas.StrokeColor = Color.FromArgb("#B4D5FF");
+            canvas.StrokeColor = MatchTheme.Lilac;
             canvas.StrokeSize = .4f;
             var points = selected.Path.Frames.Where(f => f.Time < Time).Select(f => f.Position)
                 .Append(selected.Path.At(Time)).ToArray();
@@ -58,12 +58,12 @@ public sealed class PitchDrawable(Match match) : IDrawable
             }
             canvas.FillColor = Color.FromArgb("#23382B");
             canvas.FillCircle((float)p.X + .15f, (float)p.Y + .3f, (float)PlayerRadius + .2f);
-            canvas.FillColor = Color.FromArgb(player.TeamId == "harbor" ? "#2676D9" : "#C66B35");
+            canvas.FillColor = MatchTheme.Team(player.TeamId);
             canvas.FillCircle((float)p.X, (float)p.Y, (float)PlayerRadius);
             canvas.StrokeColor = Color.FromArgb("#F4F4EF");
             canvas.StrokeSize = .18f;
             canvas.DrawCircle((float)p.X, (float)p.Y, (float)PlayerRadius);
-            canvas.FontColor = Colors.White;
+            canvas.FontColor = MatchTheme.Purple;
             canvas.FontSize = 2.5f;
             canvas.DrawString(player.Number.ToString(), (float)p.X - 2, (float)p.Y - 2, 4, 4,
                 HorizontalAlignment.Center, VerticalAlignment.Center);

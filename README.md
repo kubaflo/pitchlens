@@ -11,10 +11,11 @@ Hackathon submission is deferred.
 An aspect-preserving 2D pitch, interpolated players and ball, score and possession,
 play/pause/restart, a timeline, and +/-5-second seeks. Select a player by clicking
 the pitch or using the native roster picker. Selection survives all seeks and
-restarts; a white ring and pale-blue trail show that player's selection and
-already-travelled path. Blue and burnt-orange markers distinguish the teams.
-The native utility layout uses system typography, neutral rounded panels and
-system blue accents, adapting to light and graphite dark appearances.
+restarts; a white ring and lilac trail show that player's selection and
+already-travelled path. Mint and pink markers distinguish the fictional teams.
+The native match centre uses system typography, a rich purple score masthead,
+original H/O team badges and stadium-line artwork, mint playback controls and
+white/lilac panels, adapting to light and purple-toned dark appearances.
 The pitch occupies the flexible central area with a pinned timeline and transport.
 The player inspector and match notes scroll independently, beside the pitch on
 wider windows and in two panels underneath it on narrower windows. The whole
@@ -108,7 +109,7 @@ local development setup; do not bypass system warnings.
 2. Pause, wait, resume, seek in both directions, and restart. Confirm no elapsed
    time accumulates while paused and no stats or goals are counted twice.
 3. Select Finch in the roster and then a player on the pitch. Confirm selection
-   survives seeks/restart, with a white ring/pale-blue trail. Verify the picker works with
+   survives seeks/restart, with a white ring/lilac trail. Verify the picker works with
    keyboard and the system accessibility tools you normally use.
 4. Seek to 55 seconds, 56 seconds and back to 0. Confirm the goal/explanations
    appear only at 56, and the initial pass accuracy says unavailable. Switch
@@ -171,6 +172,15 @@ ordinal player ID as a stable tie-break, with that player drawn on top. The
 roster remains the alternative for selecting obscured players.
 
 ## Provenance and deferred scope
+
+The visual palette references the [Premier League website](https://www.premierleague.com/en/)
+(purple `#37003C`, mint `#00FF87`, pink `#FF2882`, observed October 2026).
+PitchLens is an **independent, unaffiliated synthetic demo**, not an official
+Premier League product. No permission or endorsement is claimed. In accordance
+with the site's [asset-use restrictions](https://www.premierleague.com/en/terms-and-conditions),
+no official lion logo, club crests, photographs, proprietary fonts, site CSS or
+scripts are downloaded or bundled. The team badges and stadium-line illustration
+are original artwork; the fictional players are not paired with real athlete images.
 
 All names, teams, trajectories, pitch artwork, icon/splash SVGs and explanation
 scripts are original synthetic demo content authored for this prototype. There

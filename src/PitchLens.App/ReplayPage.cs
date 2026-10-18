@@ -11,7 +11,13 @@ public sealed class ReplayPage : ContentPage, IDisposable
     private readonly Playback playback = new(DemoMatch.Duration, new MonotonicClock());
     private readonly PitchDrawable drawable;
     private readonly GraphicsView pitch;
-    private readonly Label scoreboard = new() { FontSize = 22, FontAttributes = FontAttributes.Bold };
+    private readonly Label scoreboard = new()
+    {
+        FontSize = 32,
+        FontAttributes = FontAttributes.Bold,
+        TextColor = Colors.White,
+        VerticalTextAlignment = TextAlignment.Center
+    };
     private readonly Label clock = Caption("");
     private readonly Label possession = Caption("");
     private readonly Label teamStats = Caption("");
@@ -21,7 +27,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
     {
         FontSize = 18,
         FontAttributes = FontAttributes.Bold,
-        TextColor = Colors.White,
+        TextColor = MatchTheme.Purple,
         HorizontalTextAlignment = TextAlignment.Center,
         VerticalTextAlignment = TextAlignment.Center
     };
@@ -37,8 +43,8 @@ public sealed class ReplayPage : ContentPage, IDisposable
         Text = "Play",
         AutomationId = "play-pause",
         WidthRequest = 80,
-        BackgroundColor = Color.FromArgb("#007AFF"),
-        TextColor = Colors.White
+        BackgroundColor = MatchTheme.Mint,
+        TextColor = MatchTheme.Purple
     };
     private readonly Slider timeline = new() { Minimum = 0, Maximum = DemoMatch.Duration, AutomationId = "timeline" };
     private readonly Picker roster = new() { Title = "Select player", AutomationId = "roster" };
@@ -51,7 +57,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
     private readonly Border inspectorPanel;
     private readonly Border eventsPanel;
     private readonly Border avatar;
-    private readonly Label legend = Caption("Blue: Harbor   Orange: Orchard   White: ball");
+    private readonly Label legend = Caption("Mint: Harbor   Pink: Orchard   White: ball & selection");
     private IDispatcherTimer? timer;
     private string selectedId = "h3";
     private ExplanationMode explanationMode;
@@ -62,7 +68,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
     public ReplayPage()
     {
         Title = "PitchLens";
-        this.SetAppThemeColor(BackgroundColorProperty, Color.FromArgb("#F5F5F7"), Color.FromArgb("#1C1C1E"));
+        this.SetAppThemeColor(BackgroundColorProperty, Color.FromArgb("#F4EFF7"), Color.FromArgb("#1E0C26"));
         drawable = new(match) { SelectedId = selectedId };
         pitch = new GraphicsView { Drawable = drawable, AutomationId = "pitch", MinimumHeightRequest = 100 };
         SemanticProperties.SetDescription(pitch, "Synthetic football replay. Use the player picker for accessible selection.");
@@ -123,7 +129,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
             RowSpacing = 12
         };
         var pitchHeader = new Grid { ColumnDefinitions = Columns(GridLength.Star, GridLength.Auto) };
-        pitchHeader.Add(Heading("Match replay"));
+        pitchHeader.Add(SectionHeading("Match replay"));
         pitchHeader.Add(possession, 1);
         replay.Add(pitchHeader, 0, 0);
         replay.Add(pitch, 0, 1);
@@ -145,7 +151,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
             HeightRequest = 48,
             StrokeThickness = 0,
             StrokeShape = new RoundRectangle { CornerRadius = 12 },
-            BackgroundColor = Color.FromArgb("#007AFF")
+            BackgroundColor = MatchTheme.Mint
         };
         var person = new HorizontalStackLayout
         {
@@ -170,7 +176,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
             Content = new VerticalStackLayout
             {
                 Spacing = 14,
-                Children = { Heading("Player inspector"), roster, person, metrics,
+                Children = { SectionHeading("Player inspector"), roster, person, metrics,
                     Caption("Statistics at the playhead. Distance and speed are trajectory-derived.") }
             }
         });
@@ -180,7 +186,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
             RowSpacing = 10
         };
         eventsPanel = Panel(eventGrid);
-        eventGrid.Add(Heading("Match notes"), 0, 0);
+        eventGrid.Add(SectionHeading("Match notes"), 0, 0);
         eventGrid.Add(segments, 0, 1);
         eventGrid.Add(Caption("Scripted event facts · Not generated AI"), 0, 2);
         eventGrid.Add(new ScrollView
@@ -196,27 +202,59 @@ public sealed class ReplayPage : ContentPage, IDisposable
         sidebar.Add(eventsPanel, 0, 1);
         main.Children.Add(replayPanel);
         main.Children.Add(sidebar);
-        var header = new Grid { ColumnDefinitions = Columns(GridLength.Star, GridLength.Auto), ColumnSpacing = 16 };
-        header.Add(new VerticalStackLayout
+        var header = new Grid
         {
-            Spacing = 3,
-            Children = { new Label { Text = "PitchLens", FontSize = 19, FontAttributes = FontAttributes.Bold },
-                Caption("Synthetic match · Local demo") }
-        });
-        header.Add(new VerticalStackLayout
+            ColumnDefinitions = Columns(GridLength.Star, GridLength.Auto),
+            ColumnSpacing = 16,
+            Padding = new Thickness(20, 16)
+        };
+        var brand = new VerticalStackLayout
         {
-            Spacing = 3,
+            Spacing = 4,
+            VerticalOptions = LayoutOptions.Center,
+            Children =
+            {
+                new Label { Text = "PitchLens", FontSize = 24, FontAttributes = FontAttributes.Bold, TextColor = Colors.White },
+                new Label { Text = "MATCH CENTRE", FontSize = 10, CharacterSpacing = 2, FontAttributes = FontAttributes.Bold,
+                    TextColor = MatchTheme.Mint },
+                new Label { Text = "Independent synthetic demo · Local only", FontSize = 10,
+                    TextColor = Color.FromArgb("#E3CBE9") }
+            }
+        };
+        header.Add(brand);
+        var matchup = new HorizontalStackLayout
+        {
+            Spacing = 14,
             HorizontalOptions = LayoutOptions.End,
-            Children = { scoreboard, teamStats }
+            Children = { TeamBadge("H", "Harbor", MatchTheme.Mint), scoreboard, TeamBadge("O", "Orchard", MatchTheme.Pink) }
+        };
+        header.Add(new VerticalStackLayout
+        {
+            Spacing = 8,
+            VerticalOptions = LayoutOptions.Center,
+            HorizontalOptions = LayoutOptions.End,
+            Children = { matchup, teamStats }
         }, 1);
-        teamStats.MaximumWidthRequest = 420;
+        teamStats.TextColor = Color.FromArgb("#E3CBE9");
+        teamStats.MaximumWidthRequest = 390;
+        teamStats.FontSize = 10;
+        teamStats.HorizontalTextAlignment = TextAlignment.End;
+        var banner = new Grid { IsClippedToBounds = true, BackgroundColor = MatchTheme.Purple };
+        banner.Children.Add(new GraphicsView { Drawable = new StadiumArtwork(), InputTransparent = true });
+        banner.Children.Add(header);
+        var masthead = new Border
+        {
+            StrokeThickness = 0,
+            StrokeShape = new RoundRectangle { CornerRadius = 14 },
+            Content = banner
+        };
         var root = new Grid
         {
             Padding = new Thickness(20, 16),
             RowSpacing = 16,
             RowDefinitions = Rows(GridLength.Auto, GridLength.Star)
         };
-        root.Add(header, 0, 0);
+        root.Add(masthead, 0, 0);
         root.Add(main, 0, 1);
         Content = root;
         SizeChanged += OnSizeChanged;
@@ -242,12 +280,35 @@ public sealed class ReplayPage : ContentPage, IDisposable
     private static Label Caption(string text)
     {
         var label = new Label { Text = text, FontSize = 11, LineHeight = 1.15 };
-        label.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#68686E"), Color.FromArgb("#AEAEB5"));
+        label.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#735A7D"), Color.FromArgb("#C5ACD1"));
         return label;
     }
 
     private static Label Heading(string text) => new() { Text = text, FontSize = 14, FontAttributes = FontAttributes.Bold };
     private static Label Value() => new() { FontSize = 19, FontAttributes = FontAttributes.Bold };
+
+    private static View SectionHeading(string text)
+    {
+        var rule = new BoxView { WidthRequest = 3, HeightRequest = 16, Color = MatchTheme.Pink, VerticalOptions = LayoutOptions.Center };
+        return new HorizontalStackLayout { Spacing = 8, Children = { rule, Heading(text) } };
+    }
+
+    private static View TeamBadge(string initial, string name, Color color) =>
+        new HorizontalStackLayout
+        {
+            Spacing = 7,
+            VerticalOptions = LayoutOptions.Center,
+            Children =
+            {
+                new Border { WidthRequest = 29, HeightRequest = 34, BackgroundColor = color, StrokeThickness = 0,
+                    StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(4, 4, 12, 12) },
+                    Content = new Label { Text = initial, FontSize = 18, FontAttributes = FontAttributes.Bold,
+                        TextColor = MatchTheme.Purple, HorizontalTextAlignment = TextAlignment.Center,
+                        VerticalTextAlignment = TextAlignment.Center } },
+                new Label { Text = name, TextColor = Colors.White, FontSize = 13, FontAttributes = FontAttributes.Bold,
+                    VerticalTextAlignment = TextAlignment.Center }
+            }
+        };
 
     private static Border Panel(View content)
     {
@@ -258,8 +319,8 @@ public sealed class ReplayPage : ContentPage, IDisposable
             StrokeThickness = 1,
             StrokeShape = new RoundRectangle { CornerRadius = 14 }
         };
-        panel.SetAppThemeColor(BackgroundColorProperty, Colors.White, Color.FromArgb("#27272A"));
-        panel.SetAppThemeColor(Border.StrokeProperty, Color.FromArgb("#E4E4E8"), Color.FromArgb("#3A3A3E"));
+        panel.SetAppThemeColor(BackgroundColorProperty, Colors.White, Color.FromArgb("#301638"));
+        panel.SetAppThemeColor(Border.StrokeProperty, Color.FromArgb("#E7DCEF"), Color.FromArgb("#50305B"));
         return panel;
     }
 
@@ -272,7 +333,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
             StrokeShape = new RoundRectangle { CornerRadius = 8 },
             Content = new VerticalStackLayout { Spacing = 4, Children = { Caption(title), value } }
         };
-        tile.SetAppThemeColor(BackgroundColorProperty, Color.FromArgb("#F5F5F7"), Color.FromArgb("#323235"));
+        tile.SetAppThemeColor(BackgroundColorProperty, Color.FromArgb("#F5EFF9"), Color.FromArgb("#3D2148"));
         return tile;
     }
 
@@ -282,9 +343,9 @@ public sealed class ReplayPage : ContentPage, IDisposable
         foreach (var (button, selected) in new[] { (casual, mode == ExplanationMode.Casual), (analyst, mode == ExplanationMode.Analyst) })
         {
             button.SetAppThemeColor(Button.BackgroundColorProperty,
-                Color.FromArgb(selected ? "#E5F0FF" : "#F0F0F3"), Color.FromArgb(selected ? "#244266" : "#38383C"));
+                Color.FromArgb(selected ? "#37003C" : "#F0E8F5"), Color.FromArgb(selected ? "#00FF87" : "#46254F"));
             button.SetAppThemeColor(Button.TextColorProperty,
-                Color.FromArgb(selected ? "#005BC4" : "#68686E"), Color.FromArgb(selected ? "#85B9FF" : "#AEAEB5"));
+                Color.FromArgb(selected ? "#FFFFFF" : "#735A7D"), Color.FromArgb(selected ? "#37003C" : "#E3CBE9"));
             button.FontAttributes = selected ? FontAttributes.Bold : FontAttributes.None;
             SemanticProperties.SetDescription(button, $"{button.Text} explanations{(selected ? ", selected" : "")}");
         }
@@ -314,10 +375,12 @@ public sealed class ReplayPage : ContentPage, IDisposable
     private void OnSizeChanged(object? sender, EventArgs e)
     {
         var wide = Width >= 920;
+        if (!wide)
+            main.RowDefinitions = Rows(new GridLength(Math.Max(300, (Height - 180) * .53)), GridLength.Star);
         if (wideLayout == wide) return;
         wideLayout = wide;
         main.ColumnDefinitions = wide ? Columns(GridLength.Star, new GridLength(310)) : Columns(GridLength.Star);
-        main.RowDefinitions = wide ? Rows(GridLength.Star) : Rows(new GridLength(1.25, GridUnitType.Star), GridLength.Star);
+        if (wide) main.RowDefinitions = Rows(GridLength.Star);
         Grid.SetColumn(sidebar, wide ? 1 : 0);
         Grid.SetRow(sidebar, wide ? 0 : 1);
         sidebar.ColumnDefinitions = wide ? Columns(GridLength.Star) : Columns(GridLength.Star, GridLength.Star);
@@ -362,7 +425,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
         drawable.Time = time;
         drawable.SelectedId = selectedId;
         pitch.Invalidate();
-        scoreboard.Text = $"Harbor   {snapshot.Score["harbor"]} – {snapshot.Score["orchard"]}   Orchard";
+        scoreboard.Text = $"{snapshot.Score["harbor"]} : {snapshot.Score["orchard"]}";
         teamStats.Text = string.Join("   ·   ", match.Teams.Select(team =>
         {
             var players = snapshot.Players.Where(p => match.Player(p.PlayerId).TeamId == team.Id).ToArray();
@@ -381,7 +444,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
         identity.Text = selected.Name;
         teamIdentity.Text = match.Teams.Single(t => t.Id == selected.TeamId).Name;
         shirt.Text = selected.Number.ToString();
-        avatar.BackgroundColor = Color.FromArgb(selected.TeamId == "harbor" ? "#2676D9" : "#C66B35");
+        avatar.BackgroundColor = MatchTheme.Team(selected.TeamId);
         passes.Text = $"{s.CompletedPasses} / {s.Passes}";
         accuracy.Text = s.PassAccuracy is double value ? value.ToString("P0", CultureInfo.CurrentCulture) : "Unavailable";
         accuracy.FontSize = s.PassAccuracy.HasValue ? 19 : 14;
@@ -407,13 +470,13 @@ public sealed class ReplayPage : ContentPage, IDisposable
                 AutomationId = $"event-{explanation.EventId}",
                 HorizontalOptions = LayoutOptions.Start,
                 BackgroundColor = Colors.Transparent,
-                TextColor = Color.FromArgb("#007AFF"),
                 Padding = 0
             };
+            seek.SetAppThemeColor(Button.TextColorProperty, MatchTheme.Purple, MatchTheme.Mint);
             SemanticProperties.SetDescription(seek, $"Replay event {explanation.EventId} at {explanation.Time} seconds");
             seek.Clicked += (_, _) => { Suspend(); playback.Seek(explanation.Time); Render(); };
             var separator = new BoxView { HeightRequest = 1 };
-            separator.SetAppThemeColor(BoxView.ColorProperty, Color.FromArgb("#E8E8ED"), Color.FromArgb("#3A3A3E"));
+            separator.SetAppThemeColor(BoxView.ColorProperty, Color.FromArgb("#E7DCEF"), Color.FromArgb("#50305B"));
             insights.Children.Add(new VerticalStackLayout
             {
                 Spacing = 5,

@@ -15,8 +15,8 @@
     <RuntimeIdentifier>maccatalyst-arm64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
-    <MauiIcon Include="Resources/AppIcon/appicon.svg" Color="#102A36" />
-    <MauiSplashScreen Include="Resources/Splash/splash.svg" Color="#102A36" BaseSize="128,128" />
+    <MauiIcon Include="Resources/AppIcon/appicon.svg" Color="#37003C" />
+    <MauiSplashScreen Include="Resources/Splash/splash.svg" Color="#37003C" BaseSize="128,128" />
     <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
     <ProjectReference Include="../PitchLens.Core/PitchLens.Core.csproj" />
   </ItemGroup>
