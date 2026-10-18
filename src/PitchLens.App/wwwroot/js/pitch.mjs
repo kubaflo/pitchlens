@@ -1,7 +1,9 @@
 import { ReplayEngine, at, fit, keyboardAction } from "./replay.mjs";
+import { PopupHost } from "./popups.mjs";
 
 let engine, canvas, viewport, context, background, observer, reference, frameId = null;
 let pointerHandler, visibilityHandler, keyboardHandler, rangeDown, rangeUp, range, width = 0, height = 0, dragging = false;
+let popups = null, lastPointer = null;
 const now = () => performance.now();
 
 export function initialize(element, dotnet) {
@@ -22,6 +24,7 @@ export function initialize(element, dotnet) {
     observer = new ResizeObserver(resize); observer.observe(viewport);
     window.addEventListener("resize", resize);
     pointerHandler = event => {
+        lastPointer = { x: event.clientX, y: event.clientY };
         const box = canvas.getBoundingClientRect();
         engine?.select(event.clientX - box.left, event.clientY - box.top, box.width, box.height, now());
     };
@@ -29,6 +32,7 @@ export function initialize(element, dotnet) {
     visibilityHandler = () => { if (document.hidden) { engine?.hide(now()); stop(); } else draw(); };
     document.addEventListener("visibilitychange", visibilityHandler);
     keyboardHandler = event => {
+        if (document.querySelector?.("dialog[open]")) return;
         const command = keyboardAction(event);
         if (command) { event.preventDefault(); engine?.keyboard(command); }
     };
@@ -39,6 +43,7 @@ export function initialize(element, dotnet) {
     range?.addEventListener("pointerdown", rangeDown);
     window.addEventListener("pointerup", rangeUp);
     resize();
+    document.fonts?.ready.then(() => { if (canvas) draw(); });
 }
 function stop() { if (frameId !== null) cancelAnimationFrame(frameId); frameId = null; }
 function resize() {
@@ -80,14 +85,14 @@ function draw() {
         c.beginPath();
         const points = selected.frames.filter(f => f.time < time).concat(at(selected.frames, time));
         points.forEach((p, i) => i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y));
-        c.strokeStyle = "#9ecbff"; c.lineWidth = .4; c.stroke();
+        c.strokeStyle = "#d7b8ff"; c.lineWidth = .4; c.stroke();
     }
     for (const p of engine.drawPlayers) {
         const point = at(p.frames, time);
         if (p.id === engine.selectedId) { c.lineWidth = .6; circle(c, point.x, point.y, 2.8, null, "#fff"); }
         circle(c, point.x + .15, point.y + .3, 2.2, "#23382b", null);
-        c.lineWidth = .18; circle(c, point.x, point.y, 2, p.teamId === "arsenal" ? "#bf3545" : "#82b9da", "#f4f4ef");
-        c.fillStyle = p.teamId === "arsenal" ? "#ffffff" : "#102638"; c.font = "bold 2.5px -apple-system, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
+        c.lineWidth = .18; circle(c, point.x, point.y, 2, p.teamId === "arsenal" ? "#00ff87" : "#ff83b8", "#f4f4ef");
+        c.fillStyle = "#37003c"; c.font = "700 2.5px Barlow, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
         c.fillText(String(p.number), point.x, point.y);
     }
     const ball = at(engine.scenario.ball, time); c.lineWidth = .2; circle(c, ball.x, ball.y, .85, "#fff", "#000");
@@ -107,7 +112,16 @@ export function setClock(json) {
     }
 }
 export function diagnostics() { return engine ? { ...engine.diagnostics } : null; }
+export function openPopup(id, adjacent = false, atPointer = false) {
+    popups ??= new PopupHost(document, window);
+    const box = canvas.getBoundingClientRect();
+    const point = adjacent ? atPointer && lastPointer ? lastPointer
+        : { x: box.left + box.width * .7, y: box.top + Math.min(80, box.height * .2) } : null;
+    popups.open(id, point);
+}
+export function closePopup(id) { popups?.close(id); }
 export function dispose() {
+    popups?.dispose(); popups = null; lastPointer = null;
     stop(); observer?.disconnect();
     window.removeEventListener("resize", resize);
     if (canvas && pointerHandler) canvas.removeEventListener("pointerdown", pointerHandler);

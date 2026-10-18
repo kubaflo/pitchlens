@@ -3,7 +3,9 @@
 A macOS football-pitch prototype using **C#/.NET MAUI 10 Blazor Hybrid (Mac Catalyst)** and the
 **GitHub Copilot SDK**. The pitch is the initial, primary view, with clickable
 players, an accessible roster, pinned playback controls and a selected-player
-inspector. Statistics and scripted event notes are secondary.
+popup. The approved **01 Matchday** review design is implemented: purple brand
+bar, large white score strip, readable local Barlow typography and sparse,
+pitch-first framing. Statistics and event notes are revealed through popups.
 
 **Real roster names; synthetic match actions.** The app uses selected Arsenal and
 Manchester City players from a verified **2026/27** snapshot, checked
@@ -71,7 +73,7 @@ protocol mismatch: installed CLI `1.0.100-1` failed SDK startup parsing
 `$.timestamp`, before authentication or any model request. The SDK-matched
 native runtime worked with the same normal local login.
 
-Leave the optional CLI override under collapsed **Settings** blank to use the bundled
+Leave the optional CLI override under **Settings → Advanced generation setup** blank to use the bundled
 runtime. An override must be an absolute path to a compatible executable; a
 missing/incompatible override is an error, not a reason to switch models.
 The local development app is not an App Store/sandboxed deployment: it starts
@@ -165,27 +167,33 @@ generation, since roster IDs remain stable.
 Drawing and inverse click hit-testing share the same aspect-preserving transform.
 Letterbox margins do not select players. Nearest player within the marker radius
 wins, with ordinal ID resolving exact overlaps; the roster also selects obscured
-players. White rings and pale-blue past-only trails show selection. Muted red
-is Arsenal, sky blue is Manchester City. Actual club crests appear in the compact
-score toolbar and selected-player club identity. Moving pitch
+players. White rings and lilac past-only trails show selection. Mint is Arsenal,
+pink is Manchester City. Actual club crests appear in the white score strip
+and player popup. Moving pitch
 markers retain readable shirt numbers rather than large logos. Crests are
 packaged local images with aspect-fit sizing and a white backing for contrast
 in both themes; they require no runtime image download.
 
-The focused macOS viewer keeps four selected-player statistics visible; **More**
-contains shots and max speed. **Match story** discloses narrative/event notes and
-Casual/Analyst controls. **Settings** holds model/runtime information. A small
-**Synthetic match** disclosure exposes source/model provenance without repeating
-it across the main view. There is no large banner or dashboard/tab strip.
-Playback controls remain pinned. Space toggles playback and Left/Right seek one
-second outside inputs, buttons, links and disclosures, preserving their native
-keyboard behavior and system focus rings.
+Clicking a shirt pauses replay and opens an adjacent player dialog with four
+key statistics; **Players** is the keyboard-accessible roster alternative.
+**Match story** opens a modal with only current-playhead evidence, Casual/Analyst
+modes and working replay links. **Settings** holds source/model provenance and
+advanced runtime configuration. Native dialogs provide Escape, close/backdrop
+behavior and focus return; adjacent placement flips/clamps to the viewport.
+Closing a popup leaves replay paused.
+
+**New match** opens the real Copilot SDK generation dialog. Its explicit Create
+action makes the actual Sol request: no scripted Preview/Use-preview path from
+the design mocks is shipped. Progress, errors and cancellation are available
+inside the dialog; the brand bar keeps creation/cancel access when it is closed.
+Playback controls stay pinned. Space toggles playback and Left/Right seek one
+second outside form controls and popups. Restart remains available at full time.
 Window deactivation pauses playback; returning does not automatically resume it.
 
 ## Hybrid rendering and performance
 
 The native MAUI host owns Copilot/authentication, generation, validation and the
-authoritative replay clock. Razor/HTML/CSS render the focused pitch-first
+authoritative replay clock. Razor/HTML/CSS render the approved Matchday
 interface in a packaged `BlazorWebView`; no web server, remote scripts, frontend
 package ecosystem or credentials in browser storage are needed.
 The architecture is inspired by the public
@@ -331,15 +339,18 @@ Rúben Dias (3), Phil Foden (47), Rayan Cherki (10), Erling Haaland (9),
 Jérémy Doku (11). Names retain the verified source spellings/diacritics. This
 bounded roster is not a live transfer/squad feed or an exhaustive squad.
 
-The visual direction follows Apple's
-[Typography](https://developer.apple.com/design/human-interface-guidelines/typography)
-and [Designing for macOS](https://developer.apple.com/design/human-interface-guidelines/designing-for-macos)
-guidance: OS-provided SF through `-apple-system`/`BlinkMacSystemFont`/`system-ui`,
-13 CSS-pixel logical body text, readable 12-pixel secondary text, 15-17-pixel
-semibold headings, neutral light/dark surfaces and restrained blue actions.
-This supersedes the earlier PL website-style gradient/dashboard direction.
-These are original HIG-aligned web controls, not a claim of AppKit-native
-materials or pixel-perfect Apple UI. No system fonts or Apple assets are downloaded.
+The user selected **01 Matchday** from the five original
+[HTML review mockups](design/mocks/index.html). Those review artifacts remain
+unchanged. Production reuses its purple/mint vocabulary, white score strip and
+popup-led interactions, but all playback/statistics/generation use real app
+services rather than mock controllers. Body text is 18 px, controls at least
+16 px, page headings 40–48 px and scores 40–56 px where space permits.
+
+Barlow Regular, Semibold and Bold are bundled locally under
+`src/PitchLens.App/wwwroot/fonts/` with their `OFL.txt`, reused from the approved
+mock's authoritative [Google Fonts source](https://github.com/google/fonts/tree/main/ofl/barlow).
+This is freely licensed Barlow, not a copied proprietary Premier League font.
+No remote font server or font download at runtime is required.
 Club crest use is based on the user's stated permission for **this hackathon
 prototype**. This records user-reported permission, not a blanket redistribution
 or open-asset license, and does not imply league/club endorsement. The club crests
