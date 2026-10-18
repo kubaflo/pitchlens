@@ -1,0 +1,210 @@
+@implements IAsyncDisposable
+@inject MatchService Session
+@inject IJSRuntime JS
+
+@if (frame is not null)
+{
+    var match = frame.Match;
+    var snapshot = frame.Snapshot;
+    var player = match.Player(frame.SelectedId);
+    var stats = snapshot.Players.Single(p => p.PlayerId == player.Id);
+    <div class="app">
+        <nav class="app-strip"><strong>PitchLens</strong><span>Independent · Synthetic 6v6 · 2026/27 roster</span><button id="open-replay" @onclick='() => Tab("Match replay")'>Match replay</button></nav>
+        <header class="hero"><h1>Match Centre</h1><nav aria-label="Match views">
+            @foreach (var name in new[] { "Match replay", "Dashboard", "Player", "Club" })
+            {
+                <button class="@(tab == name ? "active" : "")" aria-current="@(tab == name ? "page" : null)" @onclick="() => Tab(name)">@name</button>
+            }
+        </nav></header>
+        <div class="match-strip"><span id="scenario-provenance">@(view!.Fresh ? "Fresh SDK" : "Recorded SDK example") · @view.Model · Synthetic actions</span>
+            <strong><img src="images/arsenal_crest.png" alt="Arsenal crest" />Arsenal <b>@snapshot.Score["arsenal"] : @snapshot.Score["manchester-city"]</b> Man City<img src="images/manchester_city_crest.png" alt="Manchester City crest" /></strong>
+        </div>
+        @if (error is not null) { <div class="error" role="alert">@error</div> }
+        <main>
+            <section class="pitch-panel panel @(tab == "Match replay" ? "" : "hidden")">
+                <div class="section-head"><h2>Match replay</h2><span>Possession · @(snapshot.OwnerId is null ? "Ball in transit" : match.Player(snapshot.OwnerId).Name)</span></div>
+                <div class="story-heading"><strong id="story-title">@match.Story?.Title</strong><span id="current-story-beat">@(frame.Story.LastOrDefault() is { } currentBeat ? $"{currentBeat.Time:00.0}s · {currentBeat.Heading}" : "Opening shape · Play to reveal the story")</span></div>
+                <canvas @ref="canvas" id="pitch" role="img" aria-label="Animated synthetic football pitch. Use the player selector for keyboard-accessible selection."></canvas>
+                <small>Mint: Arsenal · Pink: Manchester City · White: ball &amp; selection · Lilac: past movement</small>
+            </section>
+            @if (tab != "Match replay")
+            {
+                <section class="stats-scroll">
+                    @if (tab is "Dashboard" or "Player")
+                    {
+                        <h2>Player stats</h2><p class="muted">Current synthetic match · Top five · Select a player</p>
+                        <div class="leaderboards">@foreach (var metric in Metrics)
+                        {
+                            <article class="panel"><h3>@metric.Name</h3><ol>
+                            @foreach (var ranked in snapshot.Players.OrderByDescending(metric.Value).ThenBy(p => p.PlayerId, StringComparer.Ordinal).Take(5))
+                            {
+                                var person = match.Player(ranked.PlayerId);
+                                <li @key="person.Id"><img src="@Crest(person.TeamId)" alt="@Club(match, person.TeamId)" /><div><button @onclick='() => Select(person.Id)'>@person.Name</button><small>@Club(match, person.TeamId)</small></div><b>@metric.Format(metric.Value(ranked))</b></li>
+                            }</ol></article>
+                        }</div>
+                    }
+                    @if (tab is "Dashboard" or "Club")
+                    {
+                        <h2>Club stats</h2><p class="muted">Factual names · Invented performance, not a season dataset</p>
+                        <div class="leaderboards">@foreach (var metric in Metrics)
+                        {
+                            <article class="panel"><h3>@metric.Name</h3><ol>
+                            @foreach (var team in match.Teams.Select(t => (Team: t, Total: snapshot.Players.Where(p => match.Player(p.PlayerId).TeamId == t.Id).Sum(metric.Value))).OrderByDescending(t => t.Total).ThenBy(t => t.Team.Id, StringComparer.Ordinal))
+                            {
+                                <li><img src="@Crest(team.Team.Id)" alt="" /><div><strong>@team.Team.Name</strong><small>Synthetic match</small></div><b>@metric.Format(team.Total)</b></li>
+                            }</ol></article>
+                        }</div>
+                    }
+                </section>
+            }
+            <aside><div class="segments"><button id="inspector-player" class="@(!notes ? "selected" : "")" aria-pressed="@(notes ? "false" : "true")" @onclick="() => notes = false">Player lens</button><button id="inspector-notes" class="@(notes ? "selected" : "")" aria-pressed="@(notes ? "true" : "false")" @onclick="() => notes = true">Match notes</button></div>
+                <section class="panel inspector">
+                @if (!notes)
+                {
+                    <h2>Selected player</h2>
+                    <label for="roster">Player</label><select id="roster" value="@frame.SelectedId" @onchange="RosterChanged">@foreach (var p in match.Players) { <option value="@p.Id">@Club(match, p.TeamId) · @p.Number @p.Name</option> }</select>
+                    <div class="player-identity"><img src="@Crest(player.TeamId)" alt="@Club(match, player.TeamId)" /><div><h3>@player.Name <small>#@player.Number</small></h3><small>@Club(match, player.TeamId) · Real name, synthetic actions</small></div></div>
+                    <dl><dt>Passes completed</dt><dd>@stats.CompletedPasses / @stats.Passes</dd><dt>Pass accuracy</dt><dd>@(stats.PassAccuracy is double accuracy ? accuracy.ToString("P0") : "Unavailable (no attempts)")</dd><dt>Shots</dt><dd>@stats.Shots</dd><dt>Goals</dt><dd>@stats.Goals</dd><dt>Distance</dt><dd>@stats.Distance.ToString("F1") m</dd><dt>Max speed</dt><dd>@stats.MaxSpeed.ToString("F2") m/s</dd></dl>
+                    <p class="muted">Trajectory-derived through the playhead. Not actual player performance.</p>
+                    <details><summary>Copilot generation setup</summary><p>@CopilotScenarioSource.Model only · Normal copilot login required · One potentially billable request per click.</p><label for="cli">Optional compatible runtime override</label><input id="cli" placeholder="Bundled runtime (leave blank)" @bind="Session.CliOverride" disabled="@Session.Generating" /></details>
+                }
+                else
+                {
+                    <h2>Match notes</h2><div class="segments" id="mode"><button id="mode-casual" class="@(frame.Mode == ExplanationMode.Casual ? "selected" : "")" aria-pressed="@(frame.Mode == ExplanationMode.Casual ? "true" : "false")" @onclick="() => Mode(false)">Casual</button><button id="mode-analyst" class="@(frame.Mode == ExplanationMode.Analyst ? "selected" : "")" aria-pressed="@(frame.Mode == ExplanationMode.Analyst ? "true" : "false")" @onclick="() => Mode(true)">Analyst</button></div>
+                    <p class="muted">Scripted explanations of validated synthetic facts. No future evidence.</p>
+                    @foreach (var beat in frame.Story.Reverse())
+                    {
+                        <article class="note" @key="(0, beat.Id)"><h4>@beat.Heading</h4><p>@beat.Detail</p><small>@beat.Time.ToString("00.0")s · Events @string.Join(", ", beat.EventIds)</small></article>
+                    }
+                    @if (frame.Explanations.Count == 0) { <p class="muted">No events yet. Play to reveal the story.</p> }
+                    @foreach (var explanation in frame.Explanations.Reverse())
+                    {
+                        <article class="note" @key="(1, explanation.EventId)"><button class="evidence" @onclick="() => ReplayEvent(explanation.Time)">@explanation.Time.ToString("00.0")s · @explanation.EventId ↗</button><p>@explanation.Text</p></article>
+                    }
+                }
+                </section>
+            </aside>
+        </main>
+        <footer class="panel transport"><div class="timeline"><label for="timeline">Replay time</label><input id="timeline" type="range" min="0" max="@match.Duration" step="0.1" @onchange="TimelineChanged" aria-label="Replay time in seconds" /><output id="replay-clock" aria-live="off" aria-label="Current replay time"></output></div>
+            <div class="controls"><button id="restart" @onclick='() => Command("restart")'>Restart</button><button id="seek-back" @onclick="() => Seek(-5)">−5 s</button><button id="play-pause" class="primary" @onclick="Toggle" disabled="@(snapshot.Time >= match.Duration)">@(frame.Playing ? "Pause" : "Play")</button><button id="seek-forward" @onclick="() => Seek(5)">+5 s</button></div>
+        </footer>
+        <div class="generation"><button id="generate-match" @onclick="Generate" disabled="@Session.Generating">@(Session.Generating ? "Generating…" : "Generate match")</button>@if (Session.Generating) { <button id="cancel-generation" @onclick="Session.Cancel">Cancel</button> }<span id="generation-status" role="status">@Session.Status</span></div>
+    </div>
+}
+
+@code {
+    private PresentationFrame? frame;
+    private NativeView? view;
+    private ElementReference canvas;
+    private IJSObjectReference? module;
+    private DotNetObjectReference<MatchView>? reference;
+    private readonly CancellationTokenSource lifetime = new();
+    private Task? ticker;
+    private bool disposed, notes;
+    private string tab = "Match replay";
+    private string? error;
+    private long loadedRevision;
+    private static readonly (string Name, Func<PlayerStats, double> Value, Func<double, string> Format)[] Metrics =
+    [
+        ("Goals", p => p.Goals, n => n.ToString("0")), ("Shots", p => p.Shots, n => n.ToString("0")),
+        ("Passes", p => p.Passes, n => n.ToString("0")), ("Distance", p => p.Distance, n => $"{n:F1} m")
+    ];
+    private static string Crest(string id) => id == "arsenal" ? "images/arsenal_crest.png" : "images/manchester_city_crest.png";
+    private static string Club(Match match, string id) => match.Teams.Single(t => t.Id == id).Name;
+    protected override void OnInitialized()
+    {
+        view = Session.Sample(true);
+        frame = view?.Frame;
+        Session.Changed += Changed;
+    }
+    protected override async Task OnAfterRenderAsync(bool first)
+    {
+        if (!first) return;
+        try
+        {
+            var imported = await JS.InvokeAsync<IJSObjectReference>("import", "./js/pitch.mjs");
+            if (disposed) { await imported.DisposeAsync(); return; }
+            module = imported;
+            reference = DotNetObjectReference.Create(this);
+            await module.InvokeVoidAsync("initialize", canvas, reference);
+            await Refresh(true);
+            ticker = Tick();
+        }
+        catch (JSException e) { if (!disposed) { error = $"Pitch initialization failed: {e.Message}"; Session.Command("pause"); StateHasChanged(); } }
+    }
+    private void Changed() { if (!disposed) _ = InvokeAsync(() => Refresh(true)); }
+    private async Task Tick()
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(250));
+            while (await timer.WaitForNextTickAsync(lifetime.Token))
+                if (!disposed && Session.Active && frame?.Playing == true) await InvokeAsync(() => Refresh(false));
+        }
+        catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
+    }
+    private async Task Refresh(bool force)
+    {
+        if (disposed || error is not null) return;
+        var next = Session.Sample(force);
+        if (next is null) return;
+        view = next;
+        var current = next.Frame;
+        frame = current;
+        try
+        {
+            if (module is not null)
+            {
+                if (loadedRevision != current.Revision)
+                {
+                    loadedRevision = current.Revision;
+                    await module.InvokeVoidAsync("loadScenario", WebContracts.Scenario(current.Match, current.Revision));
+                }
+                await module.InvokeVoidAsync("setClock", WebContracts.Clock(current));
+            }
+            StateHasChanged();
+        }
+        catch (JSDisconnectedException) { lifetime.Cancel(); }
+        catch (JSException e) { error = $"Pitch interop failed: {e.Message}"; Session.Command("pause"); StateHasChanged(); }
+    }
+    private void Tab(string name) { tab = name; }
+    private void Command(string command) => Session.Command(command);
+    private void Toggle() => Command(frame?.Playing == true ? "pause" : "play");
+    private void Seek(double offset) => Session.Command("seek-by", offset);
+    private void TimelineChanged(ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var value))
+            Session.Command("seek", value);
+        else error = "Invalid replay time.";
+    }
+    private void RosterChanged(ChangeEventArgs e) => Select(e.Value?.ToString() ?? "");
+    private void Select(string id) { Session.Command("select", id: id); notes = false; }
+    private void Mode(bool analyst) => Session.Command("mode", analyst ? 1 : 0);
+    private void ReplayEvent(double time) { Session.Command("pause"); Session.Command("seek", time); }
+    private async Task Generate() { await Session.GenerateAsync(); tab = "Match replay"; }
+    [JSInvokable] public Task SelectFromPitch(string id) => InvokeAsync(() => Select(id));
+    [JSInvokable] public Task PageHidden(double time, long revision) => InvokeAsync(() => Session.Freeze(time, revision));
+    public async ValueTask DisposeAsync()
+    {
+        disposed = true;
+        Session.Changed -= Changed;
+        Session.Command("pause");
+        Session.Cancel();
+        lifetime.Cancel();
+        try
+        {
+            if (ticker is not null) await ticker;
+            if (module is not null)
+            {
+                try { await module.InvokeVoidAsync("dispose"); await module.DisposeAsync(); }
+                catch (JSDisconnectedException) { }
+                catch (JSException e) { Console.Error.WriteLine($"Pitch teardown failed: {e.Message}"); }
+            }
+        }
+        finally
+        {
+            reference?.Dispose();
+            lifetime.Dispose();
+        }
+    }
+}

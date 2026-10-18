@@ -1,5 +1,33 @@
 using PitchLens.Core;
 using PitchLens.Generation;
+using GitHub.Copilot;
+
+if (args is ["--check-model", var runtime, var modelId])
+{
+    using var check = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+    try
+    {
+        await using var client = new CopilotClient(new CopilotClientOptions
+        {
+            Connection = RuntimeConnection.ForStdio(runtime),
+            UseLoggedInUser = true,
+            LogLevel = CopilotLogLevel.Error
+        });
+        await client.StartAsync(check.Token);
+        var auth = await client.GetAuthStatusAsync(check.Token);
+        if (!auth.IsAuthenticated) throw new CopilotGenerationException("Normal Copilot login is not authenticated.");
+        var models = await client.ListModelsAsync(check.Token);
+        var model = models.SingleOrDefault(m => m.Id == modelId)
+            ?? throw new CopilotGenerationException($"Exact model {modelId} is not exposed by SDK ListModels.");
+        Console.WriteLine($"MODEL PREFLIGHT | id={model.Id} | policy={model.Policy?.State ?? "unspecified"} | reasoning={model.Capabilities.Supports.ReasoningEffort}");
+        return model.Policy?.State == "disabled" ? 1 : 0;
+    }
+    catch (Exception e) when (e is CopilotGenerationException or IOException or InvalidOperationException or OperationCanceledException)
+    {
+        Console.Error.WriteLine($"MODEL PREFLIGHT FAILED: {e.Message}");
+        return 1;
+    }
+}
 
 if (args is ["--validate", var artifact])
 {
@@ -20,6 +48,7 @@ if (args is not ["--live", var cli, var output] || !Path.IsPathFullyQualified(ou
 {
     Console.WriteLine("One paid SDK request, no retries: --live /absolute/path/to/copilot /absolute/output/scenario.json");
     Console.WriteLine("Validate existing JSON without AI/network: --validate /path/to/scenario.json");
+    Console.WriteLine("Check SDK model availability without generation: --check-model /path/to/runtime exact-model-id");
     return 2;
 }
 using var cancellation = new CancellationTokenSource(TimeSpan.FromMinutes(5));

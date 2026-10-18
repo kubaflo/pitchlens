@@ -2,6 +2,7 @@ namespace PitchLens.Generation;
 
 public static class RecordedScenario
 {
+    public const string Model = "gpt-5.4";
     public static string Json()
     {
         using var stream = typeof(RecordedScenario).Assembly.GetManifestResourceStream("PitchLens.Generation.recorded_match.json")

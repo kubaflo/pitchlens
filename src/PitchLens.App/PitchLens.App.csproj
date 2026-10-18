@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk.Razor">
   <PropertyGroup>
     <TargetFramework>net10.0-maccatalyst</TargetFramework>
     <OutputType>Exe</OutputType>
@@ -14,12 +14,13 @@
     <SupportedOSPlatformVersion>17.0</SupportedOSPlatformVersion>
     <RuntimeIdentifier>maccatalyst-arm64</RuntimeIdentifier>
     <CopilotSkipCliDownload>false</CopilotSkipCliDownload>
+    <EnableDefaultCssItems>false</EnableDefaultCssItems>
   </PropertyGroup>
   <ItemGroup>
     <MauiIcon Include="Resources/AppIcon/appicon.svg" Color="#37003C" />
     <MauiSplashScreen Include="Resources/Splash/splash.svg" Color="#37003C" BaseSize="128,128" />
-    <MauiImage Include="Resources/Images/*" />
     <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="10.0.20" />
     <PackageReference Include="GitHub.Copilot.SDK" Version="1.0.22" />
     <ProjectReference Include="../PitchLens.Core/PitchLens.Core.csproj" />
   </ItemGroup>

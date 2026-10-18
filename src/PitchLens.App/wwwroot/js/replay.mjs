@@ -1,0 +1,85 @@
+export function at(frames, time) {
+    if (time <= frames[0].time) return { x: frames[0].x, y: frames[0].y };
+    for (let i = 1; i < frames.length; i++) {
+        const b = frames[i], a = frames[i - 1];
+        if (time <= b.time) {
+            const f = (time - a.time) / (b.time - a.time);
+            return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
+        }
+    }
+    return { x: frames.at(-1).x, y: frames.at(-1).y };
+}
+export function fit(width, height) {
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) throw new RangeError("Invalid viewport.");
+    const scale = Math.min(width / 105, height / 68);
+    return { scale, left: (width - 105 * scale) / 2, top: (height - 68 * scale) / 2 };
+}
+export function hit(players, time, transform, x, y) {
+    const { left, top, scale } = transform;
+    if (x < left || y < top || x > left + 105 * scale || y > top + 68 * scale) return null;
+    const px = (x - left) / scale, py = (y - top) / scale;
+    let winner = null, distance = Infinity;
+    for (const player of players) {
+        const p = at(player.frames, time), d = Math.hypot(px - p.x, py - p.y);
+        if (d <= 2 && (d < distance || (d === distance && player.id < winner))) {
+            winner = player.id; distance = d;
+        }
+    }
+    return winner;
+}
+export class ProjectionClock {
+    revision = 0; sequence = -1; position = 0; anchor = 0; playing = false; duration = 72;
+    reset(revision, duration, now) {
+        this.revision = revision; this.duration = duration; this.sequence = -1;
+        this.position = 0; this.anchor = now; this.playing = false;
+    }
+    apply(packet, now) {
+        if (packet.revision !== this.revision || packet.sequence <= this.sequence) return false;
+        if (!Number.isFinite(packet.time) || packet.time < 0 || packet.time > this.duration) throw new RangeError("Invalid clock packet.");
+        this.sequence = packet.sequence; this.position = packet.time;
+        this.anchor = now; this.playing = packet.playing;
+        return true;
+    }
+    time(now) {
+        return Math.min(this.duration, Math.max(0, this.position + (this.playing ? Math.max(0, now - this.anchor) / 1000 : 0)));
+    }
+    freeze(now) {
+        this.position = this.time(now); this.anchor = now; this.playing = false;
+        return this.position;
+    }
+}
+export class ReplayEngine {
+    clock = new ProjectionClock(); scenario = null; selectedId = null; disposed = false;
+    lastDrawTime = 0;
+    diagnostics = { frames: 0, notifications: 0, scenarioLoads: 0, clockPackets: 0 };
+    constructor(notify = () => {}) { this.notify = notify; }
+    load(scenario, now) {
+        if (this.disposed || (this.scenario && scenario.revision <= this.scenario.revision)) return false;
+        this.scenario = scenario;
+        this.lastDrawTime = 0;
+        this.drawPlayers = [...scenario.players].sort((a, b) => a.id < b.id ? 1 : -1);
+        this.clock.reset(scenario.revision, scenario.duration, now);
+        this.diagnostics.scenarioLoads++; return true;
+    }
+    update(packet, now) {
+        if (this.disposed || !this.clock.apply(packet, now)) return false;
+        this.selectedId = packet.selectedId; this.diagnostics.clockPackets++; return true;
+    }
+    frame(now) {
+        if (this.disposed || !this.scenario) return null;
+        this.diagnostics.frames++;
+        this.lastDrawTime = this.clock.time(now);
+        return this.lastDrawTime;
+    }
+    select(x, y, width, height, now) {
+        if (this.disposed || !this.scenario) return;
+        const id = hit(this.scenario.players, this.lastDrawTime, fit(width, height), x, y);
+        if (id) { this.diagnostics.notifications++; this.notify("SelectFromPitch", id); }
+    }
+    hide(now) {
+        if (this.disposed || !this.scenario) return;
+        const time = this.clock.freeze(now);
+        this.diagnostics.notifications++; this.notify("PageHidden", time, this.clock.revision);
+    }
+    dispose() { this.disposed = true; this.clock.playing = false; this.scenario = null; this.notify = () => {}; }
+}

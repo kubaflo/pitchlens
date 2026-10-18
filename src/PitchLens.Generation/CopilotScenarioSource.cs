@@ -9,7 +9,7 @@ namespace PitchLens.Generation;
 #pragma warning disable GHCP001
 public sealed class CopilotScenarioSource(string cliPath, string workingDirectory) : IScenarioSource
 {
-    public const string Model = "gpt-5.4";
+    public const string Model = "gpt-6.1-sol";
 
     public async Task<string> GenerateAsync(IProgress<string>? progress, CancellationToken cancellationToken)
     {
@@ -34,30 +34,9 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
                 throw new CopilotGenerationException("Copilot is not authenticated. Run copilot login in Terminal with a Copilot-enabled account.");
             progress?.Report("Checking required GPT model availability…");
             var models = await client.ListModelsAsync(cancellationToken).ConfigureAwait(false);
-            var selected = models.SingleOrDefault(m => m.Id == Model);
-            if (selected is null || selected.Policy?.State == "disabled")
-                throw new CopilotGenerationException($"Required GPT model {Model} is unavailable or disabled for your Copilot account. No model fallback is allowed.");
+            RequireModel(models);
             progress?.Report($"Generating one structured synthetic match with {Model}…");
-            var session = await client.CreateSessionAsync(new SessionConfig
-            {
-                Model = Model,
-                ReasoningEffort = "medium",
-                AvailableTools = [],
-                OnPermissionRequest = (_, _) => Task.FromResult(PermissionDecision.Reject("Scenario generation does not permit tool access.")),
-                EnableConfigDiscovery = false,
-                EnableSkills = false,
-                EnableFileHooks = false,
-                EnableHostGitOperations = false,
-                EnableSessionStore = false,
-                EnableOnDemandInstructionDiscovery = false,
-                EnableSessionTelemetry = false,
-                InfiniteSessions = new InfiniteSessionConfig { Enabled = false },
-                SystemMessage = new SystemMessageConfig
-                {
-                    Mode = SystemMessageMode.Replace,
-                    Content = "You are a football replay choreographer. Plan the story first, then coordinate every player's purposeful movement with the causal event timeline. Output only the required structured JSON. Do not use tools, agents, files or external services. These actions are invented, not real athlete performance."
-                }
-            }, cancellationToken).ConfigureAwait(false);
+            var session = await client.CreateSessionAsync(CreateSessionConfig(), cancellationToken).ConfigureAwait(false);
             try
             {
                 using var schema = JsonDocument.Parse(Schema);
@@ -92,6 +71,35 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
             throw new CopilotGenerationException($"Copilot SDK/CLI request failed ({e.GetType().Name}). Check CLI compatibility, copilot login, network and access to {Model}.", e);
         }
     }
+
+    public static ModelInfo RequireModel(IEnumerable<ModelInfo> models)
+    {
+        var selected = models.SingleOrDefault(m => m.Id == Model);
+        if (selected is null || selected.Policy?.State == "disabled")
+            throw new CopilotGenerationException($"Required GPT model {Model} is unavailable or disabled for your Copilot account. No model fallback is allowed.");
+        return selected;
+    }
+
+    public static SessionConfig CreateSessionConfig() => new()
+    {
+        Model = Model,
+        ReasoningEffort = "medium",
+        AvailableTools = [],
+        OnPermissionRequest = (_, _) => Task.FromResult(PermissionDecision.Reject("Scenario generation does not permit tool access.")),
+        EnableConfigDiscovery = false,
+        EnableSkills = false,
+        EnableFileHooks = false,
+        EnableHostGitOperations = false,
+        EnableSessionStore = false,
+        EnableOnDemandInstructionDiscovery = false,
+        EnableSessionTelemetry = false,
+        InfiniteSessions = new InfiniteSessionConfig { Enabled = false },
+        SystemMessage = new SystemMessageConfig
+        {
+            Mode = SystemMessageMode.Replace,
+            Content = "You are a football replay choreographer. Plan the story first, then coordinate every player's purposeful movement with the causal event timeline. Output only the required structured JSON. Do not use tools, agents, files or external services. These actions are invented, not real athlete performance."
+        }
+    };
 
     private sealed class BoundedClient(CopilotClient client) : IAsyncDisposable
     {

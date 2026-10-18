@@ -1,6 +1,6 @@
 # PitchLens
 
-A macOS football-pitch prototype using **C#/.NET MAUI 10 (Mac Catalyst)** and the
+A macOS football-pitch prototype using **C#/.NET MAUI 10 Blazor Hybrid (Mac Catalyst)** and the
 **GitHub Copilot SDK**. The pitch is the initial, primary view, with clickable
 players, an accessible roster, pinned playback controls and a selected-player
 inspector. Statistics and scripted event notes are secondary.
@@ -16,7 +16,7 @@ or either club; submission remains deferred.
 ## Generate a match with Copilot
 
 Click **Generate match**. This makes **one bounded request** through
-`GitHub.Copilot.SDK` **1.0.22**, explicitly selecting **`gpt-5.4`** with medium reasoning.
+`GitHub.Copilot.SDK` **1.0.22**, explicitly selecting **GPT-6.1 Sol (`gpt-6.1-sol`)** with medium reasoning.
 There is no Auto, Anthropic/Claude, alternate-provider or model fallback path.
 Normal Copilot authentication and model entitlement are required. Generation
 uses Copilot services over the network and may consume your Copilot usage.
@@ -45,7 +45,7 @@ On startup the app plays a reviewed **recorded SDK example**, bundled unchanged
 from the successful live story-generation response on 2026-10-18. This is labeled
 **Recorded SDK example · Not a fresh request**, not falsely presented as a new
 generation. Startup makes no model request. Clicking Generate produces a new
-scenario labeled **Fresh Copilot SDK / GPT**; its actions remain synthetic.
+scenario labeled **Fresh SDK / gpt-6.1-sol**; its actions remain synthetic.
 Restart resets playback, not the scenario. Reopening starts the bundled example;
 subsequent generated scenarios are not automatically persisted.
 
@@ -98,6 +98,17 @@ timeout; one concrete correction (medium reasoning and a bounded longer wait)
 succeeded. There is no automatic paid retry loop. This verifies the headless
 SDK path and scenario, not native desktop UI acceptance.
 
+The later requested model switch was checked through normal authenticated SDK
+`ListModels`: **`gpt-6.1-sol` is exposed, policy enabled, reasoning supported**.
+One bounded actual Sol generation hit the 270-second response timeout without
+returning a validated scenario. It is **not** claimed as a successful Sol
+generation. Future Generate actions use only that exact Sol ID, with no fallback.
+The bundled recorded example remains the verified **gpt-5.4** response above;
+its model identity is shown explicitly in the app and retained independently of
+the requested model. The Sol switch does not relabel old data.
+Remote model-generation latency is separate from replay rendering. The Hybrid
+migration does not shorten inference or relax the bounded generation timeout.
+
 For an explicit, opt-in headless check (one model request, no retries):
 
 ```sh
@@ -144,7 +155,7 @@ during flights and goal-to-kickoff resets. The attacking goal is x=105 for Arsen
 x=0 for City. Kickoff must be at centre by the opposing team after at least two
 seconds. The ball follows its owner outside flights/resets.
 
-One monotonic clock supports play/pause/restart and forward/backward seeks.
+One authoritative native monotonic clock supports play/pause/restart and forward/backward seeks.
 Statistics filter resolved events through the current playhead, avoiding future
 events or double counting. Pass accuracy is explicitly **unavailable before an
 attempt**. Distance includes partial trajectory segments; max speed includes
@@ -162,19 +173,71 @@ packaged local images with aspect-fit sizing and a white backing for contrast
 in both themes; they require no runtime image download.
 
 Dashboard/Player/Club tabs expose synthetic leaderboards, with stable ID ties and
-native player-name buttons. Player lens and Match notes offer independently
+keyboard-accessible player-name buttons. Player lens and Match notes offer independently
 scrolling inspector content. Playback controls remain pinned regardless of tab.
 Window deactivation pauses playback; returning does not automatically resume it.
+
+## Hybrid rendering and performance
+
+The native MAUI host owns Copilot/authentication, generation, validation and the
+authoritative replay clock. Razor/HTML/CSS render the pitch-first PL-inspired
+interface in a packaged `BlazorWebView`; no web server, remote scripts, frontend
+package ecosystem or credentials in browser storage are needed.
+The architecture is inspired by the public
+[PolyPilot](https://github.com/PureWeen/PolyPilot) MAUI Blazor Hybrid host pattern;
+this implementation and CSS are original, not copied from that repository.
+
+Each scenario's trajectories cross JS interop **once per scenario revision**.
+The JavaScript canvas uses `requestAnimationFrame` for smooth local interpolation,
+with a cached static pitch layer and HiDPI backing size. Frame callbacks make
+**zero .NET notifications**. While playing, native clock packets re-anchor that
+projection at at most four timer updates per second (commands/lifecycle changes
+also synchronize immediately); sequence/revision guards reject stale packets,
+and commands/seeks/replacement reset anchors immediately. Sidebar snapshots are
+intentionally sampled, not claimed to be frame-synchronous: bridge latency and
+the bounded 250 ms sampling interval still exist. Relative seeks use the native
+clock, not the sampled sidebar time.
+
+Event explanations are rebuilt only when the visible event set or mode changes;
+story text only when a completed phase changes. Secondary rankings are computed
+only for their visible stats views. Paused/inactive views do not keep generating
+snapshots. Visibility loss freezes the JS projection and reports a single pause;
+native deactivation pauses the authority. Resize/hit-testing share CSS-pixel,
+aspect-preserving transforms, and selection uses last-drawn player positions.
+Teardown cancels animation/timers, disconnects observers, removes handlers and
+releases JS/.NET references.
+
+Reproduce the headless comparison and pure-JS tests:
+
+```sh
+dotnet run --project tools/PitchLens.Performance -c Release
+node --test tests/js/replay.test.mjs
+```
+
+On this machine, the representative 72-second/30 Hz **pure computation** workload
+(Casual explanation mode)
+went from **2,161 updates, 109.39 ms, 72.82 MiB allocations** to **289 snapshots,
+2.82 ms, 4.27 MiB**, with **20** explanation builds and **7** story builds.
+Timing/allocation values are medians of five warmed runs, not pass/fail thresholds.
+The comparison includes the same ranking calculations in both cases; the actual
+pitch view does not sort hidden leaderboards. Node tests execute 600 actual
+animation-engine frames with **zero native notifications**, one scenario load
+and one clock packet, then separately test visibility, stale packets, seek/reset,
+interpolation, letterboxes, overlap selection and disposal.
+These measurements **exclude native control/layout cost, canvas/GPU time,
+WebView startup and actual packaged WKWebView frame rate**. They are not a
+runtime smoothness certification; manual visual acceptance remains required.
 
 ## Projects and setup
 
 | Project | Target | Purpose |
 |---|---|---|
-| `src/PitchLens.App` | `net10.0-maccatalyst` | Native desktop pitch, replay and async generation UI |
+| `src/PitchLens.App` | `net10.0-maccatalyst` | Native services + Razor/HTML/CSS UI + JS canvas motion |
 | `src/PitchLens.Core` | `net10.0` | Deterministic replay, statistics, explanations and transforms |
 | `src/PitchLens.Generation` | `net10.0` | Verified roster, typed SDK adapter, parser, causal validation and request state |
 | `tests/PitchLens.Core.Tests` | `net10.0` | Headless replay and injectable-fake generation tests |
 | `tools/PitchLens.Generate` | `net10.0` | Explicit bounded live SDK verification |
+| `tools/PitchLens.Performance` | `net10.0` | Reproducible headless legacy/bounded computation comparison |
 
 Verified build toolchain: **.NET SDK 10.0.402**, workload set **10.0.302**
 (Mac Catalyst SDK **26.5.10301**), **Xcode 26.6 (17F113)** and MAUI Controls
@@ -205,7 +268,10 @@ restore packages and acquire the checksum-verified runtime at build time.
 ```sh
 dotnet workload install maui-maccatalyst
 dotnet test tests/PitchLens.Core.Tests -c Release
+node --test tests/js/replay.test.mjs
 dotnet build src/PitchLens.App -c Debug \
+  -p:EnableCodeSigning=true -p:CodesignKey=- -p:CreatePackage=false
+dotnet build src/PitchLens.App -c Release \
   -p:EnableCodeSigning=true -p:CodesignKey=- -p:CreatePackage=false
 ```
 
@@ -217,7 +283,7 @@ can run headlessly without a MAUI workload.
 
 ## User-operated runtime acceptance
 
-The SDK-enabled native UI still requires manual acceptance. Build/test success
+The SDK-enabled packaged Hybrid UI still requires manual acceptance. Build/test success
 and the live headless request do not certify native interaction. Only when you
 choose to launch the app yourself:
 
@@ -270,11 +336,11 @@ thumbnail caches or image-result pages):
 
 | Local asset | Source |
 |---|---|
-| `src/PitchLens.App/Resources/Images/arsenal_crest.png` | https://resources.premierleague.com/premierleague/badges/t3.png |
-| `src/PitchLens.App/Resources/Images/manchester_city_crest.png` | https://resources.premierleague.com/premierleague/badges/t43.png |
+| `src/PitchLens.App/wwwroot/images/arsenal_crest.png` | https://resources.premierleague.com/premierleague/badges/t3.png |
+| `src/PitchLens.App/wwwroot/images/manchester_city_crest.png` | https://resources.premierleague.com/premierleague/badges/t43.png |
 
 Both are verified 200 x 200 RGBA PNG crests with transparency. They are included
-as local `MauiImage` resources. This source record does not claim that Google
+as packaged local web assets. This source record does not claim that Google
 returned or licensed these assets.
 
 The original internal `DemoMatch` fixture remains fictional for stable regression

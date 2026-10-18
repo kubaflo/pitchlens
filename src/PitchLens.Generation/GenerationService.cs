@@ -16,8 +16,9 @@ public sealed class GenerationService(IScenarioSource source, Match initial, Sce
     public Match Current { get; private set; } = initial;
     public GenerationState State { get; private set; }
     public string Status { get; private set; } = initialOrigin == ScenarioOrigin.RecordedSdkExample
-        ? "Recorded SDK example · Not a fresh request" : "Deterministic demo · Not SDK-generated";
+        ? $"Recorded SDK example · {RecordedScenario.Model} · Not a fresh request" : "Deterministic demo · Not SDK-generated";
     public ScenarioOrigin Origin { get; private set; } = initialOrigin;
+    public string? CurrentModel { get; private set; } = initialOrigin == ScenarioOrigin.RecordedSdkExample ? RecordedScenario.Model : null;
     public bool IsSdkGenerated => Origin == ScenarioOrigin.FreshSdkGeneration;
 
     public async Task GenerateAsync(IProgress<string>? progress, CancellationToken cancellationToken)
@@ -37,6 +38,7 @@ public sealed class GenerationService(IScenarioSource source, Match initial, Sce
             timeout.Token.ThrowIfCancellationRequested();
             Current = candidate;
             Origin = ScenarioOrigin.FreshSdkGeneration;
+            CurrentModel = CopilotScenarioSource.Model;
             State = GenerationState.Succeeded;
             Status = "Copilot SDK · GPT-generated synthetic match · Not a real match";
         }

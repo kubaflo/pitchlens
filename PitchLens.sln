@@ -19,6 +19,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{07C2787E
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PitchLens.Generate", "tools\PitchLens.Generate\PitchLens.Generate.csproj", "{8115D7B6-806C-467E-BA73-4EA4A27F9860}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PitchLens.Performance", "tools\PitchLens.Performance\PitchLens.Performance.csproj", "{2614C973-CF03-4131-859B-C7DC070662A2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -89,6 +91,18 @@ Global
 		{8115D7B6-806C-467E-BA73-4EA4A27F9860}.Release|x64.Build.0 = Release|Any CPU
 		{8115D7B6-806C-467E-BA73-4EA4A27F9860}.Release|x86.ActiveCfg = Release|Any CPU
 		{8115D7B6-806C-467E-BA73-4EA4A27F9860}.Release|x86.Build.0 = Release|Any CPU
+		{2614C973-CF03-4131-859B-C7DC070662A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2614C973-CF03-4131-859B-C7DC070662A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2614C973-CF03-4131-859B-C7DC070662A2}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2614C973-CF03-4131-859B-C7DC070662A2}.Debug|x64.Build.0 = Debug|Any CPU
+		{2614C973-CF03-4131-859B-C7DC070662A2}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2614C973-CF03-4131-859B-C7DC070662A2}.Debug|x86.Build.0 = Debug|Any CPU
+		{2614C973-CF03-4131-859B-C7DC070662A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2614C973-CF03-4131-859B-C7DC070662A2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2614C973-CF03-4131-859B-C7DC070662A2}.Release|x64.ActiveCfg = Release|Any CPU
+		{2614C973-CF03-4131-859B-C7DC070662A2}.Release|x64.Build.0 = Release|Any CPU
+		{2614C973-CF03-4131-859B-C7DC070662A2}.Release|x86.ActiveCfg = Release|Any CPU
+		{2614C973-CF03-4131-859B-C7DC070662A2}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -99,5 +113,6 @@ Global
 		{C51D7490-C79A-4950-9D88-79D0321E5257} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{21B9746A-AB41-4AF6-B5BB-D3F91F92B254} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{8115D7B6-806C-467E-BA73-4EA4A27F9860} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
+		{2614C973-CF03-4131-859B-C7DC070662A2} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 	EndGlobalSection
 EndGlobal
