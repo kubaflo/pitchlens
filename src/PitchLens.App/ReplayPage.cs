@@ -87,7 +87,6 @@ public sealed class ReplayPage : ContentPage, IDisposable
         };
         segments.Add(casual, 0);
         segments.Add(analyst, 1);
-        SemanticProperties.SetDescription(segments, "Scripted explanation detail");
         SemanticProperties.SetDescription(timeline, "Replay time in seconds, zero to seventy-two");
         timeline.ValueChanged += (_, e) =>
         {
