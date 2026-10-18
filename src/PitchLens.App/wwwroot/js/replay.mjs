@@ -27,6 +27,13 @@ export function hit(players, time, transform, x, y) {
     }
     return winner;
 }
+export function keyboardAction(event) {
+    const target = event.target;
+    if (event.defaultPrevented || event.repeat || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey ||
+        target?.isContentEditable || ["INPUT", "TEXTAREA", "SELECT", "BUTTON", "A", "SUMMARY"].includes(target?.tagName?.toUpperCase()) ||
+        target?.closest?.("input,textarea,select,button,a,summary,[contenteditable='true'],[role='textbox']")) return null;
+    return event.key === " " ? "toggle" : event.key === "ArrowLeft" ? "back" : event.key === "ArrowRight" ? "forward" : null;
+}
 export class ProjectionClock {
     revision = 0; sequence = -1; position = 0; anchor = 0; playing = false; duration = 72;
     reset(revision, duration, now) {
@@ -80,6 +87,10 @@ export class ReplayEngine {
         if (this.disposed || !this.scenario) return;
         const time = this.clock.freeze(now);
         this.diagnostics.notifications++; this.notify("PageHidden", time, this.clock.revision);
+    }
+    keyboard(command) {
+        if (this.disposed) return;
+        this.diagnostics.notifications++; this.notify("KeyboardCommand", command);
     }
     dispose() { this.disposed = true; this.clock.playing = false; this.scenario = null; this.notify = () => {}; }
 }

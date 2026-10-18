@@ -1,12 +1,12 @@
-import { ReplayEngine, at, fit } from "./replay.mjs";
+import { ReplayEngine, at, fit, keyboardAction } from "./replay.mjs";
 
-let engine, canvas, context, background, observer, reference, frameId = null;
-let pointerHandler, visibilityHandler, rangeDown, rangeUp, range, width = 0, height = 0, dragging = false;
+let engine, canvas, viewport, context, background, observer, reference, frameId = null;
+let pointerHandler, visibilityHandler, keyboardHandler, rangeDown, rangeUp, range, width = 0, height = 0, dragging = false;
 const now = () => performance.now();
 
 export function initialize(element, dotnet) {
     dispose();
-    canvas = element; reference = dotnet; context = canvas.getContext("2d");
+    canvas = element; viewport = element.parentElement; reference = dotnet; context = canvas.getContext("2d");
     background = document.createElement("canvas");
     engine = new ReplayEngine((method, ...args) => {
         if (reference) reference.invokeMethodAsync(method, ...args).catch(error => {
@@ -19,7 +19,7 @@ export function initialize(element, dotnet) {
             dispose();
         });
     });
-    observer = new ResizeObserver(resize); observer.observe(canvas);
+    observer = new ResizeObserver(resize); observer.observe(viewport);
     window.addEventListener("resize", resize);
     pointerHandler = event => {
         const box = canvas.getBoundingClientRect();
@@ -28,6 +28,11 @@ export function initialize(element, dotnet) {
     canvas.addEventListener("pointerdown", pointerHandler);
     visibilityHandler = () => { if (document.hidden) { engine?.hide(now()); stop(); } else draw(); };
     document.addEventListener("visibilitychange", visibilityHandler);
+    keyboardHandler = event => {
+        const command = keyboardAction(event);
+        if (command) { event.preventDefault(); engine?.keyboard(command); }
+    };
+    window.addEventListener("keydown", keyboardHandler);
     range = document.getElementById("timeline");
     rangeDown = () => { dragging = true; };
     rangeUp = () => { dragging = false; };
@@ -37,8 +42,8 @@ export function initialize(element, dotnet) {
 }
 function stop() { if (frameId !== null) cancelAnimationFrame(frameId); frameId = null; }
 function resize() {
-    if (!canvas) return;
-    const box = canvas.getBoundingClientRect();
+    if (!canvas || !viewport) return;
+    const box = viewport.getBoundingClientRect();
     width = box.width; height = box.height;
     if (width <= 0 || height <= 0) { stop(); return; }
     const dpr = window.devicePixelRatio || 1;
@@ -46,7 +51,7 @@ function resize() {
     background.width = canvas.width; background.height = canvas.height;
     const c = background.getContext("2d"), t = fit(width, height);
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
-    c.fillStyle = "#242333"; c.fillRect(0, 0, width, height);
+    c.fillStyle = "#23372f"; c.fillRect(0, 0, width, height);
     c.translate(t.left, t.top); c.scale(t.scale, t.scale);
     c.fillStyle = "#4b7355"; c.fillRect(0, 0, 105, 68);
     c.fillStyle = "#50795a";
@@ -75,14 +80,14 @@ function draw() {
         c.beginPath();
         const points = selected.frames.filter(f => f.time < time).concat(at(selected.frames, time));
         points.forEach((p, i) => i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y));
-        c.strokeStyle = "#d8b9f0"; c.lineWidth = .4; c.stroke();
+        c.strokeStyle = "#9ecbff"; c.lineWidth = .4; c.stroke();
     }
     for (const p of engine.drawPlayers) {
         const point = at(p.frames, time);
         if (p.id === engine.selectedId) { c.lineWidth = .6; circle(c, point.x, point.y, 2.8, null, "#fff"); }
         circle(c, point.x + .15, point.y + .3, 2.2, "#23382b", null);
-        c.lineWidth = .18; circle(c, point.x, point.y, 2, p.teamId === "arsenal" ? "#00ff87" : "#ff2882", "#f4f4ef");
-        c.fillStyle = "#37003c"; c.font = "bold 2.5px -apple-system, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
+        c.lineWidth = .18; circle(c, point.x, point.y, 2, p.teamId === "arsenal" ? "#bf3545" : "#82b9da", "#f4f4ef");
+        c.fillStyle = p.teamId === "arsenal" ? "#ffffff" : "#102638"; c.font = "bold 2.5px -apple-system, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
         c.fillText(String(p.number), point.x, point.y);
     }
     const ball = at(engine.scenario.ball, time); c.lineWidth = .2; circle(c, ball.x, ball.y, .85, "#fff", "#000");
@@ -107,9 +112,10 @@ export function dispose() {
     window.removeEventListener("resize", resize);
     if (canvas && pointerHandler) canvas.removeEventListener("pointerdown", pointerHandler);
     if (visibilityHandler) document.removeEventListener("visibilitychange", visibilityHandler);
+    if (keyboardHandler) window.removeEventListener("keydown", keyboardHandler);
     if (range && rangeDown) range.removeEventListener("pointerdown", rangeDown);
     if (rangeUp) window.removeEventListener("pointerup", rangeUp);
     engine?.dispose();
-    engine = canvas = context = background = observer = reference = range = null;
-    pointerHandler = visibilityHandler = rangeDown = rangeUp = null;
+    engine = canvas = viewport = context = background = observer = reference = range = null;
+    pointerHandler = visibilityHandler = keyboardHandler = rangeDown = rangeUp = null;
 }

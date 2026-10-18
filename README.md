@@ -71,7 +71,7 @@ protocol mismatch: installed CLI `1.0.100-1` failed SDK startup parsing
 `$.timestamp`, before authentication or any model request. The SDK-matched
 native runtime worked with the same normal local login.
 
-Leave the optional CLI override under **Player lens** blank to use the bundled
+Leave the optional CLI override under collapsed **Settings** blank to use the bundled
 runtime. An override must be an absolute path to a compatible executable; a
 missing/incompatible override is an error, not a reason to switch models.
 The local development app is not an App Store/sandboxed deployment: it starts
@@ -165,22 +165,27 @@ generation, since roster IDs remain stable.
 Drawing and inverse click hit-testing share the same aspect-preserving transform.
 Letterbox margins do not select players. Nearest player within the marker radius
 wins, with ordinal ID resolving exact overlaps; the roster also selects obscured
-players. White rings and lilac past-only trails show selection. Mint is Arsenal,
-pink is Manchester City. Actual club crests appear in the score strip,
-selected-player club identity and player/club leaderboard rows. Moving pitch
+players. White rings and pale-blue past-only trails show selection. Muted red
+is Arsenal, sky blue is Manchester City. Actual club crests appear in the compact
+score toolbar and selected-player club identity. Moving pitch
 markers retain readable shirt numbers rather than large logos. Crests are
 packaged local images with aspect-fit sizing and a white backing for contrast
 in both themes; they require no runtime image download.
 
-Dashboard/Player/Club tabs expose synthetic leaderboards, with stable ID ties and
-keyboard-accessible player-name buttons. Player lens and Match notes offer independently
-scrolling inspector content. Playback controls remain pinned regardless of tab.
+The focused macOS viewer keeps four selected-player statistics visible; **More**
+contains shots and max speed. **Match story** discloses narrative/event notes and
+Casual/Analyst controls. **Settings** holds model/runtime information. A small
+**Synthetic match** disclosure exposes source/model provenance without repeating
+it across the main view. There is no large banner or dashboard/tab strip.
+Playback controls remain pinned. Space toggles playback and Left/Right seek one
+second outside inputs, buttons, links and disclosures, preserving their native
+keyboard behavior and system focus rings.
 Window deactivation pauses playback; returning does not automatically resume it.
 
 ## Hybrid rendering and performance
 
 The native MAUI host owns Copilot/authentication, generation, validation and the
-authoritative replay clock. Razor/HTML/CSS render the pitch-first PL-inspired
+authoritative replay clock. Razor/HTML/CSS render the focused pitch-first
 interface in a packaged `BlazorWebView`; no web server, remote scripts, frontend
 package ecosystem or credentials in browser storage are needed.
 The architecture is inspired by the public
@@ -199,11 +204,13 @@ the bounded 250 ms sampling interval still exist. Relative seeks use the native
 clock, not the sampled sidebar time.
 
 Event explanations are rebuilt only when the visible event set or mode changes;
-story text only when a completed phase changes. Secondary rankings are computed
-only for their visible stats views. Paused/inactive views do not keep generating
+story text only when a completed phase changes. The simplified viewer does not
+render leaderboards. Paused/inactive views do not keep generating
 snapshots. Visibility loss freezes the JS projection and reports a single pause;
 native deactivation pauses the authority. Resize/hit-testing share CSS-pixel,
 aspect-preserving transforms, and selection uses last-drawn player positions.
+The canvas fills an intrinsic-size-independent grid-slot wrapper; resize observes
+that wrapper, so HiDPI backing dimensions cannot enlarge the layout row.
 Teardown cancels animation/timers, disconnects observers, removes handlers and
 releases JS/.NET references.
 
@@ -211,7 +218,7 @@ Reproduce the headless comparison and pure-JS tests:
 
 ```sh
 dotnet run --project tools/PitchLens.Performance -c Release
-node --test tests/js/replay.test.mjs
+node --test tests/js/*.test.mjs
 ```
 
 On this machine, the representative 72-second/30 Hz **pure computation** workload
@@ -219,11 +226,14 @@ On this machine, the representative 72-second/30 Hz **pure computation** workloa
 went from **2,161 updates, 109.39 ms, 72.82 MiB allocations** to **289 snapshots,
 2.82 ms, 4.27 MiB**, with **20** explanation builds and **7** story builds.
 Timing/allocation values are medians of five warmed runs, not pass/fail thresholds.
-The comparison includes the same ranking calculations in both cases; the actual
-pitch view does not sort hidden leaderboards. Node tests execute 600 actual
+The comparison conservatively retains the same legacy ranking calculations in
+both cases; the simplified viewer no longer renders those boards. Node tests execute 600 actual
 animation-engine frames with **zero native notifications**, one scenario load
 and one clock packet, then separately test visibility, stale packets, seek/reset,
-interpolation, letterboxes, overlap selection and disposal.
+interpolation, letterboxes, overlap selection and disposal. A mocked-DOM test
+also checks that wrapper resizing, HiDPI backing updates, hide/reveal and
+observer teardown cannot feed backing dimensions back into layout. It does not
+replace actual WKWebView layout acceptance.
 These measurements **exclude native control/layout cost, canvas/GPU time,
 WebView startup and actual packaged WKWebView frame rate**. They are not a
 runtime smoothness certification; manual visual acceptance remains required.
@@ -268,7 +278,7 @@ restore packages and acquire the checksum-verified runtime at build time.
 ```sh
 dotnet workload install maui-maccatalyst
 dotnet test tests/PitchLens.Core.Tests -c Release
-node --test tests/js/replay.test.mjs
+node --test tests/js/*.test.mjs
 dotnet build src/PitchLens.App -c Debug \
   -p:EnableCodeSigning=true -p:CodesignKey=- -p:CreatePackage=false
 dotnet build src/PitchLens.App -c Release \
@@ -292,10 +302,11 @@ dotnet build src/PitchLens.App -c Debug -t:Run \
   -p:EnableCodeSigning=true -p:CodesignKey=- -p:CreatePackage=false
 ```
 
-Confirm pitch-first startup, real names/shirts, prominent recorded/synthetic
-label, playback/seeks/selection, unavailable initial accuracy, no future notes
-after backward seeks, readable light/dark and narrow/wide layout, and individual
-keyboard-accessible mode and leaderboard buttons. Generate a match with normal
+Confirm pitch-first startup with the full pitch inside its slot at 1024x768 and
+1586x967, real names/shirts, accessible synthetic/source disclosure,
+playback/seeks/selection, initial accuracy with no attempts, no future notes
+after backward seeks, readable light/dark layout, and keyboard-accessible
+roster, disclosures, mode buttons and transport. Generate a match with normal
 login, verify progress and successful provenance change, cancel another request,
 and test an invalid CLI override: the last valid match must stay playable and
 failures must be visible. Close while generating to verify cleanup. Each actual
@@ -320,10 +331,15 @@ Rúben Dias (3), Phil Foden (47), Rayan Cherki (10), Erling Haaland (9),
 Jérémy Doku (11). Names retain the verified source spellings/diacritics. This
 bounded roster is not a live transfer/squad feed or an exhaustive squad.
 
-The palette/layout reference is the [Premier League Stats page](https://www.premierleague.com/en/stats):
-lilac `#953BFF` to cyan `#05F0FF`, purple `#37003C`, mint `#00FF87`, pink
-`#FF2882`, underlined tabs and ranked secondary cards. This is an original native
-interpretation, not an exact/pixel-verified website copy or an official product.
+The visual direction follows Apple's
+[Typography](https://developer.apple.com/design/human-interface-guidelines/typography)
+and [Designing for macOS](https://developer.apple.com/design/human-interface-guidelines/designing-for-macos)
+guidance: OS-provided SF through `-apple-system`/`BlinkMacSystemFont`/`system-ui`,
+13 CSS-pixel logical body text, readable 12-pixel secondary text, 15-17-pixel
+semibold headings, neutral light/dark surfaces and restrained blue actions.
+This supersedes the earlier PL website-style gradient/dashboard direction.
+These are original HIG-aligned web controls, not a claim of AppKit-native
+materials or pixel-perfect Apple UI. No system fonts or Apple assets are downloaded.
 Club crest use is based on the user's stated permission for **this hackathon
 prototype**. This records user-reported permission, not a blanket redistribution
 or open-asset license, and does not imply league/club endorsement. The club crests

@@ -13,7 +13,7 @@ public partial class App : Application
     {
         var window = new Window(new MainPage())
         {
-            Title = "PitchLens | Synthetic match lab",
+            Title = "PitchLens",
             Width = 1280,
             Height = 860,
             MinimumWidth = 640,

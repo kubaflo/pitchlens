@@ -19,6 +19,7 @@ public sealed class MatchService : IDisposable
     public bool Generating => cancellation is not null;
     public string? CurrentModel { get; private set; } = RecordedScenario.Model;
     public bool Fresh { get; private set; }
+    public GenerationState RequestState => generation.State;
     public Match Match => presentation.Match;
 
     public MatchService()

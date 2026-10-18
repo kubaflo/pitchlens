@@ -1,12 +1,27 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ProjectionClock, ReplayEngine, at, fit, hit } from "../../src/PitchLens.App/wwwroot/js/replay.mjs";
+import { ProjectionClock, ReplayEngine, at, fit, hit, keyboardAction } from "../../src/PitchLens.App/wwwroot/js/replay.mjs";
 
 const players = [
     { id: "h2", frames: [{ time: 0, x: 30, y: 30 }, { time: 72, x: 40, y: 30 }] },
     { id: "h1", frames: [{ time: 0, x: 30, y: 30 }, { time: 72, x: 40, y: 30 }] }
 ];
 const clip = { revision: 1, duration: 72, players, ball: players[0].frames };
+test("viewer shortcuts work outside controls without intercepting typing or native activation", () => {
+    const event = { key: " ", target: { tagName: "DIV" } };
+    assert.equal(keyboardAction(event), "toggle");
+    assert.equal(keyboardAction({ ...event, key: "ArrowLeft" }), "back");
+    assert.equal(keyboardAction({ ...event, key: "ArrowRight" }), "forward");
+    for (const tagName of ["INPUT", "TEXTAREA", "SELECT", "BUTTON", "A", "SUMMARY"])
+        assert.equal(keyboardAction({ ...event, target: { tagName } }), null);
+    assert.equal(keyboardAction({ ...event, target: { isContentEditable: true } }), null);
+    assert.equal(keyboardAction({ ...event, metaKey: true }), null);
+    assert.equal(keyboardAction({ ...event, repeat: true }), null);
+    const messages = [];
+    const engine = new ReplayEngine((...args) => messages.push(args));
+    engine.keyboard("toggle"); engine.dispose(); engine.keyboard("back");
+    assert.deepEqual(messages, [["KeyboardCommand", "toggle"]]);
+});
 test("native anchors reset seeks and ignore stale clock packets", () => {
     const clock = new ProjectionClock();
     clock.reset(1, 72, 0);
