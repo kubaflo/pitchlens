@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>01 Matchday — PitchLens design prototype</title><link rel="stylesheet" href="assets/mocks.css"><script defer src="assets/core.js"></script><script defer src="assets/demo-data.js"></script><script defer src="assets/mocks.js"></script></head>
+<body class="mock matchday" data-design="matchday" data-start="28">
+  <header class="brand-bar"><a href="index.html" class="wordmark">PitchLens<span>01 / Matchday</span></a><span class="prototype-tag">Design prototype · Synthetic demo</span><button class="button mint" data-open="composer">New match</button></header>
+  <div class="page-heading"><div><span class="eyebrow">Your match centre</span><h1>Every move matters.</h1></div><div class="actions"><button class="button" data-open="roster">Players</button><button class="button purple" data-open="story">Match story</button></div></div>
+  <section class="score-strip" aria-label="Illustrative match score"><div class="team"><img src="assets/images/arsenal.png" alt="Arsenal crest"><strong>Arsenal</strong></div><div class="score-centre"><strong class="score" data-score>0 : 0</strong><span class="caption">72-second synthetic replay</span></div><div class="team away"><strong>Manchester City</strong><img src="assets/images/manchester-city.png" alt="Manchester City crest"></div></section>
+  <main class="matchday-stage"><div class="pitch" data-pitch aria-label="Synthetic football replay"></div><div class="pitch-caption"><span>Click a shirt. Get the player lens.</span><span class="caption" data-current-beat>Scripted match story</span></div></main>
+  <footer class="transport light-dock"><button class="button" data-restart>Restart</button><button class="button purple play" data-play>Play</button><label class="scrub-label">Replay<input type="range" min="0" max="72" step="0.1" data-scrub aria-label="Replay time"></label><output data-clock>28.0 / 72.0 s</output><button class="icon-button" data-open="settings" aria-label="Replay settings">Settings</button></footer>
+</body></html>
