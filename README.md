@@ -13,18 +13,21 @@ play/pause/restart, a timeline, and +/-5-second seeks. Select a player by clicki
 the pitch or using the native roster picker. Selection survives all seeks and
 restarts; a white ring and lilac trail show that player's selection and
 already-travelled path. Mint and pink markers distinguish the fictional teams.
-The native Stats Centre uses bold system typography, a lilac-to-cyan gradient
-hero and white underlined tabs above neutral leaderboard cards. Light mode uses
-white surfaces and purple text; dark mode uses deep plum surfaces and lilac text.
-Dashboard opens first, with horizontally scrollable Goals, Shots, Passes and
-Distance player cards followed by club cards. Each player card shows the top
+The native Match Centre opens directly on the football pitch with the selected
+player inspector alongside it. A compact lilac-to-cyan header, bold system
+typography and white underlined tabs frame the replay without displacing it.
+Light mode uses white surfaces and purple text; dark mode uses deep plum surfaces
+and lilac text. Stats are secondary: Dashboard contains horizontally scrollable
+Goals, Shots, Passes and Distance player cards followed by club cards.
+Each player card shows the top
 five players, ranked by the current metric with ordinal player ID breaking ties.
 Selecting a player name opens that actual player's inspector. Passes rank
 resolved attempts; completed-pass totals and accuracy remain in the inspector.
 Club cards sum the same current player snapshot, with team ID breaking ties.
 
-The functional Dashboard, Player and Club tabs filter the displayed sections;
-Match replay opens the flexible pitch. Original H/O marks identify the fictional
+Match replay is the first and initially selected tab, showing the flexible pitch.
+The secondary Dashboard, Player and Club tabs filter the statistics sections.
+Original H/O marks identify the fictional
 teams. Player lens and Match notes switch the independently scrollable side
 inspector, keeping both usable in shorter windows. The timeline and mint
 transport remain pinned outside every tab's scrolling content. Horizontal card

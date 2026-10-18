@@ -53,7 +53,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
 
     public ReplayPage()
     {
-        Title = "PitchLens · Stats Centre";
+        Title = "PitchLens · Match Centre";
         this.SetAppThemeColor(BackgroundColorProperty, Color.FromArgb("#FAF9FA"), Color.FromArgb("#1E0021"));
         drawable = new(match) { SelectedId = selectedId };
         pitch = new GraphicsView { Drawable = drawable, AutomationId = "pitch", MinimumHeightRequest = 60 };
@@ -185,7 +185,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
         openReplay.Clicked += (_, _) => SelectTab("Match replay");
         nav.Add(openReplay, 2);
         var tabBar = new HorizontalStackLayout { Spacing = 20 };
-        foreach (var name in new[] { "Dashboard", "Player", "Club", "Match replay" })
+        foreach (var name in new[] { "Match replay", "Dashboard", "Player", "Club" })
         {
             var button = new Button
             {
@@ -205,19 +205,17 @@ public sealed class ReplayPage : ContentPage, IDisposable
         }
         var hero = new Grid
         {
-            Padding = new Thickness(24, 16),
-            MinimumHeightRequest = 146,
-            RowDefinitions = Rows(GridLength.Auto, GridLength.Auto, GridLength.Auto),
-            RowSpacing = 8,
+            Padding = new Thickness(20, 10),
+            RowDefinitions = Rows(GridLength.Auto, GridLength.Auto),
+            RowSpacing = 4,
             Background = new LinearGradientBrush(
                 new GradientStopCollection { new GradientStop(Color.FromArgb("#953BFF"), 0), new GradientStop(Color.FromArgb("#05F0FF"), 1) },
                 new Point(0, .5), new Point(1, .5))
         };
-        hero.Add(new Label { Text = "Stats Centre", FontSize = 36, FontAttributes = FontAttributes.Bold, TextColor = Colors.White });
-        hero.Add(new Label { Text = "72-second synthetic match · Event-backed statistics", FontSize = 12, TextColor = Colors.White }, 0, 1);
-        hero.Add(new ScrollView { Orientation = ScrollOrientation.Horizontal, Content = tabBar }, 0, 2);
+        hero.Add(new Label { Text = "Match Centre", FontSize = 25, FontAttributes = FontAttributes.Bold, TextColor = Colors.White });
+        hero.Add(new ScrollView { Orientation = ScrollOrientation.Horizontal, Content = tabBar }, 0, 1);
         var matchStrip = new Grid { ColumnDefinitions = Columns(GridLength.Star, GridLength.Auto), ColumnSpacing = 12 };
-        matchStrip.Add(Caption("Match dashboard · Not official Premier League data"));
+        matchStrip.Add(Caption("72-second synthetic replay · Not official Premier League data"));
         matchStrip.Add(scoreboard, 1);
         var root = new Grid
         {
@@ -235,7 +233,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
         SelectInspector(false);
-        SelectTab("Dashboard");
+        SelectTab("Match replay");
         SetMode(ExplanationMode.Casual);
     }
 
