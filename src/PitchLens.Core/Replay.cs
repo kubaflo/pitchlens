@@ -117,7 +117,7 @@ public static class Explanations
             {
                 EventKind.Pass when e.Completed == true => $"{actor.Name} finds {receiver!.Name} with a completed pass.",
                 EventKind.Pass => $"{actor.Name}'s pass is intercepted by {receiver!.Name}.",
-                EventKind.Carry => $"{actor.Name} carries the ball forward.",
+                EventKind.Carry => $"{actor.Name} carries the ball.",
                 EventKind.Shot => $"{actor.Name} takes a shot.",
                 EventKind.Goal => $"{actor.Name} scores for {match.Teams.Single(t => t.Id == actor.TeamId).Name}.",
                 EventKind.Kickoff => $"{actor.Name} restarts play.",

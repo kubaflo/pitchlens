@@ -1,13 +1,28 @@
 using Microsoft.Maui.Controls.Shapes;
 using Microsoft.Maui.Dispatching;
 using PitchLens.Core;
+using PitchLens.Generation;
 
 namespace PitchLens.App;
 
 public sealed class ReplayPage : ContentPage, IDisposable
 {
-    private readonly Match match = DemoMatch.Create();
-    private readonly Playback playback = new(DemoMatch.Duration, new MonotonicClock());
+    private Match match = PremierLeagueRoster.CreateDeterministicDemo();
+    private Playback playback = new(72, new MonotonicClock());
+    private readonly GenerationService generation;
+    private readonly Button generate = new() { Text = "Generate match", AutomationId = "generate-match" };
+    private readonly Button cancelGeneration = new() { Text = "Cancel", AutomationId = "cancel-generation", IsVisible = false };
+    private readonly ActivityIndicator generating = new() { Color = MatchTheme.Purple, IsVisible = false };
+    private readonly Label generationStatus = Caption("Deterministic demo · Not SDK-generated");
+    private readonly Entry cliPath = new()
+    {
+        Placeholder = "Bundled runtime (leave blank)",
+        FontSize = 12,
+        AutomationId = "copilot-cli-path",
+        MinimumWidthRequest = 180
+    };
+    private readonly Label dataset = Caption("");
+    private CancellationTokenSource? generationCancellation;
     private readonly PitchDrawable drawable;
     private readonly GraphicsView pitch;
     private readonly Label scoreboard = new() { FontSize = 18, FontAttributes = FontAttributes.Bold };
@@ -45,7 +60,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
     private readonly Dictionary<string, Button> tabs = [];
     private readonly Dictionary<string, BoxView> tabLines = [];
     private IDispatcherTimer? timer;
-    private string selectedId = "h3";
+    private string selectedId = "arsenal-odegaard";
     private ExplanationMode explanationMode;
     private bool updatingTimeline, disposed;
     private string insightKey = "";
@@ -53,6 +68,9 @@ public sealed class ReplayPage : ContentPage, IDisposable
 
     public ReplayPage()
     {
+        generation = new GenerationService(new AppScenarioSource(this), match);
+        dataset.AutomationId = "scenario-provenance";
+        generationStatus.AutomationId = "generation-status";
         Title = "PitchLens · Match Centre";
         this.SetAppThemeColor(BackgroundColorProperty, Color.FromArgb("#FAF9FA"), Color.FromArgb("#1E0021"));
         drawable = new(match) { SelectedId = selectedId };
@@ -114,7 +132,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
         var replay = new Grid { RowDefinitions = Rows(GridLength.Auto, GridLength.Star, GridLength.Auto), RowSpacing = 12 };
         replay.Add(replayHeader);
         replay.Add(pitch, 0, 1);
-        replay.Add(Caption("Mint: Harbor · Pink: Orchard · White: ball & selection · Lilac: past movement"), 0, 2);
+        replay.Add(Caption("Mint: Arsenal · Pink: Manchester City · White: ball & selection · Lilac: past movement"), 0, 2);
         replayPanel = Panel(replay);
 
         playerSection.Children.Add(Heading("Player stats", 24));
@@ -126,7 +144,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
         AddPlayerBoard(playerCards, "Distance", s => s.Distance, n => $"{n:F1} m");
         playerSection.Children.Add(new ScrollView { Orientation = ScrollOrientation.Horizontal, Content = playerCards });
         clubSection.Children.Add(Heading("Club stats", 24));
-        clubSection.Children.Add(Caption("Fictional teams · Current match only, not a season dataset"));
+        clubSection.Children.Add(Caption("2026/27 roster snapshot · Synthetic match, not real club performance"));
         var clubCards = new HorizontalStackLayout { Spacing = 16 };
         AddClubBoard(clubCards, "Goals", s => s.Goals, n => n.ToString("0"));
         AddClubBoard(clubCards, "Shots", s => s.Shots, n => n.ToString("0"));
@@ -152,14 +170,18 @@ public sealed class ReplayPage : ContentPage, IDisposable
             {
                 Spacing = 12,
                 Children = { Heading("Selected player", 18), roster, identity, teamIdentity, statRows,
-                    Caption("Resolved attempts only. Distance and speed are trajectory-derived to the playhead.") }
+                    Caption("Resolved synthetic attempts only. Not actual player performance."),
+                    Caption("Copilot SDK generation"),
+                    Caption($"GPT only: {CopilotScenarioSource.Model}. Uses bundled compatible runtime and normal copilot login. One bounded request per click; may consume Copilot usage."),
+                    Caption("Optional compatible CLI override (absolute path):"),
+                    cliPath }
             }
         });
         var eventGrid = new Grid { RowDefinitions = Rows(GridLength.Auto, GridLength.Auto, GridLength.Auto, GridLength.Star), RowSpacing = 10 };
         eventsPanel = Panel(eventGrid);
         eventGrid.Add(Heading("Match notes", 18));
         eventGrid.Add(segments, 0, 1);
-        eventGrid.Add(Caption("Scripted facts · Not generated AI"), 0, 2);
+        eventGrid.Add(Caption("Scripted explanations · No AI commentary"), 0, 2);
         eventGrid.Add(new ScrollView { Content = new VerticalStackLayout { Spacing = 10, Children = { emptyInsights, insights } } }, 0, 3);
         var inspectorTabs = new Grid { ColumnDefinitions = Columns(GridLength.Star, GridLength.Star), ColumnSpacing = 4 };
         inspectorTabs.Add(playerLens);
@@ -180,7 +202,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
 
         var nav = new Grid { ColumnDefinitions = Columns(GridLength.Auto, GridLength.Star, GridLength.Auto), ColumnSpacing = 12 };
         nav.Add(Heading("PitchLens", 17));
-        nav.Add(Caption("Independent synthetic demo · Local only"), 1);
+        nav.Add(Caption("Independent · 2026/27 names · Synthetic actions"), 1);
         var openReplay = new Button { Text = "Match replay", AutomationId = "open-replay", Padding = new Thickness(10, 4), MinimumHeightRequest = 28 };
         openReplay.Clicked += (_, _) => SelectTab("Match replay");
         nav.Add(openReplay, 2);
@@ -215,19 +237,32 @@ public sealed class ReplayPage : ContentPage, IDisposable
         hero.Add(new Label { Text = "Match Centre", FontSize = 25, FontAttributes = FontAttributes.Bold, TextColor = Colors.White });
         hero.Add(new ScrollView { Orientation = ScrollOrientation.Horizontal, Content = tabBar }, 0, 1);
         var matchStrip = new Grid { ColumnDefinitions = Columns(GridLength.Star, GridLength.Auto), ColumnSpacing = 12 };
-        matchStrip.Add(Caption("72-second synthetic replay · Not official Premier League data"));
+        matchStrip.Add(dataset);
         matchStrip.Add(scoreboard, 1);
+        generate.Clicked += OnGenerateClicked;
+        cancelGeneration.Clicked += (_, _) => generationCancellation?.Cancel();
+        var generationRow = new Grid
+        {
+            ColumnDefinitions = Columns(GridLength.Auto, GridLength.Auto, GridLength.Auto, GridLength.Star),
+            ColumnSpacing = 8,
+            RowDefinitions = Rows(GridLength.Auto)
+        };
+        generationRow.Add(generate);
+        generationRow.Add(cancelGeneration, 1);
+        generationRow.Add(generating, 2);
+        generationRow.Add(generationStatus, 3);
         var root = new Grid
         {
             Padding = new Thickness(20, 12),
             RowSpacing = 12,
-            RowDefinitions = Rows(GridLength.Auto, GridLength.Auto, GridLength.Auto, GridLength.Star, GridLength.Auto)
+            RowDefinitions = Rows(GridLength.Auto, GridLength.Auto, GridLength.Auto, GridLength.Star, GridLength.Auto, GridLength.Auto)
         };
         root.Add(nav);
         root.Add(hero, 0, 1);
         root.Add(matchStrip, 0, 2);
         root.Add(main, 0, 3);
         root.Add(transport, 0, 4);
+        root.Add(generationRow, 0, 5);
         Content = root;
         SizeChanged += OnSizeChanged;
         Loaded += OnLoaded;
@@ -238,6 +273,68 @@ public sealed class ReplayPage : ContentPage, IDisposable
     }
 
     private string TeamName(string id) => match.Teams.Single(t => t.Id == id).Name;
+
+    private sealed class AppScenarioSource(ReplayPage page) : IScenarioSource
+    {
+        public Task<string> GenerateAsync(IProgress<string>? progress, CancellationToken cancellationToken)
+        {
+            var executable = string.IsNullOrWhiteSpace(page.cliPath.Text)
+                ? System.IO.Path.Combine(Foundation.NSBundle.MainBundle.ResourcePath
+                    ?? throw new CopilotGenerationException("The app resource directory is missing; rebuild the app bundle."),
+                    "CopilotRuntime", "prebuilds", "darwin-arm64", "copilot-runtime")
+                : page.cliPath.Text.Trim();
+            var directory = FileSystem.AppDataDirectory;
+            return Task.Run(() => new CopilotScenarioSource(executable, directory).GenerateAsync(progress, cancellationToken), cancellationToken);
+        }
+    }
+
+    private async void OnGenerateClicked(object? sender, EventArgs e)
+    {
+        if (disposed || generationCancellation is not null) return;
+        Suspend();
+        var cancellation = new CancellationTokenSource();
+        generationCancellation = cancellation;
+        generate.IsEnabled = false;
+        cancelGeneration.IsVisible = true;
+        generating.IsVisible = generating.IsRunning = true;
+        cliPath.IsEnabled = false;
+        generationStatus.Text = "Connecting to Copilot SDK…";
+        var progress = new Progress<string>(message =>
+        {
+            if (!disposed && generation.State == GenerationState.Generating &&
+                ReferenceEquals(generationCancellation, cancellation)) generationStatus.Text = message;
+        });
+        try
+        {
+            await generation.GenerateAsync(progress, cancellation.Token);
+            if (disposed) return;
+            generationStatus.Text = generation.Status;
+            if (generation.State == GenerationState.Succeeded)
+            {
+                match = generation.Current;
+                playback.Restart();
+                timer?.Stop();
+                drawable.Match = match;
+                insightKey = "";
+                foreach (var board in playerBoards) board.Order = "";
+                foreach (var board in clubBoards) board.Order = "";
+                SelectTab("Match replay");
+                Render();
+            }
+        }
+        finally
+        {
+            generationCancellation = null;
+            cancellation.Dispose();
+            if (!disposed)
+            {
+                generate.IsEnabled = true;
+                cancelGeneration.IsVisible = false;
+                generating.IsRunning = generating.IsVisible = false;
+                cliPath.IsEnabled = true;
+            }
+        }
+    }
 
     private void SelectTab(string name)
     {
@@ -317,7 +414,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
                     row.GestureRecognizers.Add(tap);
                     var choose = new Button
                     {
-                        Text = player.Name,
+                        Text = player.Name.Split(' ').Last(),
                         BackgroundColor = Colors.Transparent,
                         HorizontalOptions = LayoutOptions.Start,
                         Padding = 0,
@@ -355,7 +452,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
                 {
                     var value = Heading("", 19);
                     board.Values.Add(ranked[i].Team.Id, value);
-                    board.List.Children.Add(RankRow(i + 1, ranked[i].Team.Name, "Synthetic club", ranked[i].Team.Id, value));
+                    board.List.Children.Add(RankRow(i + 1, ranked[i].Team.Name, "Synthetic match totals", ranked[i].Team.Id, value));
                 }
             }
             foreach (var entry in ranked) board.Values[entry.Team.Id].Text = board.Format(entry.Total);
@@ -384,7 +481,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
             StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(3, 3, 8, 8) },
             Content = new Label
             {
-                Text = teamId == "harbor" ? "H" : "O",
+                Text = teamId == "arsenal" ? "A" : "M",
                 TextColor = MatchTheme.Purple,
                 FontSize = 12,
                 FontAttributes = FontAttributes.Bold,
@@ -483,7 +580,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
         timer.Tick += OnTick;
     }
 
-    private void OnUnloaded(object? sender, EventArgs e) { Suspend(); ReleaseTimer(); }
+    private void OnUnloaded(object? sender, EventArgs e) { Suspend(); generationCancellation?.Cancel(); ReleaseTimer(); }
     private void OnTick(object? sender, EventArgs e) { Render(); if (!playback.IsPlaying) timer?.Stop(); }
 
     private void OnSizeChanged(object? sender, EventArgs e)
@@ -531,7 +628,8 @@ public sealed class ReplayPage : ContentPage, IDisposable
         drawable.Time = time;
         drawable.SelectedId = selectedId;
         pitch.Invalidate();
-        scoreboard.Text = $"Harbor  {snapshot.Score["harbor"]} : {snapshot.Score["orchard"]}  Orchard";
+        scoreboard.Text = $"Arsenal  {snapshot.Score["arsenal"]} : {snapshot.Score["manchester-city"]}  Man City";
+        dataset.Text = $"2026/27 · Synthetic 6v6 · {(generation.IsSdkGenerated ? "Copilot SDK / GPT" : "Deterministic demo (not AI)")}";
         possession.Text = snapshot.OwnerId is null ? "Ball in transit" : $"Possession · {match.Player(snapshot.OwnerId).Name}";
         clock.Text = $"{time:00.0} / {match.Duration:00.0} s" + (time >= match.Duration ? " · Full time" : "");
         play.Text = playback.IsPlaying ? "Pause" : "Play";
@@ -540,7 +638,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
         timeline.Value = time;
         updatingTimeline = false;
         identity.Text = $"{selected.Name}  #{selected.Number}";
-        teamIdentity.Text = $"{TeamName(selected.TeamId)} · Synthetic player";
+        teamIdentity.Text = $"{TeamName(selected.TeamId)} · Real roster name, synthetic actions";
         var accuracy = s.PassAccuracy is double value ? value.ToString("P0") : "Unavailable (no attempts)";
         stats["Passes completed"].Text = $"{s.CompletedPasses} / {s.Passes}";
         stats["Pass accuracy"].Text = accuracy;
@@ -591,6 +689,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
     {
         if (disposed) return;
         Suspend();
+        generationCancellation?.Cancel();
         disposed = true;
         ReleaseTimer();
         Loaded -= OnLoaded;

@@ -5,12 +5,14 @@ namespace PitchLens.App;
 
 public sealed class PitchDrawable(Match match) : IDrawable
 {
+    public Match Match { get; set; } = match;
     public double Time { get; set; }
     public string? SelectedId { get; set; }
     public const double PlayerRadius = 2;
 
     public void Draw(ICanvas canvas, RectF dirtyRect)
     {
+        var match = Match;
         if (dirtyRect.Width <= 0 || dirtyRect.Height <= 0) return;
         var transform = PitchTransform.Fit(dirtyRect.Width, dirtyRect.Height);
         var scale = (float)transform.Scale;

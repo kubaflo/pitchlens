@@ -1,70 +1,158 @@
 # PitchLens
 
-An independent, local-only macOS match replay prototype, written in C# and
-.NET MAUI 10 (Mac Catalyst). The 72-second **synthetic 6v6 match** has original
-generated trajectories, two fictional teams, and scripted explanations.
-**There is no generated AI, video analysis, or real match tracking in this milestone.**
-Hackathon submission is deferred.
+A macOS football-pitch prototype using **C#/.NET MAUI 10 (Mac Catalyst)** and the
+**GitHub Copilot SDK**. The pitch is the initial, primary view, with clickable
+players, an accessible roster, pinned playback controls and a selected-player
+inspector. Statistics and scripted event notes are secondary.
 
-## What is included
+**Real roster names; synthetic match actions.** The app uses selected Arsenal and
+Manchester City players from a verified **2026/27** snapshot, checked
+**2026-10-18**. These are illustrative **6-a-side selections**, not actual
+starting XIs, match results, athlete performance or a season dataset. We chose
+2026/27 as the current season when the requested “Premier League 2026” season
+could not be clarified. PitchLens is independent and unaffiliated with the league
+or either club; submission remains deferred.
 
-An aspect-preserving 2D pitch, interpolated players and ball, score and possession,
-play/pause/restart, a timeline, and +/-5-second seeks. Select a player by clicking
-the pitch or using the native roster picker. Selection survives all seeks and
-restarts; a white ring and lilac trail show that player's selection and
-already-travelled path. Mint and pink markers distinguish the fictional teams.
-The native Match Centre opens directly on the football pitch with the selected
-player inspector alongside it. A compact lilac-to-cyan header, bold system
-typography and white underlined tabs frame the replay without displacing it.
-Light mode uses white surfaces and purple text; dark mode uses deep plum surfaces
-and lilac text. Stats are secondary: Dashboard contains horizontally scrollable
-Goals, Shots, Passes and Distance player cards followed by club cards.
-Each player card shows the top
-five players, ranked by the current metric with ordinal player ID breaking ties.
-Selecting a player name opens that actual player's inspector. Passes rank
-resolved attempts; completed-pass totals and accuracy remain in the inspector.
-Club cards sum the same current player snapshot, with team ID breaking ties.
+## Generate a match with Copilot
 
-Match replay is the first and initially selected tab, showing the flexible pitch.
-The secondary Dashboard, Player and Club tabs filter the statistics sections.
-Original H/O marks identify the fictional
-teams. Player lens and Match notes switch the independently scrollable side
-inspector, keeping both usable in shorter windows. The timeline and mint
-transport remain pinned outside every tab's scrolling content. Horizontal card
-overflow preserves readable rows on narrow windows; the whole page does not scroll.
+Click **Generate match**. This makes **one bounded request** through
+`GitHub.Copilot.SDK` **1.0.22**, explicitly selecting **`gpt-5.4-mini`**.
+There is no Auto, Anthropic/Claude, alternate-provider or model fallback path.
+Normal Copilot authentication and model entitlement are required. Generation
+uses Copilot services over the network and may consume your Copilot usage.
+No API key or token is configured or read by application code.
 
-Team and player pass totals, pass accuracy, player shots/goals, distance in metres,
-and maximum observed speed in metres/second are derived from the same replay
-time. Pass accuracy is **unavailable before any resolved attempt**, not zero.
-Casual and Analyst modes show scripted, event-backed explanations with event IDs,
-timestamps, and buttons to pause/seek to the event. Seeking backward removes
-future explanations, statistics, trails and goals. Window deactivation, stopping,
-unloading or destruction pauses playback; returning does not automatically resume.
+The model produces structured JSON containing **all player keyframes and
+timestamped pass/carry/shot/goal events**, not merely commentary or a random
+seed. A JSON response schema constrains output; application validation is the
+authority before it can become a playable match. Roster names, clubs and shirt
+numbers are mapped from the verified local roster, never invented by the model.
 
-## Projects
+The UI shows connecting/authentication/model/generation/validation progress and
+a Cancel action. Generation runs off the UI thread, is limited to three minutes
+(the model response wait is 150 seconds), and never automatically retries.
+Malformed data, authentication, entitlement, compatibility, timeout and transport
+errors are visible. Failure/cancellation **keeps the previous valid match**, with
+no success-shaped demo fallback. A successful generation replaces the match
+atomically and restarts at time zero on the pitch. Cancel/unload/window-close
+retires the request; SDK session/runtime resources are disposed.
+Cleanup has its own deadline; if graceful SDK disposal stalls, only that
+generation's owned runtime is stopped and the cleanup error is reported.
 
-| Project | Target | Responsibility |
+On startup the app explicitly labels its **deterministic demo (not AI)**. It uses
+the same real roster names, but its event sequence is authored locally. A generated
+match is labeled **Copilot SDK / GPT**, and its events are still synthetic.
+Restart resets playback, not the scenario. Closing/reopening the app starts
+the deterministic demo again; generated scenarios are not automatically persisted.
+The note explanations remain deterministic scripts derived from the current
+match's events, **not a second AI request**.
+
+### Authentication and the compatible runtime
+
+Install/use the normal [GitHub Copilot CLI](https://docs.github.com/copilot/concepts/agents/about-copilot-cli)
+and run `copilot login` yourself in Terminal with an account entitled to the
+selected GPT model. The app reuses this normal local authentication through the
+SDK; it does not extract credentials, launch a login browser, change settings or
+install anything during generation.
+
+The app bundles the SDK-pinned **Copilot runtime 1.0.98**. SDK build targets
+download it from the official GitHub release and verify its SHA-256 against
+that release's `SHA256SUMS.txt`; the app packages the runtime assets and license
+as resources. The local system CLI is **not modified**. This avoids an observed
+protocol mismatch: installed CLI `1.0.100-1` failed SDK startup parsing
+`$.timestamp`, before authentication or any model request. The SDK-matched
+native runtime worked with the same normal local login.
+
+Leave the optional CLI override under **Player lens** blank to use the bundled
+runtime. An override must be an absolute path to a compatible executable; a
+missing/incompatible override is an error, not a reason to switch models.
+The local development app is not an App Store/sandboxed deployment: it starts
+an owned stdio runtime process and requires access to normal local Copilot auth.
+No OS settings, Gatekeeper warnings or authentication prompts are bypassed.
+
+### Live verification evidence
+
+A real SDK request using the pinned native runtime and `gpt-5.4-mini` produced
+a valid **72-second** scenario with **12 roster players, 6 ordered events,
+2 passes, 2 carries, 1 shot and 1 goal**, maximum player speed **1.523 m/s**.
+The generated JSON was validated and saved only in session artifacts, not
+committed as a supposedly real match. Preflight attempts with the incompatible
+system CLI failed before a model request; no automatic paid generation loop
+was used. This verifies the headless SDK path, not native desktop UI acceptance.
+
+For an explicit, opt-in headless check (one model request, no retries):
+
+```sh
+dotnet run --project tools/PitchLens.Generate -- \
+  --live /absolute/path/to/compatible/copilot-runtime /absolute/path/to/scenario.json
+```
+
+Without `--live` and both paths this tool prints usage and makes no request.
+`--validate /path/to/scenario.json` revalidates existing JSON without AI/network.
+Never use these synthetic outputs as evidence of real player actions.
+
+## Replay and validation contract
+
+The replay lasts 72 seconds on a 105 x 68 metre pitch. Stable local IDs identify
+teams/players independently of third-party databases. The SDK may change
+trajectories and event choices/times; a validated scenario then replays
+deterministically, independent of render frequency.
+
+Validation rejects missing/extra/duplicate JSON properties, oversized payloads,
+unknown or repeated roster IDs, missing players, non-finite/out-of-bounds
+coordinates, unordered timestamps, invalid references, duplicate event IDs,
+overlapping actions, incorrect possession actors, inconsistent pass outcomes,
+stationary carries, unpaired shots/goals and invalid opposing kickoffs.
+Player segments must stay at or below **8 m/s**, ball flights at or below
+**40 m/s**. Each trajectory covers 0-72 seconds. This bounded generator supports
+only scoring shots with explicit same-time shot/goal ordering; no xG, assists,
+clean-sheet, pressure or formation metrics are invented.
+
+Ball motion/possession are deterministically derived from validated player paths
+and events, not accepted as an unrelated model-supplied track. Possession is null
+during flights and goal-to-kickoff resets. The attacking goal is x=105 for Arsenal,
+x=0 for City. Kickoff must be at centre by the opposing team after at least two
+seconds. The ball follows its owner outside flights/resets.
+
+One monotonic clock supports play/pause/restart and forward/backward seeks.
+Statistics filter resolved events through the current playhead, avoiding future
+events or double counting. Pass accuracy is explicitly **unavailable before an
+attempt**. Distance includes partial trajectory segments; max speed includes
+only segments with positive elapsed time. Selection persists across seeks and
+generation, since roster IDs remain stable.
+
+Drawing and inverse click hit-testing share the same aspect-preserving transform.
+Letterbox margins do not select players. Nearest player within the marker radius
+wins, with ordinal ID resolving exact overlaps; the roster also selects obscured
+players. White rings and lilac past-only trails show selection. Mint is Arsenal,
+pink is Manchester City; original A/M marks are not club crests.
+
+Dashboard/Player/Club tabs expose synthetic leaderboards, with stable ID ties and
+native player-name buttons. Player lens and Match notes offer independently
+scrolling inspector content. Playback controls remain pinned regardless of tab.
+Window deactivation pauses playback; returning does not automatically resume it.
+
+## Projects and setup
+
+| Project | Target | Purpose |
 |---|---|---|
-| `src/PitchLens.Core` | `net10.0` | Immutable scenario data, validation, interpolation, playback, stats, explanations and coordinate transforms |
-| `src/PitchLens.App` | `net10.0-maccatalyst` | Native MAUI desktop controls and a `GraphicsView`/`IDrawable` pitch |
-| `tests/PitchLens.Core.Tests` | `net10.0` | Pure headless xUnit tests; no Apple test runtime or UI automation |
+| `src/PitchLens.App` | `net10.0-maccatalyst` | Native desktop pitch, replay and async generation UI |
+| `src/PitchLens.Core` | `net10.0` | Deterministic replay, statistics, explanations and transforms |
+| `src/PitchLens.Generation` | `net10.0` | Verified roster, typed SDK adapter, parser, causal validation and request state |
+| `tests/PitchLens.Core.Tests` | `net10.0` | Headless replay and injectable-fake generation tests |
+| `tools/PitchLens.Generate` | `net10.0` | Explicit bounded live SDK verification |
 
-No backend, database, server, network calls, secrets or cloud account are needed
-at runtime. NuGet access is needed for initial dependency/workload restoration.
-The app does not request network-client entitlement.
+Verified build toolchain: **.NET SDK 10.0.402**, workload set **10.0.302**
+(Mac Catalyst SDK **26.5.10301**), **Xcode 26.6 (17F113)** and MAUI Controls
+**10.0.20**. `global.json` pins SDK/workload versions. The [official .NET SDK API](https://github.com/github/copilot-sdk/blob/v1.0.22/dotnet/README.md) adapter uses
+`CopilotClient`, `RuntimeConnection.ForStdio`, `StartAsync`, `GetAuthStatusAsync`,
+`ListModelsAsync`, `CreateSessionAsync` and `SendAndWaitAsync` with a JSON response
+schema. The pinned SDK marks response schemas/permission decisions experimental;
+only this adapter suppresses that explicit diagnostic. Tools are unavailable and
+permission requests are rejected; skill/config discovery and host git/file hooks
+are disabled. No model shell/filesystem operations are needed.
 
-## Setup and compile
-
-The verified toolchain is **.NET SDK 10.0.402**, workload set **10.0.302**
-(Mac Catalyst SDK **26.5.10301**), **Xcode 26.6 (17F113)**, and MAUI Controls
-**10.0.20**. The repository pins the SDK and workload set in `global.json`.
-Do not replace these with .NET/MAUI 11 preview packages or silently disable
-Xcode version validation. An older .NET 10 workload can require an older Xcode,
-and the newest workload can require a newer Xcode; the workload pin matters.
-
-Use an Apple Silicon Mac with Xcode installed and its prerequisites already
-accepted/configured by you. The project targets Mac Catalyst 17.0+ and defaults
-to `maccatalyst-arm64`; Intel Macs are not validated. Check prerequisites first:
+Check prerequisites without changing Xcode or the shared installation:
 
 ```sh
 dotnet --info
@@ -73,145 +161,76 @@ xcodebuild -version
 xcode-select -p
 ```
 
-Install the pinned stable SDK from the official [.NET downloads](https://dotnet.microsoft.com/download/dotnet/10.0)
-if missing. Prefer a user-owned SDK installation when the shared installation
-cannot be modified. The
-[official installer](https://learn.microsoft.com/dotnet/core/tools/dotnet-install-script)
-supports `--version 10.0.402 --install-dir "$HOME/.dotnet-pitchlens" --no-path`.
-When using that installation, prefix the commands below with
-`"$HOME/.dotnet-pitchlens/dotnet"` instead of `dotnet`. No shared SDK, Xcode
-selection, or OS settings need to be changed.
-
-From the repository root, install only the required macOS workload, then compile:
+If necessary install the pinned stable SDK from the official .NET download using
+a user-owned directory. The official `dotnet-install.sh` supports
+`--version 10.0.402 --install-dir "$HOME/.dotnet-pitchlens" --no-path`.
+Use that installation's `dotnet` executable below instead of modifying shared
+SDKs or OS settings. NuGet and official GitHub release access are needed to
+restore packages and acquire the checksum-verified runtime at build time.
 
 ```sh
 dotnet workload install maui-maccatalyst
 dotnet test tests/PitchLens.Core.Tests -c Release
 dotnet build src/PitchLens.App -c Debug \
-  -p:EnableCodeSigning=false -p:CreatePackage=false
+  -p:EnableCodeSigning=true -p:CodesignKey=- -p:CreatePackage=false
 ```
 
-The workload command honors `global.json`'s `10.0.302` pin. A machine-wide SDK
-may require administrator rights for workload installation; use a user-owned
-SDK instead of changing shared tools without consent. Core tests can also run
-headlessly on non-macOS .NET 10 hosts without the MAUI workload.
+The build creates an ad-hoc signed development bundle at
+`src/PitchLens.App/bin/Debug/net10.0-maccatalyst/maccatalyst-arm64/PitchLens.app`;
+it does **not** launch it. Apple Silicon/macOS with configured Xcode is required;
+Intel/distribution/App Store packaging is not verified. Core/generation tests
+can run headlessly without a MAUI workload.
 
-The compile command builds an unsigned `.app` under
-`src/PitchLens.App/bin/Debug/net10.0-maccatalyst/maccatalyst-arm64/`.
-It does **not** launch the app and is not a distribution or App Store package.
-The initial prototype was launched at the user's request for manual testing.
-The redesigned interface still requires user-operated visual/runtime acceptance.
+## User-operated runtime acceptance
 
-## User-operated runtime acceptance (not yet verified)
-
-Only when you choose to use the desktop app, run the following yourself.
-Local ad-hoc signing avoids a distribution certificate:
+The SDK-enabled native UI still requires manual acceptance. Build/test success
+and the live headless request do not certify native interaction. Only when you
+choose to launch the app yourself:
 
 ```sh
 dotnet build src/PitchLens.App -c Debug -t:Run \
-  -p:CodesignKey=- -p:CreatePackage=false
+  -p:EnableCodeSigning=true -p:CodesignKey=- -p:CreatePackage=false
 ```
 
-This is a **manual launch instruction, not an executed verification step**.
-If signing or Gatekeeper blocks the launch, resolve it through your approved
-local development setup; do not bypass system warnings.
+Confirm pitch-first startup, real names/shirts, prominent synthetic/not-AI-demo
+label, playback/seeks/selection, unavailable initial accuracy, no future notes
+after backward seeks, readable light/dark and narrow/wide layout, and individual
+keyboard-accessible mode and leaderboard buttons. Generate a match with normal
+login, verify progress and successful provenance change, cancel another request,
+and test an invalid CLI override: the last valid match must stay playable and
+failures must be visible. Close while generating to verify cleanup. Each actual
+generation is a separate potentially billable user action. Do not run automated
+tests that make live requests.
 
-1. Open Match replay and play through the full 72 seconds. Confirm players/ball animate, the clock
-   stops at full time, and the final score is Harbor 1 : 0 Orchard.
-2. Pause, wait, resume, seek in both directions, and restart. Confirm no elapsed
-   time accumulates while paused and no stats or goals are counted twice.
-3. Select a leaderboard row, switch between Dashboard/Player/Club, then open
-   Match replay. Confirm card values track the playhead and decrease on backward
-   seeks. Select Finch in the roster and then a player on the pitch. Confirm
-   selection survives seeks/restart, with a white ring/lilac trail. Verify the
-   picker works with keyboard and the system accessibility tools you normally use.
-4. Seek to 55 seconds, 56 seconds and back to 0. Confirm the goal/explanations
-   appear only at 56, and the initial pass accuracy says unavailable. Switch
-   to Match notes, change Casual/Analyst and use an event replay button;
-   selection should not change. Return to Player lens to inspect the same player.
-5. Resize the window narrow/wide/tall and check light/dark system appearance.
-   Confirm pinned playback controls, horizontal leaderboard scrolling,
-   independently scrolling inspector/notes, an undistorted pitch and correct
-   selection. Clicking letterbox margins must not select a player.
-6. Deactivate the window while playing, then return. Confirm playback stays paused.
-   Close the window and confirm no continued playback work.
+No XCTest, simulators, screen-controlling UI automation, screenshots or app
+launches form part of this feature's automated verification.
 
-There are **no XCTest tests, app launches, simulator tests, screenshots, or
-screen-controlling automation** in the automated validation workflow. A passing
-build and headless tests do not certify the native desktop interactions above.
+## Roster and visual provenance
 
-## Synthetic scenario and measurement contract
+Roster facts checked 2026-10-18:
 
-`DemoMatch.Create()` uses a fixed xorshift seed, `2026`, stable IDs (`harbor`,
-`orchard`, `h1`-`h6`, `a1`-`a6`), and a 105 x 68 metre pitch. Alternate seeds
-change only background movement; all authored events retain their IDs/times.
-Player paths remain below 8 m/s, including transitions into/out of authored
-routes. These are illustrative movements, not a physical match simulator.
+- Arsenal 2026/27 shirt numbers: [official squad article](https://www.arsenal.com/news/arsenal-confirm-202627-squad-numbers-aPsbc3S4LJdQ).
+- Manchester City names/numbers: [official men's player list](https://www.mancity.com/players/mens).
+- Season/club confirmation: [Arsenal](https://www.premierleague.com/en/clubs/3/arsenal/squad)
+  and [Manchester City](https://www.premierleague.com/en/clubs/43/manchester-city/squad).
 
-| Time (s) | Event | Verified synthetic fact |
-|---|---|---|
-| 8 | E01 | Reed passes to Finch |
-| 16 | E02 | Finch's pass is intercepted by Ash |
-| 24 | E03 | Ash passes to Field |
-| 32 | E04 | Field's pass is intercepted by Finch |
-| 42 | E05 | Finch completes a forward carry from 36-42 s |
-| 48 | E06 | Finch passes to Wren |
-| 56 | E07, then E08 | Wren's shot reaches the goal; Harbor scores |
-| 58 | E09 | Rowan restarts play at centre |
-| 64 | E10 | Rowan passes to Field |
+Arsenal: David Raya (1), William Saliba (2), Martin Odegaard (8), Declan Rice
+(41), Bukayo Saka (7), Viktor Gyokeres (14). City: Gianluigi Donnarumma (1),
+Rúben Dias (3), Phil Foden (47), Rayan Cherki (10), Erling Haaland (9),
+Jérémy Doku (11). Names retain the verified source spellings/diacritics. This
+bounded roster is not a live transfer/squad feed or an exhaustive squad.
 
-Final totals: **6 resolved pass attempts, 4 completed passes, 1 carry, 1 shot,
-1 goal**. Each team has 3 attempts and 2 completed passes. Pass/shot timestamps
-record the resolved action; passes and the shot have a two-second flight before
-that instant. Possession is null during flight and the 56-58 s goal-to-centre
-reset; the ball visually returns to centre during that reset. No claim of
-player possession is made while it is in transit.
+The palette/layout reference is the [Premier League Stats page](https://www.premierleague.com/en/stats):
+lilac `#953BFF` to cyan `#05F0FF`, purple `#37003C`, mint `#00FF87`, pink
+`#FF2882`, underlined tabs and ranked secondary cards. This is an original native
+interpretation, not an exact/pixel-verified website copy or an official product.
+No endorsement or official-asset permission is claimed. No lion logo, club crests,
+photographs, proprietary fonts, site CSS/scripts or page markup are bundled.
+The pitch, A/M team marks and app icon/splash are original artwork.
 
-Trajectories have strictly increasing timestamps covering the whole match.
-Positions interpolate linearly in pitch metres. Distance sums completed segment
-lengths plus the elapsed portion of the active segment; maximum speed is the
-largest segment speed observed over a positive elapsed interval, zero initially.
-The active segment's constant speed counts as soon as any of it has elapsed.
-This is synthetic trajectory speed, not a measured human performance claim.
-
-One monotonic `Stopwatch` clock anchors playback; render frequency does not
-advance simulation state. Every snapshot is recomputed at the requested time,
-with events filtered by timestamp and ordered by explicit sequence for ties.
-Queries clamp finite out-of-range times and reject non-finite times.
-The scenario validates player/team/event references, ordered timestamps, finite
-in-bounds coordinates and event outcome consistency.
-
-Drawing and inverse hit-testing share `PitchTransform`. Margins are excluded;
-the nearest player within the rendered 2 m radius wins. Exact overlaps use
-ordinal player ID as a stable tie-break, with that player drawn on top. The
-roster remains the alternative for selecting obscured players.
-
-## Provenance and deferred scope
-
-The visual structure references the [Premier League Stats Centre](https://www.premierleague.com/en/stats)
-(observed October 2026): a lilac `#953BFF` to cyan `#05F0FF` hero, underlined
-tabs, ordered player/club sections, ranked cards and neutral/plum surfaces.
-Purple `#37003C`, mint `#00FF87` and pink `#FF2882` complement this palette.
-PitchLens is an **independent, unaffiliated synthetic demo**, not an official
-Premier League product. No permission or endorsement is claimed. In accordance
-with the site's [asset-use restrictions](https://www.premierleague.com/en/terms-and-conditions),
-no official lion logo, club crests, photographs, proprietary fonts, site CSS or
-scripts are downloaded or bundled. The team marks are original artwork; the
-fictional players are not paired with real athlete images. This is a native
-interpretation using supported match metrics, not an exact or pixel-verified
-copy of the website. Nonfunctional website navigation and untracked metrics
-(such as assists) are deliberately omitted.
-
-All names, teams, trajectories, pitch artwork, icon/splash SVGs and explanation
-scripts are original synthetic demo content authored for this prototype. There
-are no club marks, borrowed footage, athlete data, external fonts or downloaded
-art assets. The project/platform scaffolding comes from the official .NET MAUI
-template. MAUI/.NET and test dependencies retain their upstream licenses; this
-private prototype does not grant a new license to its original application code.
-No API credentials, real personal data or proprietary match assets are bundled.
-
-Foundry integration, live/generated AI, computer vision, real video, iOS/Android,
-backends/databases/SignalR, multi-agent execution and hackathon submission are
-explicitly deferred. No xG, pressure, formations or other unobserved metrics are
-invented. Current explanations are deterministic scripts grounded in event facts,
-not AI output.
+The original internal `DemoMatch` fixture remains fictional for stable regression
+tests only; the app remaps it to verified names before display and never calls it
+SDK-generated. Dependencies and bundled Copilot runtime retain upstream licenses.
+No credentials, private personal data or proprietary match assets are committed.
+Foundry, CV/video, other platforms, backend/database/SignalR, multi-agent runtime
+and hackathon submission remain out of scope.

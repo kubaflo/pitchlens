@@ -7,5 +7,10 @@ internal static class MatchTheme
     public static readonly Color Pink = Color.FromArgb("#FF2882");
     public static readonly Color Lilac = Color.FromArgb("#D8B9F0");
 
-    public static Color Team(string teamId) => teamId == "harbor" ? Mint : Pink;
+    public static Color Team(string teamId) => teamId switch
+    {
+        "arsenal" => Mint,
+        "manchester-city" => Pink,
+        _ => throw new ArgumentException("Unknown roster team.", nameof(teamId))
+    };
 }

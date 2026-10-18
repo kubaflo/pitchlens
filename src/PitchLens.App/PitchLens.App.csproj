@@ -13,11 +13,26 @@
     <ApplicationVersion>1</ApplicationVersion>
     <SupportedOSPlatformVersion>17.0</SupportedOSPlatformVersion>
     <RuntimeIdentifier>maccatalyst-arm64</RuntimeIdentifier>
+    <CopilotSkipCliDownload>false</CopilotSkipCliDownload>
   </PropertyGroup>
   <ItemGroup>
     <MauiIcon Include="Resources/AppIcon/appicon.svg" Color="#37003C" />
     <MauiSplashScreen Include="Resources/Splash/splash.svg" Color="#37003C" BaseSize="128,128" />
     <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
+    <PackageReference Include="GitHub.Copilot.SDK" Version="1.0.22" />
     <ProjectReference Include="../PitchLens.Core/PitchLens.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\PitchLens.Generation\PitchLens.Generation.csproj" />
+  </ItemGroup>
+  <!-- SDK content must also be bundle resources for native runtime lookup. -->
+  <Target Name="BundleCopilotRuntime" BeforeTargets="_CollectBundleResources" DependsOnTargets="_RegisterCopilotCliForCopy">
+    <ItemGroup>
+      <BundleResource Include="@(_CopilotRuntimeRootAsset)"
+                      LogicalName="CopilotRuntime/%(RecursiveDir)%(Filename)%(Extension)" />
+      <BundleResource Include="@(_CopilotRuntimePrebuildAsset)"
+                      LogicalName="CopilotRuntime/prebuilds/darwin-arm64/%(RecursiveDir)%(Filename)%(Extension)" />
+      <BundleResource Include="$(_CopilotCacheDir)/LICENSE.md" LogicalName="CopilotRuntime/LICENSE.md" />
+    </ItemGroup>
+  </Target>
 </Project>

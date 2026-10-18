@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\PitchLens.Core\PitchLens.Core.csproj" />
+    <ProjectReference Include="..\..\src\PitchLens.Generation\PitchLens.Generation.csproj" />
   </ItemGroup>
 
 </Project>
