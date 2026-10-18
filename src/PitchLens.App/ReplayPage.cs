@@ -1,4 +1,3 @@
-using System.Globalization;
 using Microsoft.Maui.Controls.Shapes;
 using Microsoft.Maui.Dispatching;
 using PitchLens.Core;
@@ -11,33 +10,13 @@ public sealed class ReplayPage : ContentPage, IDisposable
     private readonly Playback playback = new(DemoMatch.Duration, new MonotonicClock());
     private readonly PitchDrawable drawable;
     private readonly GraphicsView pitch;
-    private readonly Label scoreboard = new()
-    {
-        FontSize = 32,
-        FontAttributes = FontAttributes.Bold,
-        TextColor = Colors.White,
-        VerticalTextAlignment = TextAlignment.Center
-    };
+    private readonly Label scoreboard = new() { FontSize = 18, FontAttributes = FontAttributes.Bold };
     private readonly Label clock = Caption("");
     private readonly Label possession = Caption("");
-    private readonly Label teamStats = Caption("");
-    private readonly Label identity = new() { FontSize = 22, FontAttributes = FontAttributes.Bold };
+    private readonly Label identity = Heading("", 24);
     private readonly Label teamIdentity = Caption("");
-    private readonly Label shirt = new()
-    {
-        FontSize = 18,
-        FontAttributes = FontAttributes.Bold,
-        TextColor = MatchTheme.Purple,
-        HorizontalTextAlignment = TextAlignment.Center,
-        VerticalTextAlignment = TextAlignment.Center
-    };
-    private readonly Label passes = Value();
-    private readonly Label accuracy = Value();
-    private readonly Label shots = Value();
-    private readonly Label goals = Value();
-    private readonly Label distance = Value();
-    private readonly Label speed = Value();
-    private readonly Label emptyInsights = Caption("No events yet.\nPlay or seek to reveal the match.");
+    private readonly Dictionary<string, Label> stats = [];
+    private readonly Label emptyInsights = Caption("No events yet. Play or seek to reveal the match.");
     private readonly Button play = new()
     {
         Text = "Play",
@@ -53,11 +32,18 @@ public sealed class ReplayPage : ContentPage, IDisposable
     private readonly VerticalStackLayout insights = new() { Spacing = 14 };
     private readonly Grid main = new() { ColumnSpacing = 16, RowSpacing = 12 };
     private readonly Grid sidebar;
-    private readonly Border replayPanel;
-    private readonly Border inspectorPanel;
     private readonly Border eventsPanel;
-    private readonly Border avatar;
-    private readonly Label legend = Caption("Mint: Harbor   Pink: Orchard   White: ball & selection");
+    private readonly Border inspectorPanel;
+    private readonly Button playerLens = new() { Text = "Player lens", AutomationId = "inspector-player" };
+    private readonly Button notes = new() { Text = "Match notes", AutomationId = "inspector-notes" };
+    private readonly Border replayPanel;
+    private readonly ScrollView dashboard;
+    private readonly VerticalStackLayout playerSection = new() { Spacing = 12 };
+    private readonly VerticalStackLayout clubSection = new() { Spacing = 12 };
+    private readonly List<PlayerBoard> playerBoards = [];
+    private readonly List<ClubBoard> clubBoards = [];
+    private readonly Dictionary<string, Button> tabs = [];
+    private readonly Dictionary<string, BoxView> tabLines = [];
     private IDispatcherTimer? timer;
     private string selectedId = "h3";
     private ExplanationMode explanationMode;
@@ -67,16 +53,15 @@ public sealed class ReplayPage : ContentPage, IDisposable
 
     public ReplayPage()
     {
-        Title = "PitchLens";
-        this.SetAppThemeColor(BackgroundColorProperty, Color.FromArgb("#F4EFF7"), Color.FromArgb("#1E0C26"));
+        Title = "PitchLens · Stats Centre";
+        this.SetAppThemeColor(BackgroundColorProperty, Color.FromArgb("#FAF9FA"), Color.FromArgb("#1E0021"));
         drawable = new(match) { SelectedId = selectedId };
-        pitch = new GraphicsView { Drawable = drawable, AutomationId = "pitch", MinimumHeightRequest = 100 };
+        pitch = new GraphicsView { Drawable = drawable, AutomationId = "pitch", MinimumHeightRequest = 60 };
         SemanticProperties.SetDescription(pitch, "Synthetic football replay. Use the player picker for accessible selection.");
         pitch.StartInteraction += OnPitchInteraction;
-        roster.ItemsSource = match.Players.Select(p =>
-            $"{match.Teams.Single(t => t.Id == p.TeamId).Name} · {p.Number} {p.Name}").ToList();
+        roster.ItemsSource = match.Players.Select(p => $"{TeamName(p.TeamId)} · {p.Number} {p.Name}").ToList();
         roster.SelectedIndex = match.Players.ToList().FindIndex(p => p.Id == selectedId);
-        SemanticProperties.SetDescription(roster, "Selected player, alternative to clicking the pitch");
+        SemanticProperties.SetDescription(roster, "Selected player, alternative to clicking the pitch or a leaderboard row");
         roster.SelectedIndexChanged += (_, _) =>
         {
             if (roster.SelectedIndex < 0) return;
@@ -85,12 +70,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
         };
         casual.Clicked += (_, _) => SetMode(ExplanationMode.Casual);
         analyst.Clicked += (_, _) => SetMode(ExplanationMode.Analyst);
-        var segments = new Grid
-        {
-            ColumnDefinitions = Columns(GridLength.Star, GridLength.Star),
-            ColumnSpacing = 3,
-            AutomationId = "mode"
-        };
+        var segments = new Grid { ColumnDefinitions = Columns(GridLength.Star, GridLength.Star), ColumnSpacing = 3, AutomationId = "mode" };
         segments.Add(casual, 0);
         segments.Add(analyst, 1);
         SemanticProperties.SetDescription(timeline, "Replay time in seconds, zero to seventy-two");
@@ -117,150 +97,332 @@ public sealed class ReplayPage : ContentPage, IDisposable
         back.Clicked += (_, _) => SeekBy(-5);
         var forward = new Button { Text = "+5 s", AutomationId = "seek-forward" };
         forward.Clicked += (_, _) => SeekBy(5);
-        var transport = new HorizontalStackLayout
+        var controls = new HorizontalStackLayout
         {
             Spacing = 6,
             HorizontalOptions = LayoutOptions.Center,
             Children = { restart, back, play, forward }
         };
-        var replay = new Grid
-        {
-            RowDefinitions = Rows(GridLength.Auto, GridLength.Star, GridLength.Auto),
-            RowSpacing = 12
-        };
-        var pitchHeader = new Grid { ColumnDefinitions = Columns(GridLength.Star, GridLength.Auto) };
-        pitchHeader.Add(SectionHeading("Match replay"));
-        pitchHeader.Add(possession, 1);
-        replay.Add(pitchHeader, 0, 0);
-        replay.Add(pitch, 0, 1);
-        var footer = new VerticalStackLayout { Spacing = 6 };
-        var timeRow = new Grid { ColumnDefinitions = Columns(GridLength.Star, GridLength.Auto) };
-        timeRow.Add(Caption("72-second synthetic match"));
+        var timeRow = new Grid { ColumnDefinitions = Columns(GridLength.Star, GridLength.Auto), ColumnSpacing = 12 };
+        timeRow.Add(timeline);
         timeRow.Add(clock, 1);
-        footer.Children.Add(timeRow);
-        footer.Children.Add(timeline);
-        footer.Children.Add(transport);
-        footer.Children.Add(legend);
-        replay.Add(footer, 0, 2);
+        var transport = Panel(new VerticalStackLayout { Spacing = 2, Children = { timeRow, controls } }, 10);
+
+        var replayHeader = new Grid { ColumnDefinitions = Columns(GridLength.Star, GridLength.Auto), ColumnSpacing = 8 };
+        replayHeader.Add(Heading("Match replay", 22));
+        replayHeader.Add(possession, 1);
+        var replay = new Grid { RowDefinitions = Rows(GridLength.Auto, GridLength.Star, GridLength.Auto), RowSpacing = 12 };
+        replay.Add(replayHeader);
+        replay.Add(pitch, 0, 1);
+        replay.Add(Caption("Mint: Harbor · Pink: Orchard · White: ball & selection · Lilac: past movement"), 0, 2);
         replayPanel = Panel(replay);
 
-        avatar = new Border
+        playerSection.Children.Add(Heading("Player stats", 24));
+        playerSection.Children.Add(Caption("Top 5 synthetic players · Select a row to inspect · Ties ordered by player ID"));
+        var playerCards = new HorizontalStackLayout { Spacing = 16 };
+        AddPlayerBoard(playerCards, "Goals", s => s.Goals, n => n.ToString("0"));
+        AddPlayerBoard(playerCards, "Shots", s => s.Shots, n => n.ToString("0"));
+        AddPlayerBoard(playerCards, "Passes", s => s.Passes, n => n.ToString("0"));
+        AddPlayerBoard(playerCards, "Distance", s => s.Distance, n => $"{n:F1} m");
+        playerSection.Children.Add(new ScrollView { Orientation = ScrollOrientation.Horizontal, Content = playerCards });
+        clubSection.Children.Add(Heading("Club stats", 24));
+        clubSection.Children.Add(Caption("Fictional teams · Current match only, not a season dataset"));
+        var clubCards = new HorizontalStackLayout { Spacing = 16 };
+        AddClubBoard(clubCards, "Goals", s => s.Goals, n => n.ToString("0"));
+        AddClubBoard(clubCards, "Shots", s => s.Shots, n => n.ToString("0"));
+        AddClubBoard(clubCards, "Passes", s => s.Passes, n => n.ToString("0"));
+        AddClubBoard(clubCards, "Distance", s => s.Distance, n => $"{n:F1} m");
+        clubSection.Children.Add(new ScrollView { Orientation = ScrollOrientation.Horizontal, Content = clubCards });
+        dashboard = new ScrollView { Content = new VerticalStackLayout { Spacing = 24, Children = { playerSection, clubSection } } };
+
+        var statRows = new Grid { ColumnDefinitions = Columns(GridLength.Star, GridLength.Auto), RowSpacing = 12, ColumnSpacing = 8 };
+        foreach (var title in new[] { "Passes completed", "Pass accuracy", "Shots", "Goals", "Distance", "Max speed" })
         {
-            Content = shirt,
-            WidthRequest = 48,
-            HeightRequest = 48,
-            StrokeThickness = 0,
-            StrokeShape = new RoundRectangle { CornerRadius = 12 },
-            BackgroundColor = MatchTheme.Mint
-        };
-        var person = new HorizontalStackLayout
-        {
-            Spacing = 12,
-            Children = { avatar, new VerticalStackLayout { Spacing = 2, Children = { identity, teamIdentity } } }
-        };
-        var metrics = new Grid
-        {
-            ColumnDefinitions = Columns(GridLength.Star, GridLength.Star),
-            RowDefinitions = Rows(GridLength.Auto, GridLength.Auto, GridLength.Auto),
-            ColumnSpacing = 8,
-            RowSpacing = 8
-        };
-        metrics.Add(Metric("Passes completed", passes), 0, 0);
-        metrics.Add(Metric("Pass accuracy", accuracy), 1, 0);
-        metrics.Add(Metric("Shots", shots), 0, 1);
-        metrics.Add(Metric("Goals", goals), 1, 1);
-        metrics.Add(Metric("Distance", distance), 0, 2);
-        metrics.Add(Metric("Max speed", speed), 1, 2);
+            var row = statRows.RowDefinitions.Count;
+            statRows.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+            var value = Heading("", 14);
+            value.HorizontalTextAlignment = TextAlignment.End;
+            statRows.Add(Caption(title), 0, row);
+            statRows.Add(value, 1, row);
+            stats.Add(title, value);
+        }
         inspectorPanel = Panel(new ScrollView
         {
             Content = new VerticalStackLayout
             {
-                Spacing = 14,
-                Children = { SectionHeading("Player inspector"), roster, person, metrics,
-                    Caption("Statistics at the playhead. Distance and speed are trajectory-derived.") }
+                Spacing = 12,
+                Children = { Heading("Selected player", 18), roster, identity, teamIdentity, statRows,
+                    Caption("Resolved attempts only. Distance and speed are trajectory-derived to the playhead.") }
             }
         });
-        var eventGrid = new Grid
-        {
-            RowDefinitions = Rows(GridLength.Auto, GridLength.Auto, GridLength.Auto, GridLength.Star),
-            RowSpacing = 10
-        };
+        var eventGrid = new Grid { RowDefinitions = Rows(GridLength.Auto, GridLength.Auto, GridLength.Auto, GridLength.Star), RowSpacing = 10 };
         eventsPanel = Panel(eventGrid);
-        eventGrid.Add(SectionHeading("Match notes"), 0, 0);
+        eventGrid.Add(Heading("Match notes", 18));
         eventGrid.Add(segments, 0, 1);
-        eventGrid.Add(Caption("Scripted event facts · Not generated AI"), 0, 2);
-        eventGrid.Add(new ScrollView
-        {
-            Content = new VerticalStackLayout
-            {
-                Spacing = 10,
-                Children = { emptyInsights, insights }
-            }
-        }, 0, 3);
-        sidebar = new Grid { RowDefinitions = Rows(new GridLength(1.2, GridUnitType.Star), GridLength.Star), RowSpacing = 12 };
-        sidebar.Add(inspectorPanel, 0, 0);
-        sidebar.Add(eventsPanel, 0, 1);
-        main.Children.Add(replayPanel);
+        eventGrid.Add(Caption("Scripted facts · Not generated AI"), 0, 2);
+        eventGrid.Add(new ScrollView { Content = new VerticalStackLayout { Spacing = 10, Children = { emptyInsights, insights } } }, 0, 3);
+        var inspectorTabs = new Grid { ColumnDefinitions = Columns(GridLength.Star, GridLength.Star), ColumnSpacing = 4 };
+        inspectorTabs.Add(playerLens);
+        inspectorTabs.Add(notes, 1);
+        playerLens.Clicked += (_, _) => SelectInspector(false);
+        notes.Clicked += (_, _) => SelectInspector(true);
+        var inspectorBody = new Grid();
+        inspectorBody.Children.Add(inspectorPanel);
+        inspectorBody.Children.Add(eventsPanel);
+        sidebar = new Grid { RowDefinitions = Rows(GridLength.Auto, GridLength.Star), RowSpacing = 8 };
+        sidebar.Add(inspectorTabs);
+        sidebar.Add(inspectorBody, 0, 1);
+        var workspace = new Grid();
+        workspace.Children.Add(dashboard);
+        workspace.Children.Add(replayPanel);
+        main.Children.Add(workspace);
         main.Children.Add(sidebar);
-        var header = new Grid
+
+        var nav = new Grid { ColumnDefinitions = Columns(GridLength.Auto, GridLength.Star, GridLength.Auto), ColumnSpacing = 12 };
+        nav.Add(Heading("PitchLens", 17));
+        nav.Add(Caption("Independent synthetic demo · Local only"), 1);
+        var openReplay = new Button { Text = "Match replay", AutomationId = "open-replay", Padding = new Thickness(10, 4), MinimumHeightRequest = 28 };
+        openReplay.Clicked += (_, _) => SelectTab("Match replay");
+        nav.Add(openReplay, 2);
+        var tabBar = new HorizontalStackLayout { Spacing = 20 };
+        foreach (var name in new[] { "Dashboard", "Player", "Club", "Match replay" })
         {
-            ColumnDefinitions = Columns(GridLength.Star, GridLength.Auto),
-            ColumnSpacing = 16,
-            Padding = new Thickness(20, 16)
-        };
-        var brand = new VerticalStackLayout
-        {
-            Spacing = 4,
-            VerticalOptions = LayoutOptions.Center,
-            Children =
+            var button = new Button
             {
-                new Label { Text = "PitchLens", FontSize = 24, FontAttributes = FontAttributes.Bold, TextColor = Colors.White },
-                new Label { Text = "MATCH CENTRE", FontSize = 10, CharacterSpacing = 2, FontAttributes = FontAttributes.Bold,
-                    TextColor = MatchTheme.Mint },
-                new Label { Text = "Independent synthetic demo · Local only", FontSize = 10,
-                    TextColor = Color.FromArgb("#E3CBE9") }
-            }
-        };
-        header.Add(brand);
-        var matchup = new HorizontalStackLayout
+                Text = name,
+                AutomationId = $"tab-{name.ToLowerInvariant().Replace(' ', '-')}",
+                BackgroundColor = Colors.Transparent,
+                TextColor = Colors.White,
+                FontSize = 13,
+                Padding = 0,
+                MinimumHeightRequest = 32
+            };
+            var line = new BoxView { HeightRequest = 3, Color = Colors.White, Opacity = 0 };
+            button.Clicked += (_, _) => SelectTab(name);
+            tabs.Add(name, button);
+            tabLines.Add(name, line);
+            tabBar.Children.Add(new VerticalStackLayout { Spacing = 2, Children = { button, line } });
+        }
+        var hero = new Grid
         {
-            Spacing = 14,
-            HorizontalOptions = LayoutOptions.End,
-            Children = { TeamBadge("H", "Harbor", MatchTheme.Mint), scoreboard, TeamBadge("O", "Orchard", MatchTheme.Pink) }
+            Padding = new Thickness(24, 16),
+            MinimumHeightRequest = 146,
+            RowDefinitions = Rows(GridLength.Auto, GridLength.Auto, GridLength.Auto),
+            RowSpacing = 8,
+            Background = new LinearGradientBrush(
+                new GradientStopCollection { new GradientStop(Color.FromArgb("#953BFF"), 0), new GradientStop(Color.FromArgb("#05F0FF"), 1) },
+                new Point(0, .5), new Point(1, .5))
         };
-        header.Add(new VerticalStackLayout
-        {
-            Spacing = 8,
-            VerticalOptions = LayoutOptions.Center,
-            HorizontalOptions = LayoutOptions.End,
-            Children = { matchup, teamStats }
-        }, 1);
-        teamStats.TextColor = Color.FromArgb("#E3CBE9");
-        teamStats.MaximumWidthRequest = 390;
-        teamStats.FontSize = 10;
-        teamStats.HorizontalTextAlignment = TextAlignment.End;
-        var banner = new Grid { IsClippedToBounds = true, BackgroundColor = MatchTheme.Purple };
-        banner.Children.Add(new GraphicsView { Drawable = new StadiumArtwork(), InputTransparent = true });
-        banner.Children.Add(header);
-        var masthead = new Border
-        {
-            StrokeThickness = 0,
-            StrokeShape = new RoundRectangle { CornerRadius = 14 },
-            Content = banner
-        };
+        hero.Add(new Label { Text = "Stats Centre", FontSize = 36, FontAttributes = FontAttributes.Bold, TextColor = Colors.White });
+        hero.Add(new Label { Text = "72-second synthetic match · Event-backed statistics", FontSize = 12, TextColor = Colors.White }, 0, 1);
+        hero.Add(new ScrollView { Orientation = ScrollOrientation.Horizontal, Content = tabBar }, 0, 2);
+        var matchStrip = new Grid { ColumnDefinitions = Columns(GridLength.Star, GridLength.Auto), ColumnSpacing = 12 };
+        matchStrip.Add(Caption("Match dashboard · Not official Premier League data"));
+        matchStrip.Add(scoreboard, 1);
         var root = new Grid
         {
-            Padding = new Thickness(20, 16),
-            RowSpacing = 16,
-            RowDefinitions = Rows(GridLength.Auto, GridLength.Star)
+            Padding = new Thickness(20, 12),
+            RowSpacing = 12,
+            RowDefinitions = Rows(GridLength.Auto, GridLength.Auto, GridLength.Auto, GridLength.Star, GridLength.Auto)
         };
-        root.Add(masthead, 0, 0);
-        root.Add(main, 0, 1);
+        root.Add(nav);
+        root.Add(hero, 0, 1);
+        root.Add(matchStrip, 0, 2);
+        root.Add(main, 0, 3);
+        root.Add(transport, 0, 4);
         Content = root;
         SizeChanged += OnSizeChanged;
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
+        SelectInspector(false);
+        SelectTab("Dashboard");
         SetMode(ExplanationMode.Casual);
+    }
+
+    private string TeamName(string id) => match.Teams.Single(t => t.Id == id).Name;
+
+    private void SelectTab(string name)
+    {
+        dashboard.IsVisible = name != "Match replay";
+        replayPanel.IsVisible = name == "Match replay";
+        playerSection.IsVisible = name is "Dashboard" or "Player";
+        clubSection.IsVisible = name is "Dashboard" or "Club";
+        foreach (var (label, button) in tabs)
+        {
+            var selected = label == name;
+            tabLines[label].Opacity = selected ? 1 : 0;
+            button.FontAttributes = selected ? FontAttributes.Bold : FontAttributes.None;
+            SemanticProperties.SetDescription(button, $"{label}{(selected ? ", selected" : "")}");
+        }
+    }
+
+    private void SelectPlayer(string id)
+    {
+        roster.SelectedIndex = match.Players.ToList().FindIndex(p => p.Id == id);
+        SelectInspector(false);
+    }
+
+    private void SelectInspector(bool showNotes)
+    {
+        inspectorPanel.IsVisible = !showNotes;
+        eventsPanel.IsVisible = showNotes;
+        foreach (var (button, selected) in new[] { (playerLens, !showNotes), (notes, showNotes) })
+        {
+            button.SetAppThemeColor(Button.BackgroundColorProperty,
+                Color.FromArgb(selected ? "#37003C" : "#F5F2F5"), Color.FromArgb(selected ? "#00FF87" : "#46254F"));
+            button.SetAppThemeColor(Button.TextColorProperty,
+                Color.FromArgb(selected ? "#FFFFFF" : "#735A7D"), Color.FromArgb(selected ? "#37003C" : "#E3CBE9"));
+            SemanticProperties.SetDescription(button, $"{button.Text}{(selected ? ", selected" : "")}");
+        }
+    }
+
+    private void AddPlayerBoard(HorizontalStackLayout cards, string title, Func<PlayerStats, double> metric, Func<double, string> format)
+    {
+        var list = new VerticalStackLayout { Spacing = 0 };
+        var card = Panel(new VerticalStackLayout
+        {
+            Spacing = 12,
+            Children = { Heading(title, 24), list, Caption(title == "Passes" ? "Resolved attempts · Completed totals in inspector" : "Current replay time") }
+        });
+        card.WidthRequest = 232;
+        cards.Children.Add(card);
+        playerBoards.Add(new(title, metric, format, list));
+    }
+
+    private void AddClubBoard(HorizontalStackLayout cards, string title, Func<PlayerStats, double> metric, Func<double, string> format)
+    {
+        var list = new VerticalStackLayout { Spacing = 0 };
+        var card = Panel(new VerticalStackLayout { Spacing = 12, Children = { Heading(title, 24), list } });
+        card.WidthRequest = 232;
+        cards.Children.Add(card);
+        clubBoards.Add(new(metric, format, list));
+    }
+
+    private void UpdateLeaderboards(Snapshot snapshot)
+    {
+        foreach (var board in playerBoards)
+        {
+            var ranked = snapshot.Players.OrderByDescending(board.Metric).ThenBy(p => p.PlayerId, StringComparer.Ordinal).Take(5).ToArray();
+            var order = string.Join(',', ranked.Select(p => p.PlayerId));
+            if (board.Order != order)
+            {
+                board.Order = order;
+                board.List.Children.Clear();
+                board.Cells.Clear();
+                for (var i = 0; i < ranked.Length; i++)
+                {
+                    var player = match.Player(ranked[i].PlayerId);
+                    var value = Heading("", 19);
+                    var row = RankRow(i + 1, player.Name, TeamName(player.TeamId), player.TeamId, value);
+                    var tap = new TapGestureRecognizer();
+                    tap.Tapped += (_, _) => SelectPlayer(player.Id);
+                    row.GestureRecognizers.Add(tap);
+                    var choose = new Button
+                    {
+                        Text = player.Name,
+                        BackgroundColor = Colors.Transparent,
+                        HorizontalOptions = LayoutOptions.Start,
+                        Padding = 0,
+                        FontSize = 13,
+                        AutomationId = $"rank-{board.Title.ToLowerInvariant()}-{player.Id}"
+                    };
+                    choose.Clicked += (_, _) => SelectPlayer(player.Id);
+                    // Use a native button for keyboard and accessibility activation, not just the row gesture.
+                    var identityCell = (VerticalStackLayout)row.Children[2];
+                    identityCell.Children[0] = choose;
+                    board.List.Children.Add(row);
+                    board.Cells.Add(player.Id, (value, choose));
+                }
+            }
+            foreach (var player in ranked)
+            {
+                var (value, button) = board.Cells[player.PlayerId];
+                value.Text = board.Format(board.Metric(player));
+                SemanticProperties.SetDescription(button,
+                    $"{match.Player(player.PlayerId).Name}, {TeamName(match.Player(player.PlayerId).TeamId)}, {board.Title} {value.Text}. Select player.");
+            }
+        }
+        foreach (var board in clubBoards)
+        {
+            var ranked = match.Teams.Select(t => (Team: t,
+                Total: snapshot.Players.Where(p => match.Player(p.PlayerId).TeamId == t.Id).Sum(board.Metric)))
+                .OrderByDescending(p => p.Total).ThenBy(p => p.Team.Id, StringComparer.Ordinal).ToArray();
+            var order = string.Join(',', ranked.Select(p => p.Team.Id));
+            if (board.Order != order)
+            {
+                board.Order = order;
+                board.List.Children.Clear();
+                board.Values.Clear();
+                for (var i = 0; i < ranked.Length; i++)
+                {
+                    var value = Heading("", 19);
+                    board.Values.Add(ranked[i].Team.Id, value);
+                    board.List.Children.Add(RankRow(i + 1, ranked[i].Team.Name, "Synthetic club", ranked[i].Team.Id, value));
+                }
+            }
+            foreach (var entry in ranked) board.Values[entry.Team.Id].Text = board.Format(entry.Total);
+        }
+    }
+
+    private static Grid RankRow(int rank, string name, string detail, string teamId, Label total)
+    {
+        var row = new Grid
+        {
+            ColumnDefinitions = Columns(new GridLength(16), new GridLength(24), GridLength.Star, GridLength.Auto),
+            ColumnSpacing = 7,
+            Padding = new Thickness(0, 7),
+            MinimumHeightRequest = 55
+        };
+        var rankLabel = Caption(rank.ToString());
+        rankLabel.VerticalOptions = LayoutOptions.Center;
+        row.Add(rankLabel);
+        row.Add(new Border
+        {
+            BackgroundColor = MatchTheme.Team(teamId),
+            WidthRequest = 22,
+            HeightRequest = 26,
+            StrokeThickness = 0,
+            VerticalOptions = LayoutOptions.Center,
+            StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(3, 3, 8, 8) },
+            Content = new Label
+            {
+                Text = teamId == "harbor" ? "H" : "O",
+                TextColor = MatchTheme.Purple,
+                FontSize = 12,
+                FontAttributes = FontAttributes.Bold,
+                HorizontalTextAlignment = TextAlignment.Center,
+                VerticalTextAlignment = TextAlignment.Center
+            }
+        }, 1);
+        row.Add(new VerticalStackLayout
+        {
+            Spacing = 1,
+            VerticalOptions = LayoutOptions.Center,
+            Children = { Heading(name, 13), Caption(detail) }
+        }, 2);
+        total.VerticalOptions = LayoutOptions.Center;
+        total.HorizontalTextAlignment = TextAlignment.End;
+        row.Add(total, 3);
+        return row;
+    }
+
+    private sealed class PlayerBoard(string title, Func<PlayerStats, double> metric, Func<double, string> format, VerticalStackLayout list)
+    {
+        public string Title { get; } = title;
+        public Func<PlayerStats, double> Metric { get; } = metric;
+        public Func<double, string> Format { get; } = format;
+        public VerticalStackLayout List { get; } = list;
+        public string Order { get; set; } = "";
+        public Dictionary<string, (Label Value, Button Button)> Cells { get; } = [];
+    }
+
+    private sealed class ClubBoard(Func<PlayerStats, double> metric, Func<double, string> format, VerticalStackLayout list)
+    {
+        public Func<PlayerStats, double> Metric { get; } = metric;
+        public Func<double, string> Format { get; } = format;
+        public VerticalStackLayout List { get; } = list;
+        public string Order { get; set; } = "";
+        public Dictionary<string, Label> Values { get; } = [];
     }
 
     private static ColumnDefinitionCollection Columns(params GridLength[] lengths)
@@ -280,61 +442,24 @@ public sealed class ReplayPage : ContentPage, IDisposable
     private static Label Caption(string text)
     {
         var label = new Label { Text = text, FontSize = 11, LineHeight = 1.15 };
-        label.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#735A7D"), Color.FromArgb("#C5ACD1"));
+        label.SetAppThemeColor(Label.TextColorProperty, Color.FromArgb("#725B78"), Color.FromArgb("#CDB3D1"));
         return label;
     }
 
-    private static Label Heading(string text) => new() { Text = text, FontSize = 14, FontAttributes = FontAttributes.Bold };
-    private static Label Value() => new() { FontSize = 19, FontAttributes = FontAttributes.Bold };
+    private static Label Heading(string text, double size) => new() { Text = text, FontSize = size, FontAttributes = FontAttributes.Bold };
 
-    private static View SectionHeading(string text)
-    {
-        var rule = new BoxView { WidthRequest = 3, HeightRequest = 16, Color = MatchTheme.Pink, VerticalOptions = LayoutOptions.Center };
-        return new HorizontalStackLayout { Spacing = 8, Children = { rule, Heading(text) } };
-    }
-
-    private static View TeamBadge(string initial, string name, Color color) =>
-        new HorizontalStackLayout
-        {
-            Spacing = 7,
-            VerticalOptions = LayoutOptions.Center,
-            Children =
-            {
-                new Border { WidthRequest = 29, HeightRequest = 34, BackgroundColor = color, StrokeThickness = 0,
-                    StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(4, 4, 12, 12) },
-                    Content = new Label { Text = initial, FontSize = 18, FontAttributes = FontAttributes.Bold,
-                        TextColor = MatchTheme.Purple, HorizontalTextAlignment = TextAlignment.Center,
-                        VerticalTextAlignment = TextAlignment.Center } },
-                new Label { Text = name, TextColor = Colors.White, FontSize = 13, FontAttributes = FontAttributes.Bold,
-                    VerticalTextAlignment = TextAlignment.Center }
-            }
-        };
-
-    private static Border Panel(View content)
+    private static Border Panel(View content, double padding = 16)
     {
         var panel = new Border
         {
             Content = content,
-            Padding = 16,
+            Padding = padding,
             StrokeThickness = 1,
-            StrokeShape = new RoundRectangle { CornerRadius = 14 }
+            StrokeShape = new RoundRectangle { CornerRadius = 16 }
         };
-        panel.SetAppThemeColor(BackgroundColorProperty, Colors.White, Color.FromArgb("#301638"));
-        panel.SetAppThemeColor(Border.StrokeProperty, Color.FromArgb("#E7DCEF"), Color.FromArgb("#50305B"));
+        panel.SetAppThemeColor(BackgroundColorProperty, Colors.White, Color.FromArgb("#28002B"));
+        panel.SetAppThemeColor(Border.StrokeProperty, Color.FromArgb("#EBE4EC"), Color.FromArgb("#4B2350"));
         return panel;
-    }
-
-    private static Border Metric(string title, Label value)
-    {
-        var tile = new Border
-        {
-            Padding = new Thickness(10, 9),
-            StrokeThickness = 0,
-            StrokeShape = new RoundRectangle { CornerRadius = 8 },
-            Content = new VerticalStackLayout { Spacing = 4, Children = { Caption(title), value } }
-        };
-        tile.SetAppThemeColor(BackgroundColorProperty, Color.FromArgb("#F5EFF9"), Color.FromArgb("#3D2148"));
-        return tile;
     }
 
     private void SetMode(ExplanationMode mode)
@@ -343,7 +468,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
         foreach (var (button, selected) in new[] { (casual, mode == ExplanationMode.Casual), (analyst, mode == ExplanationMode.Analyst) })
         {
             button.SetAppThemeColor(Button.BackgroundColorProperty,
-                Color.FromArgb(selected ? "#37003C" : "#F0E8F5"), Color.FromArgb(selected ? "#00FF87" : "#46254F"));
+                Color.FromArgb(selected ? "#37003C" : "#F5F2F5"), Color.FromArgb(selected ? "#00FF87" : "#46254F"));
             button.SetAppThemeColor(Button.TextColorProperty,
                 Color.FromArgb(selected ? "#FFFFFF" : "#735A7D"), Color.FromArgb(selected ? "#37003C" : "#E3CBE9"));
             button.FontAttributes = selected ? FontAttributes.Bold : FontAttributes.None;
@@ -360,34 +485,17 @@ public sealed class ReplayPage : ContentPage, IDisposable
         timer.Tick += OnTick;
     }
 
-    private void OnUnloaded(object? sender, EventArgs e)
-    {
-        Suspend();
-        ReleaseTimer();
-    }
-
-    private void OnTick(object? sender, EventArgs e)
-    {
-        Render();
-        if (!playback.IsPlaying) timer?.Stop();
-    }
+    private void OnUnloaded(object? sender, EventArgs e) { Suspend(); ReleaseTimer(); }
+    private void OnTick(object? sender, EventArgs e) { Render(); if (!playback.IsPlaying) timer?.Stop(); }
 
     private void OnSizeChanged(object? sender, EventArgs e)
     {
         var wide = Width >= 920;
-        if (!wide)
-            main.RowDefinitions = Rows(new GridLength(Math.Max(300, (Height - 180) * .53)), GridLength.Star);
         if (wideLayout == wide) return;
         wideLayout = wide;
-        main.ColumnDefinitions = wide ? Columns(GridLength.Star, new GridLength(310)) : Columns(GridLength.Star);
-        if (wide) main.RowDefinitions = Rows(GridLength.Star);
-        Grid.SetColumn(sidebar, wide ? 1 : 0);
-        Grid.SetRow(sidebar, wide ? 0 : 1);
-        sidebar.ColumnDefinitions = wide ? Columns(GridLength.Star) : Columns(GridLength.Star, GridLength.Star);
-        sidebar.RowDefinitions = wide ? Rows(new GridLength(1.2, GridUnitType.Star), GridLength.Star) : Rows(GridLength.Star);
-        sidebar.ColumnSpacing = wide ? 0 : 12;
-        Grid.SetColumn(eventsPanel, wide ? 0 : 1);
-        Grid.SetRow(eventsPanel, wide ? 1 : 0);
+        main.ColumnDefinitions = wide ? Columns(GridLength.Star, new GridLength(280)) : Columns(GridLength.Star, new GridLength(245));
+        main.RowDefinitions = Rows(GridLength.Star);
+        Grid.SetColumn(sidebar, 1);
     }
 
     private void OnPitchInteraction(object? sender, TouchEventArgs e)
@@ -398,7 +506,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
         var id = PitchTransform.Fit(pitch.Width, pitch.Height).HitTest(
             match.Players.Select(p => (p.Id, p.Path.At(time))),
             new Position(point.X, point.Y), PitchDrawable.PlayerRadius);
-        if (id is not null) roster.SelectedIndex = match.Players.ToList().FindIndex(p => p.Id == id);
+        if (id is not null) SelectPlayer(id);
     }
 
     private void SeekBy(double delta)
@@ -425,15 +533,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
         drawable.Time = time;
         drawable.SelectedId = selectedId;
         pitch.Invalidate();
-        scoreboard.Text = $"{snapshot.Score["harbor"]} : {snapshot.Score["orchard"]}";
-        teamStats.Text = string.Join("   ·   ", match.Teams.Select(team =>
-        {
-            var players = snapshot.Players.Where(p => match.Player(p.PlayerId).TeamId == team.Id).ToArray();
-            var attempted = players.Sum(p => p.Passes);
-            var completed = players.Sum(p => p.CompletedPasses);
-            var percent = attempted == 0 ? "—" : (completed / (double)attempted).ToString("P0");
-            return $"{team.Name}: {completed}/{attempted} passes ({percent}), {players.Sum(p => p.Shots)} shots";
-        }));
+        scoreboard.Text = $"Harbor  {snapshot.Score["harbor"]} : {snapshot.Score["orchard"]}  Orchard";
         possession.Text = snapshot.OwnerId is null ? "Ball in transit" : $"Possession · {match.Player(snapshot.OwnerId).Name}";
         clock.Text = $"{time:00.0} / {match.Duration:00.0} s" + (time >= match.Duration ? " · Full time" : "");
         play.Text = playback.IsPlaying ? "Pause" : "Play";
@@ -441,21 +541,19 @@ public sealed class ReplayPage : ContentPage, IDisposable
         updatingTimeline = true;
         timeline.Value = time;
         updatingTimeline = false;
-        identity.Text = selected.Name;
-        teamIdentity.Text = match.Teams.Single(t => t.Id == selected.TeamId).Name;
-        shirt.Text = selected.Number.ToString();
-        avatar.BackgroundColor = MatchTheme.Team(selected.TeamId);
-        passes.Text = $"{s.CompletedPasses} / {s.Passes}";
-        accuracy.Text = s.PassAccuracy is double value ? value.ToString("P0", CultureInfo.CurrentCulture) : "Unavailable";
-        accuracy.FontSize = s.PassAccuracy.HasValue ? 19 : 14;
-        SemanticProperties.SetDescription(accuracy, s.PassAccuracy.HasValue ? $"Pass accuracy {accuracy.Text}" : "Pass accuracy unavailable, no attempts");
-        shots.Text = s.Shots.ToString();
-        goals.Text = s.Goals.ToString();
-        distance.Text = $"{s.Distance:F1} m";
-        speed.Text = $"{s.MaxSpeed:F2} m/s";
+        identity.Text = $"{selected.Name}  #{selected.Number}";
+        teamIdentity.Text = $"{TeamName(selected.TeamId)} · Synthetic player";
+        var accuracy = s.PassAccuracy is double value ? value.ToString("P0") : "Unavailable (no attempts)";
+        stats["Passes completed"].Text = $"{s.CompletedPasses} / {s.Passes}";
+        stats["Pass accuracy"].Text = accuracy;
+        stats["Pass accuracy"].FontSize = s.PassAccuracy.HasValue ? 14 : 11;
+        stats["Shots"].Text = s.Shots.ToString();
+        stats["Goals"].Text = s.Goals.ToString();
+        stats["Distance"].Text = $"{s.Distance:F1} m";
+        stats["Max speed"].Text = $"{s.MaxSpeed:F2} m/s";
         SemanticProperties.SetDescription(pitch,
-            $"Synthetic replay at {time:F1} seconds. Score Harbor {snapshot.Score["harbor"]}, Orchard {snapshot.Score["orchard"]}. " +
-            $"Selected player {selected.Name}, {teamIdentity.Text}, number {selected.Number}. {possession.Text}. Use the player picker to select.");
+            $"Synthetic replay at {time:F1} seconds. {scoreboard.Text}. Selected {selected.Name}. {possession.Text}. Use the player picker to select.");
+        UpdateLeaderboards(snapshot);
         var explanations = Explanations.At(match, time, explanationMode);
         var key = $"{explanationMode}:{string.Join(',', explanations.Select(x => x.EventId))}";
         if (key == insightKey) return;
@@ -475,12 +573,10 @@ public sealed class ReplayPage : ContentPage, IDisposable
             seek.SetAppThemeColor(Button.TextColorProperty, MatchTheme.Purple, MatchTheme.Mint);
             SemanticProperties.SetDescription(seek, $"Replay event {explanation.EventId} at {explanation.Time} seconds");
             seek.Clicked += (_, _) => { Suspend(); playback.Seek(explanation.Time); Render(); };
-            var separator = new BoxView { HeightRequest = 1 };
-            separator.SetAppThemeColor(BoxView.ColorProperty, Color.FromArgb("#E7DCEF"), Color.FromArgb("#50305B"));
             insights.Children.Add(new VerticalStackLayout
             {
                 Spacing = 5,
-                Children = { seek, new Label { Text = explanation.Text, FontSize = 12, LineHeight = 1.2 }, separator }
+                Children = { seek, new Label { Text = explanation.Text, FontSize = 12, LineHeight = 1.2 } }
             });
         }
     }

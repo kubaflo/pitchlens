@@ -13,13 +13,22 @@ play/pause/restart, a timeline, and +/-5-second seeks. Select a player by clicki
 the pitch or using the native roster picker. Selection survives all seeks and
 restarts; a white ring and lilac trail show that player's selection and
 already-travelled path. Mint and pink markers distinguish the fictional teams.
-The native match centre uses system typography, a rich purple score masthead,
-original H/O team badges and stadium-line artwork, mint playback controls and
-white/lilac panels, adapting to light and purple-toned dark appearances.
-The pitch occupies the flexible central area with a pinned timeline and transport.
-The player inspector and match notes scroll independently, beside the pitch on
-wider windows and in two panels underneath it on narrower windows. The whole
-page does not scroll.
+The native Stats Centre uses bold system typography, a lilac-to-cyan gradient
+hero and white underlined tabs above neutral leaderboard cards. Light mode uses
+white surfaces and purple text; dark mode uses deep plum surfaces and lilac text.
+Dashboard opens first, with horizontally scrollable Goals, Shots, Passes and
+Distance player cards followed by club cards. Each player card shows the top
+five players, ranked by the current metric with ordinal player ID breaking ties.
+Selecting a player name opens that actual player's inspector. Passes rank
+resolved attempts; completed-pass totals and accuracy remain in the inspector.
+Club cards sum the same current player snapshot, with team ID breaking ties.
+
+The functional Dashboard, Player and Club tabs filter the displayed sections;
+Match replay opens the flexible pitch. Original H/O marks identify the fictional
+teams. Player lens and Match notes switch the independently scrollable side
+inspector, keeping both usable in shorter windows. The timeline and mint
+transport remain pinned outside every tab's scrolling content. Horizontal card
+overflow preserves readable rows on narrow windows; the whole page does not scroll.
 
 Team and player pass totals, pass accuracy, player shots/goals, distance in metres,
 and maximum observed speed in metres/second are derived from the same replay
@@ -104,20 +113,23 @@ This is a **manual launch instruction, not an executed verification step**.
 If signing or Gatekeeper blocks the launch, resolve it through your approved
 local development setup; do not bypass system warnings.
 
-1. Play through the full 72 seconds. Confirm players/ball animate, the clock
+1. Open Match replay and play through the full 72 seconds. Confirm players/ball animate, the clock
    stops at full time, and the final score is Harbor 1 : 0 Orchard.
 2. Pause, wait, resume, seek in both directions, and restart. Confirm no elapsed
    time accumulates while paused and no stats or goals are counted twice.
-3. Select Finch in the roster and then a player on the pitch. Confirm selection
-   survives seeks/restart, with a white ring/lilac trail. Verify the picker works with
-   keyboard and the system accessibility tools you normally use.
+3. Select a leaderboard row, switch between Dashboard/Player/Club, then open
+   Match replay. Confirm card values track the playhead and decrease on backward
+   seeks. Select Finch in the roster and then a player on the pitch. Confirm
+   selection survives seeks/restart, with a white ring/lilac trail. Verify the
+   picker works with keyboard and the system accessibility tools you normally use.
 4. Seek to 55 seconds, 56 seconds and back to 0. Confirm the goal/explanations
    appear only at 56, and the initial pass accuracy says unavailable. Switch
-   Casual/Analyst and use an event replay button; selection should not change.
+   to Match notes, change Casual/Analyst and use an event replay button;
+   selection should not change. Return to Player lens to inspect the same player.
 5. Resize the window narrow/wide/tall and check light/dark system appearance.
-   Confirm pinned playback controls, independently scrolling inspector/notes,
-   an undistorted pitch and correct selection. Clicking letterbox margins must
-   not select a player.
+   Confirm pinned playback controls, horizontal leaderboard scrolling,
+   independently scrolling inspector/notes, an undistorted pitch and correct
+   selection. Clicking letterbox margins must not select a player.
 6. Deactivate the window while playing, then return. Confirm playback stays paused.
    Close the window and confirm no continued playback work.
 
@@ -173,14 +185,19 @@ roster remains the alternative for selecting obscured players.
 
 ## Provenance and deferred scope
 
-The visual palette references the [Premier League website](https://www.premierleague.com/en/)
-(purple `#37003C`, mint `#00FF87`, pink `#FF2882`, observed October 2026).
+The visual structure references the [Premier League Stats Centre](https://www.premierleague.com/en/stats)
+(observed October 2026): a lilac `#953BFF` to cyan `#05F0FF` hero, underlined
+tabs, ordered player/club sections, ranked cards and neutral/plum surfaces.
+Purple `#37003C`, mint `#00FF87` and pink `#FF2882` complement this palette.
 PitchLens is an **independent, unaffiliated synthetic demo**, not an official
 Premier League product. No permission or endorsement is claimed. In accordance
 with the site's [asset-use restrictions](https://www.premierleague.com/en/terms-and-conditions),
 no official lion logo, club crests, photographs, proprietary fonts, site CSS or
-scripts are downloaded or bundled. The team badges and stadium-line illustration
-are original artwork; the fictional players are not paired with real athlete images.
+scripts are downloaded or bundled. The team marks are original artwork; the
+fictional players are not paired with real athlete images. This is a native
+interpretation using supported match metrics, not an exact or pixel-verified
+copy of the website. Nonfunctional website navigation and untracked metrics
+(such as assists) are deliberately omitted.
 
 All names, teams, trajectories, pitch artwork, icon/splash SVGs and explanation
 scripts are original synthetic demo content authored for this prototype. There

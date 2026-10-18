@@ -9,7 +9,7 @@
             <Setter Property="FontSize" Value="13" />
         </Style>
         <Style TargetType="Button">
-            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#F0E8F5, Dark=#46254F}" />
+            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#F5F2F5, Dark=#46254F}" />
             <Setter Property="TextColor" Value="{AppThemeBinding Light=#37003C, Dark=#F9F2FF}" />
             <Setter Property="FontSize" Value="13" />
             <Setter Property="FontAttributes" Value="Bold" />
@@ -19,7 +19,7 @@
         </Style>
         <Style TargetType="Picker">
             <Setter Property="TextColor" Value="{AppThemeBinding Light=#37003C, Dark=#F9F2FF}" />
-            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#F0E8F5, Dark=#46254F}" />
+            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#F5F2F5, Dark=#46254F}" />
             <Setter Property="FontSize" Value="13" />
             <Setter Property="MinimumHeightRequest" Value="36" />
         </Style>
