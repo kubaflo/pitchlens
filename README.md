@@ -125,7 +125,11 @@ Drawing and inverse click hit-testing share the same aspect-preserving transform
 Letterbox margins do not select players. Nearest player within the marker radius
 wins, with ordinal ID resolving exact overlaps; the roster also selects obscured
 players. White rings and lilac past-only trails show selection. Mint is Arsenal,
-pink is Manchester City; original A/M marks are not club crests.
+pink is Manchester City. Actual club crests appear in the score strip,
+selected-player club identity and player/club leaderboard rows. Moving pitch
+markers retain readable shirt numbers rather than large logos. Crests are
+packaged local images with aspect-fit sizing and a white backing for contrast
+in both themes; they require no runtime image download.
 
 Dashboard/Player/Club tabs expose synthetic leaderboards, with stable ID ties and
 native player-name buttons. Player lens and Match notes offer independently
@@ -224,9 +228,24 @@ The palette/layout reference is the [Premier League Stats page](https://www.prem
 lilac `#953BFF` to cyan `#05F0FF`, purple `#37003C`, mint `#00FF87`, pink
 `#FF2882`, underlined tabs and ranked secondary cards. This is an original native
 interpretation, not an exact/pixel-verified website copy or an official product.
-No endorsement or official-asset permission is claimed. No lion logo, club crests,
-photographs, proprietary fonts, site CSS/scripts or page markup are bundled.
-The pitch, A/M team marks and app icon/splash are original artwork.
+Club crest use is based on the user's stated permission for **this hackathon
+prototype**. This records user-reported permission, not a blanket redistribution
+or open-asset license, and does not imply league/club endorsement. The club crests
+retain their owners' rights. No Premier League lion logo, player photographs,
+proprietary fonts, site CSS/scripts or page markup are bundled. The pitch and
+app icon/splash remain original artwork.
+
+Downloaded 2026-10-18 directly from the official Premier League CDN (not Google
+thumbnail caches or image-result pages):
+
+| Local asset | Source |
+|---|---|
+| `src/PitchLens.App/Resources/Images/arsenal_crest.png` | https://resources.premierleague.com/premierleague/badges/t3.png |
+| `src/PitchLens.App/Resources/Images/manchester_city_crest.png` | https://resources.premierleague.com/premierleague/badges/t43.png |
+
+Both are verified 200 x 200 RGBA PNG crests with transparency. They are included
+as local `MauiImage` resources. This source record does not claim that Google
+returned or licensed these assets.
 
 The original internal `DemoMatch` fixture remains fictional for stable regression
 tests only; the app remaps it to verified names before display and never calls it

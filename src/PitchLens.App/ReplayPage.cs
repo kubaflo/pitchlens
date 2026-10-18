@@ -25,11 +25,17 @@ public sealed class ReplayPage : ContentPage, IDisposable
     private CancellationTokenSource? generationCancellation;
     private readonly PitchDrawable drawable;
     private readonly GraphicsView pitch;
-    private readonly Label scoreboard = new() { FontSize = 18, FontAttributes = FontAttributes.Bold };
+    private readonly Label scoreboard = new()
+    {
+        FontSize = 18,
+        FontAttributes = FontAttributes.Bold,
+        VerticalTextAlignment = TextAlignment.Center
+    };
     private readonly Label clock = Caption("");
     private readonly Label possession = Caption("");
     private readonly Label identity = Heading("", 24);
     private readonly Label teamIdentity = Caption("");
+    private readonly Image selectedClubCrest = CrestImage("arsenal", 28);
     private readonly Dictionary<string, Label> stats = [];
     private readonly Label emptyInsights = Caption("No events yet. Play or seek to reveal the match.");
     private readonly Button play = new()
@@ -164,12 +170,15 @@ public sealed class ReplayPage : ContentPage, IDisposable
             statRows.Add(value, 1, row);
             stats.Add(title, value);
         }
+        var selectedClub = new Grid { ColumnDefinitions = Columns(GridLength.Auto, GridLength.Star), ColumnSpacing = 8 };
+        selectedClub.Add(CrestSurface(selectedClubCrest));
+        selectedClub.Add(teamIdentity, 1);
         inspectorPanel = Panel(new ScrollView
         {
             Content = new VerticalStackLayout
             {
                 Spacing = 12,
-                Children = { Heading("Selected player", 18), roster, identity, teamIdentity, statRows,
+                Children = { Heading("Selected player", 18), roster, identity, selectedClub, statRows,
                     Caption("Resolved synthetic attempts only. Not actual player performance."),
                     Caption("Copilot SDK generation"),
                     Caption($"GPT only: {CopilotScenarioSource.Model}. Uses bundled compatible runtime and normal copilot login. One bounded request per click; may consume Copilot usage."),
@@ -238,7 +247,13 @@ public sealed class ReplayPage : ContentPage, IDisposable
         hero.Add(new ScrollView { Orientation = ScrollOrientation.Horizontal, Content = tabBar }, 0, 1);
         var matchStrip = new Grid { ColumnDefinitions = Columns(GridLength.Star, GridLength.Auto), ColumnSpacing = 12 };
         matchStrip.Add(dataset);
-        matchStrip.Add(scoreboard, 1);
+        matchStrip.Add(new HorizontalStackLayout
+        {
+            Spacing = 8,
+            VerticalOptions = LayoutOptions.Center,
+            Children = { CrestSurface(CrestImage("arsenal", 24)), scoreboard,
+                CrestSurface(CrestImage("manchester-city", 24)) }
+        }, 1);
         generate.Clicked += OnGenerateClicked;
         cancelGeneration.Clicked += (_, _) => generationCancellation?.Cancel();
         var generationRow = new Grid
@@ -273,6 +288,37 @@ public sealed class ReplayPage : ContentPage, IDisposable
     }
 
     private string TeamName(string id) => match.Teams.Single(t => t.Id == id).Name;
+
+    private static string CrestSource(string teamId) => teamId switch
+    {
+        "arsenal" => "arsenal_crest.png",
+        "manchester-city" => "manchester_city_crest.png",
+        _ => throw new ArgumentException("Unknown crest team.", nameof(teamId))
+    };
+
+    private static Image CrestImage(string teamId, double size)
+    {
+        var image = new Image
+        {
+            Source = CrestSource(teamId),
+            Aspect = Aspect.AspectFit,
+            WidthRequest = size,
+            HeightRequest = size,
+            VerticalOptions = LayoutOptions.Center
+        };
+        SemanticProperties.SetDescription(image, $"{PremierLeagueRoster.Teams.Single(t => t.Id == teamId).Name} club crest");
+        return image;
+    }
+
+    private static Border CrestSurface(Image image) => new()
+    {
+        Content = image,
+        Padding = 2,
+        BackgroundColor = Colors.White,
+        StrokeThickness = 0,
+        StrokeShape = new RoundRectangle { CornerRadius = 5 },
+        VerticalOptions = LayoutOptions.Center
+    };
 
     private sealed class AppScenarioSource(ReplayPage page) : IScenarioSource
     {
@@ -471,24 +517,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
         var rankLabel = Caption(rank.ToString());
         rankLabel.VerticalOptions = LayoutOptions.Center;
         row.Add(rankLabel);
-        row.Add(new Border
-        {
-            BackgroundColor = MatchTheme.Team(teamId),
-            WidthRequest = 22,
-            HeightRequest = 26,
-            StrokeThickness = 0,
-            VerticalOptions = LayoutOptions.Center,
-            StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(3, 3, 8, 8) },
-            Content = new Label
-            {
-                Text = teamId == "arsenal" ? "A" : "M",
-                TextColor = MatchTheme.Purple,
-                FontSize = 12,
-                FontAttributes = FontAttributes.Bold,
-                HorizontalTextAlignment = TextAlignment.Center,
-                VerticalTextAlignment = TextAlignment.Center
-            }
-        }, 1);
+        row.Add(CrestSurface(CrestImage(teamId, 20)), 1);
         row.Add(new VerticalStackLayout
         {
             Spacing = 1,
@@ -639,6 +668,12 @@ public sealed class ReplayPage : ContentPage, IDisposable
         updatingTimeline = false;
         identity.Text = $"{selected.Name}  #{selected.Number}";
         teamIdentity.Text = $"{TeamName(selected.TeamId)} · Real roster name, synthetic actions";
+        var crest = CrestSource(selected.TeamId);
+        if (selectedClubCrest.Source is not FileImageSource source || source.File != crest)
+        {
+            selectedClubCrest.Source = crest;
+            SemanticProperties.SetDescription(selectedClubCrest, $"{TeamName(selected.TeamId)} club crest");
+        }
         var accuracy = s.PassAccuracy is double value ? value.ToString("P0") : "Unavailable (no attempts)";
         stats["Passes completed"].Text = $"{s.CompletedPasses} / {s.Passes}";
         stats["Pass accuracy"].Text = accuracy;
