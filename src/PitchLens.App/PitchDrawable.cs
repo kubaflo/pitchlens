@@ -15,15 +15,15 @@ public sealed class PitchDrawable(Match match) : IDrawable
         var transform = PitchTransform.Fit(dirtyRect.Width, dirtyRect.Height);
         var scale = (float)transform.Scale;
         canvas.SaveState();
-        canvas.FillColor = Color.FromArgb("#102A36");
+        canvas.FillColor = Color.FromArgb("#283F34");
         canvas.FillRectangle(dirtyRect);
         canvas.Translate((float)transform.Left, (float)transform.Top);
         canvas.Scale(scale, scale);
-        canvas.FillColor = Color.FromArgb("#1B654E");
+        canvas.FillColor = Color.FromArgb("#4B7355");
         canvas.FillRectangle(0, 0, 105, 68);
-        canvas.FillColor = Color.FromArgb("#206E55");
+        canvas.FillColor = Color.FromArgb("#50795A");
         for (var i = 0; i < 10; i += 2) canvas.FillRectangle(i * 10.5f, 0, 10.5f, 68);
-        canvas.StrokeColor = Color.FromArgb("#A8CEBA");
+        canvas.StrokeColor = Color.FromArgb("#D2DFD0");
         canvas.StrokeSize = .25f;
         canvas.DrawRectangle(0, 0, 105, 68);
         canvas.DrawLine(52.5f, 0, 52.5f, 68);
@@ -39,7 +39,7 @@ public sealed class PitchDrawable(Match match) : IDrawable
         if (SelectedId is not null)
         {
             var selected = match.Player(SelectedId);
-            canvas.StrokeColor = Color.FromArgb("#FFE39A");
+            canvas.StrokeColor = Color.FromArgb("#B4D5FF");
             canvas.StrokeSize = .4f;
             var points = selected.Path.Frames.Where(f => f.Time < Time).Select(f => f.Position)
                 .Append(selected.Path.At(Time)).ToArray();
@@ -52,13 +52,18 @@ public sealed class PitchDrawable(Match match) : IDrawable
             var p = player.Path.At(Time);
             if (player.Id == SelectedId)
             {
-                canvas.StrokeColor = Color.FromArgb("#FFE39A");
+                canvas.StrokeColor = Colors.White;
                 canvas.StrokeSize = .6f;
                 canvas.DrawCircle((float)p.X, (float)p.Y, 2.8f);
             }
-            canvas.FillColor = Color.FromArgb(player.TeamId == "harbor" ? "#89E6ED" : "#F4AE85");
+            canvas.FillColor = Color.FromArgb("#23382B");
+            canvas.FillCircle((float)p.X + .15f, (float)p.Y + .3f, (float)PlayerRadius + .2f);
+            canvas.FillColor = Color.FromArgb(player.TeamId == "harbor" ? "#2676D9" : "#C66B35");
             canvas.FillCircle((float)p.X, (float)p.Y, (float)PlayerRadius);
-            canvas.FontColor = Color.FromArgb("#102A36");
+            canvas.StrokeColor = Color.FromArgb("#F4F4EF");
+            canvas.StrokeSize = .18f;
+            canvas.DrawCircle((float)p.X, (float)p.Y, (float)PlayerRadius);
+            canvas.FontColor = Colors.White;
             canvas.FontSize = 2.5f;
             canvas.DrawString(player.Number.ToString(), (float)p.X - 2, (float)p.Y - 2, 4, 4,
                 HorizontalAlignment.Center, VerticalAlignment.Center);

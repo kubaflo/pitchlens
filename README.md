@@ -11,9 +11,14 @@ Hackathon submission is deferred.
 An aspect-preserving 2D pitch, interpolated players and ball, score and possession,
 play/pause/restart, a timeline, and +/-5-second seeks. Select a player by clicking
 the pitch or using the native roster picker. Selection survives all seeks and
-restarts; gold shows that player's selection and already-travelled path.
-The layout places player details beside the pitch on wider windows and underneath
-on narrower windows, with scrolling for smaller desktop sizes.
+restarts; a white ring and pale-blue trail show that player's selection and
+already-travelled path. Blue and burnt-orange markers distinguish the teams.
+The native utility layout uses system typography, neutral rounded panels and
+system blue accents, adapting to light and graphite dark appearances.
+The pitch occupies the flexible central area with a pinned timeline and transport.
+The player inspector and match notes scroll independently, beside the pitch on
+wider windows and in two panels underneath it on narrower windows. The whole
+page does not scroll.
 
 Team and player pass totals, pass accuracy, player shots/goals, distance in metres,
 and maximum observed speed in metres/second are derived from the same replay
@@ -81,7 +86,8 @@ headlessly on non-macOS .NET 10 hosts without the MAUI workload.
 The compile command builds an unsigned `.app` under
 `src/PitchLens.App/bin/Debug/net10.0-maccatalyst/maccatalyst-arm64/`.
 It does **not** launch the app and is not a distribution or App Store package.
-The app has not been launched or runtime-accepted by the implementation agent.
+The initial prototype was launched at the user's request for manual testing.
+The redesigned interface still requires user-operated visual/runtime acceptance.
 
 ## User-operated runtime acceptance (not yet verified)
 
@@ -102,13 +108,15 @@ local development setup; do not bypass system warnings.
 2. Pause, wait, resume, seek in both directions, and restart. Confirm no elapsed
    time accumulates while paused and no stats or goals are counted twice.
 3. Select Finch in the roster and then a player on the pitch. Confirm selection
-   survives seeks/restart, with a gold ring/trail. Verify the picker works with
+   survives seeks/restart, with a white ring/pale-blue trail. Verify the picker works with
    keyboard and the system accessibility tools you normally use.
 4. Seek to 55 seconds, 56 seconds and back to 0. Confirm the goal/explanations
    appear only at 56, and the initial pass accuracy says unavailable. Switch
    Casual/Analyst and use an event replay button; selection should not change.
-5. Resize the window narrow/wide/tall. Confirm readable scrolling, an undistorted
-   pitch and correct selection. Clicking letterbox margins must not select a player.
+5. Resize the window narrow/wide/tall and check light/dark system appearance.
+   Confirm pinned playback controls, independently scrolling inspector/notes,
+   an undistorted pitch and correct selection. Clicking letterbox margins must
+   not select a player.
 6. Deactivate the window while playing, then return. Confirm playback stays paused.
    Close the window and confirm no continued playback work.
 

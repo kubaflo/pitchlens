@@ -3,14 +3,29 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="PitchLens.App.App">
     <Application.Resources>
+        <Color x:Key="Accent">#007AFF</Color>
         <Style TargetType="Label">
-            <Setter Property="TextColor" Value="#E6F0F4" />
+            <Setter Property="TextColor" Value="{AppThemeBinding Light=#1D1D1F, Dark=#F5F5F7}" />
+            <Setter Property="FontSize" Value="13" />
         </Style>
         <Style TargetType="Button">
-            <Setter Property="BackgroundColor" Value="#244754" />
-            <Setter Property="TextColor" Value="#FFFFFF" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="MinimumHeightRequest" Value="40" />
+            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#F0F0F3, Dark=#38383C}" />
+            <Setter Property="TextColor" Value="{AppThemeBinding Light=#1D1D1F, Dark=#F5F5F7}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="CornerRadius" Value="7" />
+            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="MinimumHeightRequest" Value="34" />
+        </Style>
+        <Style TargetType="Picker">
+            <Setter Property="TextColor" Value="{AppThemeBinding Light=#1D1D1F, Dark=#F5F5F7}" />
+            <Setter Property="BackgroundColor" Value="{AppThemeBinding Light=#F0F0F3, Dark=#38383C}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="MinimumHeightRequest" Value="36" />
+        </Style>
+        <Style TargetType="Slider">
+            <Setter Property="MinimumTrackColor" Value="#007AFF" />
+            <Setter Property="MaximumTrackColor" Value="{AppThemeBinding Light=#D8D8DE, Dark=#48484A}" />
+            <Setter Property="ThumbColor" Value="{AppThemeBinding Light=#FFFFFF, Dark=#E5E5EA}" />
         </Style>
     </Application.Resources>
 </Application>
