@@ -7,13 +7,16 @@ namespace PitchLens.App;
 
 public sealed class ReplayPage : ContentPage, IDisposable
 {
-    private Match match = PremierLeagueRoster.CreateDeterministicDemo();
+    private Match match = RecordedScenario.Create();
     private Playback playback = new(72, new MonotonicClock());
     private readonly GenerationService generation;
     private readonly Button generate = new() { Text = "Generate match", AutomationId = "generate-match" };
     private readonly Button cancelGeneration = new() { Text = "Cancel", AutomationId = "cancel-generation", IsVisible = false };
     private readonly ActivityIndicator generating = new() { Color = MatchTheme.Purple, IsVisible = false };
-    private readonly Label generationStatus = Caption("Deterministic demo · Not SDK-generated");
+    private readonly Label generationStatus = Caption("Recorded SDK example · Not a fresh request");
+    private readonly Label storyTitle = Heading("", 17);
+    private readonly Label storyBeat = Caption("Opening shape · Play to reveal the story");
+    private readonly VerticalStackLayout storyNotes = new() { Spacing = 10 };
     private readonly Entry cliPath = new()
     {
         Placeholder = "Bundled runtime (leave blank)",
@@ -74,7 +77,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
 
     public ReplayPage()
     {
-        generation = new GenerationService(new AppScenarioSource(this), match);
+        generation = new GenerationService(new AppScenarioSource(this), match, ScenarioOrigin.RecordedSdkExample);
         dataset.AutomationId = "scenario-provenance";
         generationStatus.AutomationId = "generation-status";
         Title = "PitchLens · Match Centre";
@@ -135,10 +138,13 @@ public sealed class ReplayPage : ContentPage, IDisposable
         var replayHeader = new Grid { ColumnDefinitions = Columns(GridLength.Star, GridLength.Auto), ColumnSpacing = 8 };
         replayHeader.Add(Heading("Match replay", 22));
         replayHeader.Add(possession, 1);
-        var replay = new Grid { RowDefinitions = Rows(GridLength.Auto, GridLength.Star, GridLength.Auto), RowSpacing = 12 };
+        var replay = new Grid { RowDefinitions = Rows(GridLength.Auto, GridLength.Auto, GridLength.Star, GridLength.Auto), RowSpacing = 8 };
         replay.Add(replayHeader);
-        replay.Add(pitch, 0, 1);
-        replay.Add(Caption("Mint: Arsenal · Pink: Manchester City · White: ball & selection · Lilac: past movement"), 0, 2);
+        storyTitle.AutomationId = "story-title";
+        storyBeat.AutomationId = "current-story-beat";
+        replay.Add(new VerticalStackLayout { Spacing = 2, Children = { storyTitle, storyBeat } }, 0, 1);
+        replay.Add(pitch, 0, 2);
+        replay.Add(Caption("Mint: Arsenal · Pink: Manchester City · White: ball & selection · Lilac: past movement"), 0, 3);
         replayPanel = Panel(replay);
 
         playerSection.Children.Add(Heading("Player stats", 24));
@@ -191,7 +197,7 @@ public sealed class ReplayPage : ContentPage, IDisposable
         eventGrid.Add(Heading("Match notes", 18));
         eventGrid.Add(segments, 0, 1);
         eventGrid.Add(Caption("Scripted explanations · No AI commentary"), 0, 2);
-        eventGrid.Add(new ScrollView { Content = new VerticalStackLayout { Spacing = 10, Children = { emptyInsights, insights } } }, 0, 3);
+        eventGrid.Add(new ScrollView { Content = new VerticalStackLayout { Spacing = 10, Children = { storyNotes, emptyInsights, insights } } }, 0, 3);
         var inspectorTabs = new Grid { ColumnDefinitions = Columns(GridLength.Star, GridLength.Star), ColumnSpacing = 4 };
         inspectorTabs.Add(playerLens);
         inspectorTabs.Add(notes, 1);
@@ -658,7 +664,12 @@ public sealed class ReplayPage : ContentPage, IDisposable
         drawable.SelectedId = selectedId;
         pitch.Invalidate();
         scoreboard.Text = $"Arsenal  {snapshot.Score["arsenal"]} : {snapshot.Score["manchester-city"]}  Man City";
-        dataset.Text = $"2026/27 · Synthetic 6v6 · {(generation.IsSdkGenerated ? "Copilot SDK / GPT" : "Deterministic demo (not AI)")}";
+        dataset.Text = $"2026/27 · Synthetic 6v6 · {(generation.IsSdkGenerated ? "Fresh Copilot SDK / GPT" : "Recorded SDK example")}";
+        storyTitle.Text = match.Story?.Title ?? "Synthetic match";
+        var moments = StoryReplay.At(match, time);
+        var currentMoment = moments.LastOrDefault();
+        storyBeat.Text = currentMoment is null ? "Opening shape · Play to reveal the story"
+            : $"{currentMoment.Time:00.0} s · {currentMoment.Heading}";
         possession.Text = snapshot.OwnerId is null ? "Ball in transit" : $"Possession · {match.Player(snapshot.OwnerId).Name}";
         clock.Text = $"{time:00.0} / {match.Duration:00.0} s" + (time >= match.Duration ? " · Full time" : "");
         play.Text = playback.IsPlaying ? "Pause" : "Play";
@@ -686,9 +697,21 @@ public sealed class ReplayPage : ContentPage, IDisposable
             $"Synthetic replay at {time:F1} seconds. {scoreboard.Text}. Selected {selected.Name}. {possession.Text}. Use the player picker to select.");
         UpdateLeaderboards(snapshot);
         var explanations = Explanations.At(match, time, explanationMode);
-        var key = $"{explanationMode}:{string.Join(',', explanations.Select(x => x.EventId))}";
+        var key = $"{explanationMode}:{string.Join(',', explanations.Select(x => x.EventId))}:{currentMoment?.Id}";
         if (key == insightKey) return;
         insightKey = key;
+        storyNotes.Children.Clear();
+        foreach (var moment in moments.Reverse())
+            storyNotes.Children.Add(new VerticalStackLayout
+            {
+                Spacing = 3,
+                Children =
+            {
+                Heading($"{moment.Time:00.0} s · {moment.Heading}", 14),
+                new Label { Text = moment.Detail, FontSize = 12 },
+                Caption($"Story {moment.Id} · Events {string.Join(", ", moment.EventIds)}")
+            }
+            });
         insights.Children.Clear();
         emptyInsights.IsVisible = explanations.Count == 0;
         foreach (var explanation in explanations.Reverse())

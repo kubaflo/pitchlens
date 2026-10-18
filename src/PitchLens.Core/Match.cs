@@ -72,9 +72,10 @@ public sealed class Match
     public IReadOnlyList<MatchEvent> Events { get; }
     public Trajectory Ball { get; }
     public IReadOnlyList<PossessionChange> Possession { get; }
+    public MatchStory? Story { get; }
 
     public Match(double duration, IEnumerable<Team> teams, IEnumerable<Player> players,
-        IEnumerable<MatchEvent> events, Trajectory ball, IEnumerable<PossessionChange> possession)
+        IEnumerable<MatchEvent> events, Trajectory ball, IEnumerable<PossessionChange> possession, MatchStory? story = null)
     {
         Duration = duration;
         Teams = Array.AsReadOnly(teams.ToArray());
@@ -82,6 +83,7 @@ public sealed class Match
         Events = Array.AsReadOnly(events.ToArray());
         Ball = ball;
         Possession = Array.AsReadOnly(possession.ToArray());
+        Story = story;
         Validate();
     }
 

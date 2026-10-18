@@ -6,15 +6,7 @@ namespace PitchLens.Core.Tests;
 
 public sealed class GenerationTests
 {
-    private static ScenarioDocument Valid()
-    {
-        var match = PremierLeagueRoster.CreateDeterministicDemo();
-        return new(72, match.OwnerAt(0)!,
-            match.Players.Select(p => new PlayerDocument(p.Id,
-                p.Path.Frames.Select(f => new FrameDocument(f.Time, f.Position.X, f.Position.Y)).ToArray())).ToArray(),
-            match.Events.Select(e => new EventDocument(e.Id, e.Time, e.Order, e.Kind.ToString().ToLowerInvariant(),
-                e.ActorId, e.ReceiverId, e.Completed, e.StartTime)).ToArray());
-    }
+    private static ScenarioDocument Valid() => ScenarioParser.ParseDocument(RecordedScenario.Json());
 
     private static string Json(ScenarioDocument scenario) =>
         JsonSerializer.Serialize(scenario, ScenarioJsonContext.Default.ScenarioDocument);
@@ -28,8 +20,10 @@ public sealed class GenerationTests
         Assert.Equal(PremierLeagueRoster.Players.Select(p => p.Id), match.Players.Select(p => p.Id));
         Assert.Equal("David Raya", match.Player("arsenal-raya").Name);
         Assert.Equal(41, match.Player("arsenal-rice").Number);
-        Assert.Equal(1, Replay.At(match, 72).Score["arsenal"]);
-        Assert.Equal(0, Replay.At(match, 55).Score["arsenal"]);
+        Assert.Equal(match.Events.Count(e => e.Kind == EventKind.Goal && match.Player(e.ActorId).TeamId == "arsenal"),
+            Replay.At(match, 72).Score["arsenal"]);
+        var firstGoal = match.Events.First(e => e.Kind == EventKind.Goal);
+        Assert.All(Replay.At(match, firstGoal.Time - .01).Players, p => Assert.Equal(0, p.Goals));
         for (var i = 0; i <= 720; i++)
         {
             var time = i / 10d;
@@ -40,7 +34,7 @@ public sealed class GenerationTests
         var again = ScenarioValidator.Parse(Json(scenario));
         Assert.Equal(Replay.At(match, 39).Players, Replay.At(again, 39).Players);
         Assert.All(Replay.At(match, 72).Players, p => Assert.InRange(p.MaxSpeed, 0, 8));
-        Assert.Equal(new Position(105, 34), match.Ball.At(56));
+        Assert.Equal(new Position(match.Player(firstGoal.ActorId).TeamId == "arsenal" ? 105 : 0, 34), match.Ball.At(firstGoal.Time));
     }
 
     [Fact]
@@ -49,7 +43,8 @@ public sealed class GenerationTests
         var document = Valid();
         var match = ScenarioValidator.Build(document with { Players = document.Players.Reverse().ToArray() });
         Assert.Equal(PremierLeagueRoster.Players.Select(p => p.Id), match.Players.Select(p => p.Id));
-        Assert.Equal(1, Replay.At(match, 72).Score["arsenal"]);
+        Assert.Equal(Valid().Events.Count(e => e.Kind == "goal" && e.ActorId.StartsWith("arsenal-")),
+            Replay.At(match, 72).Score["arsenal"]);
     }
 
     [Fact]
@@ -95,13 +90,18 @@ public sealed class GenerationTests
     {
         var document = Valid();
         var events = document.Events.ToArray();
-        events[0] = events[0] with { ActorId = "arsenal-rice" };
+        events[0] = events[0] with
+        {
+            ActorId = PremierLeagueRoster.Players.First(p =>
+            p.Id != document.InitialOwnerId && p.Id != events[0].ReceiverId).Id
+        };
         Assert.Throws<ScenarioValidationException>(() => ScenarioValidator.Build(document with { Events = events }));
         events = document.Events.ToArray();
-        events[1] = events[1] with { StartTime = 7 };
+        events[1] = events[1] with { StartTime = 0 };
         Assert.Throws<ScenarioValidationException>(() => ScenarioValidator.Build(document with { Events = events }));
         events = document.Events.ToArray();
-        events[0] = events[0] with { Completed = false };
+        var passIndex = Array.FindIndex(events, e => e.Kind == "pass");
+        events[passIndex] = events[passIndex] with { Completed = !events[passIndex].Completed };
         Assert.Throws<ScenarioValidationException>(() => ScenarioValidator.Build(document with { Events = events }));
     }
 
@@ -112,10 +112,12 @@ public sealed class GenerationTests
         Assert.Throws<ScenarioValidationException>(() => ScenarioValidator.Build(document with
         { Events = document.Events.Where(e => e.Kind != "goal").ToArray() }));
         var events = document.Events.ToArray();
-        events[8] = events[8] with { ActorId = "arsenal-raya" };
+        var kickoff = Array.FindIndex(events, e => e.Kind == "kickoff");
+        var goal = events.First(e => e.Kind == "goal");
+        events[kickoff] = events[kickoff] with { ActorId = goal.ActorId };
         Assert.Throws<ScenarioValidationException>(() => ScenarioValidator.Build(document with { Events = events }));
         events = document.Events.ToArray();
-        events[8] = events[8] with { Time = 57 };
+        events[kickoff] = events[kickoff] with { Time = goal.Time + 1 };
         Assert.Throws<ScenarioValidationException>(() => ScenarioValidator.Build(document with { Events = events }));
     }
 
@@ -123,11 +125,11 @@ public sealed class GenerationTests
     public void Impossible_player_speed_coordinates_and_time_are_rejected()
     {
         var document = Valid();
-        var frames = document.Players[0].Frames.ToArray();
-        frames[1] = frames[1] with { X = 104, Y = 67 };
+        var frames = document.Players[1].Frames.ToArray();
+        frames[1] = frames[1] with { Time = .1, X = 104, Y = 67 };
         var players = document.Players.ToArray();
-        players[0] = players[0] with { Frames = frames };
-        Assert.Throws<ScenarioValidationException>(() => ScenarioValidator.Build(document with { Players = players }));
+        players[1] = players[1] with { Frames = frames };
+        Assert.Contains("8 m/s", Assert.Throws<ScenarioValidationException>(() => ScenarioValidator.Build(document with { Players = players })).Message);
         frames[1] = frames[1] with { X = 106 };
         Assert.Throws<ScenarioValidationException>(() => ScenarioValidator.Build(document with { Players = players }));
         frames[1] = frames[1] with { Time = 0 };
@@ -139,25 +141,28 @@ public sealed class GenerationTests
     public void Excessive_ball_flight_speed_is_rejected_before_match_replacement()
     {
         var document = Valid();
+        var index = Array.FindIndex(document.Events, e => e.Kind == "pass");
+        var pass = document.Events[index];
         var players = document.Players.Select(p => p.Id switch
         {
-            "arsenal-raya" => p with { Frames = [new(0, 0, 0), new(72, 0, 0)] },
-            "arsenal-odegaard" => p with { Frames = [new(0, 105, 68), new(72, 105, 68)] },
+            var id when id == pass.ActorId => p with { Frames = [new(0, 0, 0), new(72, 0, 0)] },
+            var id when id == pass.ReceiverId => p with { Frames = [new(0, 105, 68), new(72, 105, 68)] },
             _ => p
         }).ToArray();
-        var error = Assert.Throws<ScenarioValidationException>(() => ScenarioValidator.Build(document with { Players = players }));
+        var events = document.Events.Skip(index).ToArray();
+        events[0] = pass with { StartTime = pass.Time - 1 };
+        var error = Assert.Throws<ScenarioValidationException>(() => ScenarioValidator.Build(document with
+        { Players = players, InitialOwnerId = pass.ActorId, Events = events }));
         Assert.Contains("40 m/s", error.Message);
     }
 
     [Fact]
     public void Generated_backward_carries_do_not_get_unverified_forward_commentary()
     {
-        var document = Valid();
-        var players = document.Players.Select(p => p.Id == "arsenal-odegaard"
-            ? p with { Frames = p.Frames.Select(f => f with { X = 105 - f.X }).ToArray() } : p).ToArray();
-        var match = ScenarioValidator.Build(document with { Players = players });
-        var carry = Explanations.At(match, 42, ExplanationMode.Casual).Single(e => e.EventId == "E05");
-        Assert.Equal("Martin Odegaard carries the ball.", carry.Text);
+        var match = RecordedScenario.Create();
+        var carry = match.Events.First(e => e.Kind == EventKind.Carry);
+        var text = Explanations.At(match, carry.Time, ExplanationMode.Casual).Single(e => e.EventId == carry.Id).Text;
+        Assert.Equal($"{match.Player(carry.ActorId).Name} carries the ball.", text);
     }
 
     [Fact]

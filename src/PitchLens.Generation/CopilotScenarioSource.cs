@@ -9,7 +9,7 @@ namespace PitchLens.Generation;
 #pragma warning disable GHCP001
 public sealed class CopilotScenarioSource(string cliPath, string workingDirectory) : IScenarioSource
 {
-    public const string Model = "gpt-5.4-mini";
+    public const string Model = "gpt-5.4";
 
     public async Task<string> GenerateAsync(IProgress<string>? progress, CancellationToken cancellationToken)
     {
@@ -41,6 +41,7 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
             var session = await client.CreateSessionAsync(new SessionConfig
             {
                 Model = Model,
+                ReasoningEffort = "medium",
                 AvailableTools = [],
                 OnPermissionRequest = (_, _) => Task.FromResult(PermissionDecision.Reject("Scenario generation does not permit tool access.")),
                 EnableConfigDiscovery = false,
@@ -54,7 +55,7 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
                 SystemMessage = new SystemMessageConfig
                 {
                     Mode = SystemMessageMode.Replace,
-                    Content = "You generate only structured synthetic football replay JSON. Do not use tools, agents, files or external services. Follow the schema and causal constraints exactly. These events are invented, not real athlete performance."
+                    Content = "You are a football replay choreographer. Plan the story first, then coordinate every player's purposeful movement with the causal event timeline. Output only the required structured JSON. Do not use tools, agents, files or external services. These actions are invented, not real athlete performance."
                 }
             }, cancellationToken).ConfigureAwait(false);
             try
@@ -64,7 +65,7 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
                 {
                     Prompt = Prompt,
                     ResponseSchema = schema.RootElement.Clone()
-                }, TimeSpan.FromMinutes(2.5), cancellationToken).ConfigureAwait(false);
+                }, TimeSpan.FromMinutes(4.5), cancellationToken).ConfigureAwait(false);
                 return response?.Data.Content ?? throw new CopilotGenerationException("Copilot returned no scenario response.");
             }
             finally
@@ -112,47 +113,76 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
     }
 
     public static string Prompt => """
-        Generate an ORIGINAL synthetic 72-second 6-a-side football replay using EVERY roster ID below exactly once.
-        2026/27 names and clubs are factual; all match actions are invented. No real match claims.
-        Return only JSON matching the schema. You must invent player keyframes AND event choices/times, not a seed.
-        Coordinates are metres: x 0..105, y 0..68. Arsenal attacks x=105, City x=0.
-        Each player's 2..12 keyframes must start at time 0, end at 72, strictly increase.
-        Use realistic movement: every segment <=8 metres/second. Background players can stay stationary.
-        All field players must initially be spread over the pitch, not stacked at one point.
-        Include 5..12 chronologically ordered resolved events: at least 2 passes, a moving carry,
-        one shot and its goal. These are illustrative small-sided selections, NOT actual starting XIs.
-        kind is pass/carry/shot/goal/kickoff. IDs unique short ASCII. order is 0 normally.
-        A shot and its goal have identical time, order 0 for shot and 1 for goal.
-        Each pass/carry/shot has startTime >=0, duration >=1 second, no overlapping actions.
-        Actor MUST own the ball continuously immediately before each action.
-        Initial owner is initialOwnerId. Pass transfers ownership to receiver at resolved time.
-        completed=true ONLY if receiver is same team; false ONLY for opposing-team interception.
-        Pass requires receiverId and completed; all other kinds require both null.
-        Carry must move >=1m along its player's trajectory between startTime and time.
-        Shot is followed immediately by one goal at the same time/actor. Only scoring shots are supported.
-        After a goal, either end the action sequence OR kickoff by OPPOSING team at least 2 seconds later.
-        Kickoff player MUST be at (52.5,34) at kickoff time; kickoff startTime=null, goal startTime=null.
-        Flight speed from actor at startTime to receiver at time (or goal x=105/0,y=34) <=40 m/s.
-        A flight must start strictly after the prior possession change (leave at least 1 second).
-        Easier valid structure: initial owner passes at 8 (start6), receiver carries 12..18,
-        receiver passes at24 (start22), receiver passes at34(start32), receiver shoots at48(start46),
-        same-actor goal48/order1; no further events. You choose actors, positions and times coherently.
-        Pick shot actor near their attacking goal by shot start, keep later trajectories within speed limit.
-        For each event output every schema field including nullable receiverId,completed,startTime.
-        Verified roster:
+        Create an ORIGINAL engaging synthetic 72-second, reduced-sided Arsenal v Manchester City match.
+        Use ALL 12 verified roster IDs exactly once. Names/clubs are factual 2026/27; EVERY action is invented.
+        STORY FIRST: choose an arc of build-up under pressure, an intercepted pass/turnover, counterattack,
+        a supporting/overlapping run to receive a pass, a convincing finish, then the other team's response.
+        You choose substantive actors, event times, runs, score and complete trajectories. Not a seed or commentary.
+        Plan the event/possession timeline internally BEFORE choosing coordinated keyframes. Then output only schema JSON.
+        Story title must be one of Pressure and Space / The Turning Tide / A Game of Transitions / Seventy-Two Seconds
+        (neutral titles avoid revealing future results). Include 6..9 beats with unique short ASCII IDs.
+        Beat kind: build-up, turnover, counterattack, support-run, finish, response. Include ALL six kinds.
+        First kind build-up; turnover before counterattack before finish before response.
+        Beat ranges must be contiguous from exactly 0 to exactly 72 (no gaps/overlap).
+        Every beat references >=1 known event IDs resolving inside its range, and 2..6 real player IDs.
+        Include all referenced event actors/receivers in playerIds; include a named reacting defender too where needed.
+        Every event must appear in a beat. Story claims are derived from these verified anchors, not free commentary.
+        BOTH clubs must complete >=1 successful pass AND >=1 moving carry and gain possession.
+        The turnover is an intercepted pass (completed=false, receiver on opposing team); do not invent a tackle event.
+        Use 10..20 events if useful, prioritizing complete action/response over excess types.
+        Player positions are metres x=0..105,y=0..68. Arsenal attacks RIGHT (105); City attacks LEFT (0).
+        IMPORTANT keepers: Raya starts x<=10,y24..44 and stays x<=18,y18..50; Donnarumma starts
+        x>=95,y24..44 and stays x>=87,y18..50. Never put both keepers at the same end.
+        Outfield players need purposeful coordinated runs/recovery, changes of direction, not idle background/jitter.
+        EACH club must have >=3 active outfield players with >=6 keyframes, >=35m total movement,
+        a >=3m/s burst, and >=2 direction changes of >=32 degrees between segments of >=4m.
+        Aim for 60..140m travel, varied 2..6m/s bursts, then meaningful recovery; do NOT jitter to meet thresholds.
+        All segments must stay <=8m/s. Give most outfield players 10..16 keyframes, including action arrival times.
+        Shared sensible time boundaries help. Each path begins at0, ends at72, has strictly increasing times.
+        At every story boundary, each team's outfielders must span >=20m (at least two are separated by20m).
+        Maintain width/depth and coordinate defensive reactions as possession changes; do not pile everyone on ball.
+        Build-up AND counterattack beats each need a completed pass and a named OPPOSING defender in playerIds.
+        That defender must move >=8m during the beat, CLOSE its distance to the ball by >=5m from beat start
+        to beat end, and finish within15m of the ball. Choose endpoints deliberately to make this visible.
+        Counterattack also needs a moving carry.
+        Support-run beat MUST include a completed pass to an outfield runner who travels >=10m and advances
+        >=8m toward their attacking goal between beat start and receiving time. Runner must be off-ball
+        before receiving; actor still owns ball until flight. Ball will meet receiver's path at arrival.
+        Finish beat references both shot AND goal. Response references an OPPOSING kickoff plus a completed pass.
+        After the goal, show renewed supporting movement; do not freeze everyone. A second attack/goal is optional.
+        Events strictly ordered by time, then order (0 normally; shot order0 and paired goal order1 at same time).
+        kind=pass/carry/shot/goal/kickoff. Event IDs unique short ASCII.
+        Each pass/carry/shot has startTime >= prior action END, duration>=1s, no overlapping actions.
+        Actor must own ball. A pass transfers ownership to receiver at resolved time; completed must agree with teams.
+        Pass requires receiverId and completed. All other kinds have receiverId=null,completed=null.
+        Carries move>=1m along carrier path; ball automatically follows. All shots must have a paired same-time goal.
+        A flight starts STRICTLY AFTER previous possession change and has <=40m/s ball speed to receiver
+        (or attacking goal x=105/0,y=34). Model the shooter near the correct attacking goal.
+        A goal requires an opposing kickoff >=2s later BEFORE further play. Kickoff actor must be at centre
+        (52.5,34) at that instant; goal/kickoff startTime=null.
+        Do a final internal check of speeds, beat endpoints, defender distances, runner movement and possession chain.
+        Supply every field including nullable receiverId/completed/startTime. Verified roster:
         """ + JsonSerializer.Serialize(PremierLeagueRoster.Players.ToArray(), ScenarioJsonContext.Default.RosterPlayerArray);
 
     private const string Schema = """
-        {"type":"object","additionalProperties":false,"required":["duration","initialOwnerId","players","events"],"properties":{
+        {"type":"object","additionalProperties":false,"required":["duration","initialOwnerId","players","events","story"],"properties":{
         "duration":{"type":"number","const":72},"initialOwnerId":{"type":"string"},
         "players":{"type":"array","minItems":12,"maxItems":12,"items":{"type":"object","additionalProperties":false,
-          "required":["id","frames"],"properties":{"id":{"type":"string"},"frames":{"type":"array","minItems":2,"maxItems":12,
+          "required":["id","frames"],"properties":{"id":{"type":"string"},"frames":{"type":"array","minItems":2,"maxItems":24,
           "items":{"type":"object","additionalProperties":false,"required":["time","x","y"],"properties":{
           "time":{"type":"number"},"x":{"type":"number"},"y":{"type":"number"}}}}}}},
-        "events":{"type":"array","minItems":5,"maxItems":12,"items":{"type":"object","additionalProperties":false,
+        "events":{"type":"array","minItems":5,"maxItems":20,"items":{"type":"object","additionalProperties":false,
           "required":["id","time","order","kind","actorId","receiverId","completed","startTime"],"properties":{
           "id":{"type":"string"},"time":{"type":"number"},"order":{"type":"integer"},"kind":{"type":"string","enum":["pass","carry","shot","goal","kickoff"]},
-          "actorId":{"type":"string"},"receiverId":{"type":["string","null"]},"completed":{"type":["boolean","null"]},"startTime":{"type":["number","null"]}}}}
+          "actorId":{"type":"string"},"receiverId":{"type":["string","null"]},"completed":{"type":["boolean","null"]},"startTime":{"type":["number","null"]}}}},
+        "story":{"type":"object","additionalProperties":false,"required":["title","beats"],"properties":{
+          "title":{"type":"string","enum":["Pressure and Space","The Turning Tide","A Game of Transitions","Seventy-Two Seconds"]},
+          "beats":{"type":"array","minItems":6,"maxItems":9,"items":{"type":"object","additionalProperties":false,
+            "required":["id","startTime","endTime","kind","eventIds","playerIds"],"properties":{
+              "id":{"type":"string"},"startTime":{"type":"number"},"endTime":{"type":"number"},
+              "kind":{"type":"string","enum":["build-up","turnover","counterattack","support-run","finish","response"]},
+              "eventIds":{"type":"array","items":{"type":"string"}},"playerIds":{"type":"array","items":{"type":"string"}}}}}
+        }}
         }}
         """;
 }

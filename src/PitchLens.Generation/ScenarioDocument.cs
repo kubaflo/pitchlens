@@ -7,7 +7,18 @@ public sealed record ScenarioDocument(
     [property: JsonRequired] double Duration,
     [property: JsonRequired] string InitialOwnerId,
     [property: JsonRequired] PlayerDocument[] Players,
-    [property: JsonRequired] EventDocument[] Events);
+    [property: JsonRequired] EventDocument[] Events,
+    [property: JsonRequired] StoryDocument Story);
+public sealed record StoryDocument(
+    [property: JsonRequired] string Title,
+    [property: JsonRequired] BeatDocument[] Beats);
+public sealed record BeatDocument(
+    [property: JsonRequired] string Id,
+    [property: JsonRequired] double StartTime,
+    [property: JsonRequired] double EndTime,
+    [property: JsonRequired] string Kind,
+    [property: JsonRequired] string[] EventIds,
+    [property: JsonRequired] string[] PlayerIds);
 public sealed record PlayerDocument(
     [property: JsonRequired] string Id,
     [property: JsonRequired] FrameDocument[] Frames);

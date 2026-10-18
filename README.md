@@ -16,21 +16,23 @@ or either club; submission remains deferred.
 ## Generate a match with Copilot
 
 Click **Generate match**. This makes **one bounded request** through
-`GitHub.Copilot.SDK` **1.0.22**, explicitly selecting **`gpt-5.4-mini`**.
+`GitHub.Copilot.SDK` **1.0.22**, explicitly selecting **`gpt-5.4`** with medium reasoning.
 There is no Auto, Anthropic/Claude, alternate-provider or model fallback path.
 Normal Copilot authentication and model entitlement are required. Generation
 uses Copilot services over the network and may consume your Copilot usage.
 No API key or token is configured or read by application code.
 
-The model produces structured JSON containing **all player keyframes and
-timestamped pass/carry/shot/goal events**, not merely commentary or a random
-seed. A JSON response schema constrains output; application validation is the
+The model plans a **story first**, then produces structured JSON containing
+**all player keyframes, timestamped events and linked story phases**, not merely
+commentary, playback-speed changes or a random seed. The arc covers pressured
+build-up, a turnover, counterattack, an advancing off-ball support run, finish
+and the other team's response. A JSON response schema constrains output; application validation is the
 authority before it can become a playable match. Roster names, clubs and shirt
 numbers are mapped from the verified local roster, never invented by the model.
 
 The UI shows connecting/authentication/model/generation/validation progress and
-a Cancel action. Generation runs off the UI thread, is limited to three minutes
-(the model response wait is 150 seconds), and never automatically retries.
+a Cancel action. Generation runs off the UI thread, is limited to five minutes
+(the model response wait is 270 seconds), and never automatically retries.
 Malformed data, authentication, entitlement, compatibility, timeout and transport
 errors are visible. Failure/cancellation **keeps the previous valid match**, with
 no success-shaped demo fallback. A successful generation replaces the match
@@ -39,13 +41,19 @@ retires the request; SDK session/runtime resources are disposed.
 Cleanup has its own deadline; if graceful SDK disposal stalls, only that
 generation's owned runtime is stopped and the cleanup error is reported.
 
-On startup the app explicitly labels its **deterministic demo (not AI)**. It uses
-the same real roster names, but its event sequence is authored locally. A generated
-match is labeled **Copilot SDK / GPT**, and its events are still synthetic.
-Restart resets playback, not the scenario. Closing/reopening the app starts
-the deterministic demo again; generated scenarios are not automatically persisted.
-The note explanations remain deterministic scripts derived from the current
-match's events, **not a second AI request**.
+On startup the app plays a reviewed **recorded SDK example**, bundled unchanged
+from the successful live story-generation response on 2026-10-18. This is labeled
+**Recorded SDK example · Not a fresh request**, not falsely presented as a new
+generation. Startup makes no model request. Clicking Generate produces a new
+scenario labeled **Fresh Copilot SDK / GPT**; its actions remain synthetic.
+Restart resets playback, not the scenario. Reopening starts the bundled example;
+subsequent generated scenarios are not automatically persisted.
+
+The pitch shows the neutral, spoiler-free story title and latest verified beat.
+Match notes show completed phases, evidence event IDs and trajectory-derived
+movement. A beat is revealed only after its full time range has elapsed, so
+backward seeks remove future event/movement claims. Explanatory sentences are
+deterministic renderings of validated facts, **not a second AI request**.
 
 ### Authentication and the compatible runtime
 
@@ -72,13 +80,23 @@ No OS settings, Gatekeeper warnings or authentication prompts are bypassed.
 
 ### Live verification evidence
 
-A real SDK request using the pinned native runtime and `gpt-5.4-mini` produced
-a valid **72-second** scenario with **12 roster players, 6 ordered events,
-2 passes, 2 carries, 1 shot and 1 goal**, maximum player speed **1.523 m/s**.
-The generated JSON was validated and saved only in session artifacts, not
-committed as a supposedly real match. Preflight attempts with the incompatible
-system CLI failed before a model request; no automatic paid generation loop
-was used. This verifies the headless SDK path, not native desktop UI acceptance.
+A real SDK request using the pinned native runtime and `gpt-5.4` produced
+**A Game of Transitions**, a **72-second** scenario with **12 roster players,
+20 ordered events: 9 passes, 8 carries, 1 shot, 1 goal and 1 kickoff**.
+Arsenal build under pressure from Dias; Doku intercepts Rice's pass, City counter,
+Doku makes a supporting run to receive Cherki's pass, and Haaland finishes at
+45.5 s. Odegaard restarts at 48.5 s and Arsenal respond through Saka, Gyokeres
+and Rice. These actions are entirely invented.
+
+Arsenal have **4/5** and City **5/5** outfielders meeting the active-motion
+checks. Outfielders travel **64.6-110.1 m**, with **2-5** purposeful turns;
+the maximum speed is **4.854 m/s**. Both keepers remain at their own end.
+The exact validated response is bundled in
+`src/PitchLens.Generation/Resources/recorded_match.json` as a recorded synthetic
+example, not as a real match. The first story request hit the old 150-second
+timeout; one concrete correction (medium reasoning and a bounded longer wait)
+succeeded. There is no automatic paid retry loop. This verifies the headless
+SDK path and scenario, not native desktop UI acceptance.
 
 For an explicit, opt-in headless check (one model request, no retries):
 
@@ -107,6 +125,18 @@ Player segments must stay at or below **8 m/s**, ball flights at or below
 **40 m/s**. Each trajectory covers 0-72 seconds. This bounded generator supports
 only scoring shots with explicit same-time shot/goal ordering; no xG, assists,
 clean-sheet, pressure or formation metrics are invented.
+
+Story validation also requires contiguous ordered phase coverage and known
+time-bounded event/player anchors, both clubs completing passes/carries, an
+interception and a causal kickoff response. Build-up/counterattack must name an
+opposing defender who travels at least 8 m, closes at least 5 m and ends within
+15 m of the ball. A support receiver must be off-ball, travel at least 10 m and
+advance at least 8 m toward the attacking goal before receiving.
+Each club needs at least three outfielders with six or more keyframes, 35 m
+travel, a 3 m/s burst and two turns exceeding about 32 degrees between segments
+at least 4 m long. Tiny jitter does not count. Teams retain 20 m of outfield
+spread at phase boundaries; keepers start at their own goal and remain in their
+own goal area. These are choreography quality gates, not inferred match metrics.
 
 Ball motion/possession are deterministically derived from validated player paths
 and events, not accepted as an unrelated model-supplied track. Possession is null
@@ -196,7 +226,7 @@ dotnet build src/PitchLens.App -c Debug -t:Run \
   -p:EnableCodeSigning=true -p:CodesignKey=- -p:CreatePackage=false
 ```
 
-Confirm pitch-first startup, real names/shirts, prominent synthetic/not-AI-demo
+Confirm pitch-first startup, real names/shirts, prominent recorded/synthetic
 label, playback/seeks/selection, unavailable initial accuracy, no future notes
 after backward seeks, readable light/dark and narrow/wide layout, and individual
 keyboard-accessible mode and leaderboard buttons. Generate a match with normal
@@ -248,8 +278,7 @@ as local `MauiImage` resources. This source record does not claim that Google
 returned or licensed these assets.
 
 The original internal `DemoMatch` fixture remains fictional for stable regression
-tests only; the app remaps it to verified names before display and never calls it
-SDK-generated. Dependencies and bundled Copilot runtime retain upstream licenses.
+tests only; it is no longer the startup scenario. Dependencies and bundled Copilot runtime retain upstream licenses.
 No credentials, private personal data or proprietary match assets are committed.
 Foundry, CV/video, other platforms, backend/database/SignalR, multi-agent runtime
 and hackathon submission remain out of scope.

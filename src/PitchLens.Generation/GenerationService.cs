@@ -8,14 +8,17 @@ public interface IScenarioSource
 }
 
 public enum GenerationState { Ready, Generating, Succeeded, Failed, Cancelled }
+public enum ScenarioOrigin { DeterministicDemo, RecordedSdkExample, FreshSdkGeneration }
 
-public sealed class GenerationService(IScenarioSource source, Match initial)
+public sealed class GenerationService(IScenarioSource source, Match initial, ScenarioOrigin initialOrigin = ScenarioOrigin.DeterministicDemo)
 {
     private int running;
     public Match Current { get; private set; } = initial;
     public GenerationState State { get; private set; }
-    public string Status { get; private set; } = "Deterministic demo · Not SDK-generated";
-    public bool IsSdkGenerated { get; private set; }
+    public string Status { get; private set; } = initialOrigin == ScenarioOrigin.RecordedSdkExample
+        ? "Recorded SDK example · Not a fresh request" : "Deterministic demo · Not SDK-generated";
+    public ScenarioOrigin Origin { get; private set; } = initialOrigin;
+    public bool IsSdkGenerated => Origin == ScenarioOrigin.FreshSdkGeneration;
 
     public async Task GenerateAsync(IProgress<string>? progress, CancellationToken cancellationToken)
     {
@@ -24,7 +27,7 @@ public sealed class GenerationService(IScenarioSource source, Match initial)
         State = GenerationState.Generating;
         Status = "Requesting synthetic scenario through Copilot SDK…";
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromMinutes(3));
+        timeout.CancelAfter(TimeSpan.FromMinutes(5));
         try
         {
             var json = await source.GenerateAsync(progress, timeout.Token).ConfigureAwait(false);
@@ -33,7 +36,7 @@ public sealed class GenerationService(IScenarioSource source, Match initial)
             var candidate = ScenarioValidator.Parse(json);
             timeout.Token.ThrowIfCancellationRequested();
             Current = candidate;
-            IsSdkGenerated = true;
+            Origin = ScenarioOrigin.FreshSdkGeneration;
             State = GenerationState.Succeeded;
             Status = "Copilot SDK · GPT-generated synthetic match · Not a real match";
         }
@@ -45,7 +48,7 @@ public sealed class GenerationService(IScenarioSource source, Match initial)
         catch (OperationCanceledException)
         {
             State = GenerationState.Failed;
-            Status = "Generation timed out after three minutes. Previous match kept.";
+            Status = "Generation timed out after five minutes. Previous match kept.";
         }
         catch (Exception e) when (e is ScenarioValidationException or CopilotGenerationException or TimeoutException or IOException or InvalidOperationException or UnauthorizedAccessException)
         {

@@ -132,7 +132,9 @@ public static class ScenarioValidator
         var ball = new Trajectory(times.Select(t => new Keyframe(t, BallAt(t))));
         try
         {
-            return new(72, skeleton.Teams, players, events, ball, possession);
+            var match = new Match(72, skeleton.Teams, players, events, ball, possession);
+            var story = StoryQuality.Validate(match, document.Story);
+            return new(72, skeleton.Teams, players, events, ball, possession, story);
         }
         catch (ArgumentException e)
         {
