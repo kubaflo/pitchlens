@@ -67,4 +67,7 @@ public sealed class GenerationService(IScenarioSource source, Match initial, Sce
     }
 }
 
-public sealed class CopilotGenerationException(string message, Exception? inner = null) : Exception(message, inner);
+public sealed class CopilotGenerationException(string message, Exception? inner = null, string? diagnostic = null) : Exception(message, inner)
+{
+    public string? Diagnostic { get; } = diagnostic;
+}

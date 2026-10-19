@@ -126,6 +126,39 @@ The local development app is not an App Store/sandboxed deployment: it starts
 an owned stdio runtime process and requires access to normal local Copilot auth.
 No OS settings, Gatekeeper warnings or authentication prompts are bypassed.
 
+The local prototype explicitly signs with **App Sandbox disabled** and network
+client access enabled. The inherited template incorrectly enabled App Sandbox:
+an identically signed headless macOS SDK host reproduced `IOException` during
+empty `session.create` (permission denied), although runtime startup,
+authentication and model lookup passed. With the **same bundle ID, runtime,
+workdir and auth mode**, changing only App Sandbox produced red/green/restored
+red/restored green. The unsandboxed check also passed with token environment
+variables unset, using normal existing CLI login. No model message was sent.
+This is component-level causal evidence, not a new successful full-match run
+or proof from the actual Catalyst UI.
+
+**Security/deployment tradeoff:** this independent local app and its owned CLI
+run with the user's ordinary filesystem/process privileges, not App Sandbox
+isolation. Model tools/permissions remain disabled. This is **not Mac App Store
+packaging**; a sandboxed distribution would require a separately designed
+broker/auth architecture, not simply restoring the template flag. No global
+credentials, OS security settings or signing warnings are changed/bypassed.
+
+Under **Settings → Advanced generation setup → Check SDK connection (no
+generation)**, a bounded check starts the actual packaged runtime, checks
+normal authentication/exact Sol availability, creates an empty SDK session and
+cleans it up. It does not call `Send` or generate a match. Startup-only success
+is insufficient, because it missed the observed session-creation failure.
+Errors now identify the failed stage and an allowlisted cause chain with
+HRESULT/native/exit codes; raw exception/stderr/request text, paths and
+credentials are never copied into app diagnostics. Failure keeps the prior match.
+The matching headless check is:
+
+```sh
+dotnet run --project tools/PitchLens.Generate -- \
+  --check-session /absolute/path/to/compatible/copilot-runtime /working/directory
+```
+
 ### Live verification evidence
 
 The first actual 22-player output had 768 explicit knots but almost everyone

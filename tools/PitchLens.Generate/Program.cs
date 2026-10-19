@@ -2,6 +2,19 @@ using PitchLens.Core;
 using PitchLens.Generation;
 using GitHub.Copilot;
 
+if (args is [var connectionOperation, var connectionRuntime, var connectionDirectory] &&
+    connectionOperation is "--check-connection" or "--check-session")
+{
+    using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(45));
+    try
+    {
+        await new CopilotScenarioSource(connectionRuntime, connectionDirectory).VerifyConnectionAsync(new Progress<string>(Console.WriteLine), deadline.Token, connectionOperation == "--check-session");
+        Console.WriteLine("CONNECTION VERIFIED | authenticated | gpt-6.1-sol enabled | no generation");
+        return 0;
+    }
+    catch (CopilotGenerationException e) { Console.Error.WriteLine(e.Message); Console.Error.WriteLine(e.Diagnostic); return 1; }
+    catch (OperationCanceledException) { Console.Error.WriteLine("Connection check timed out."); return 1; }
+}
 if (args is ["--author-paths", var authoredRuntime, var authoredOutput])
 {
     using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(5));

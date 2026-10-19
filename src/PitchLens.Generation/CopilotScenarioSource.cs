@@ -27,33 +27,76 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
     }
     public Task<string> GenerateCommentaryAsync(Match match, IProgress<string>? progress, CancellationToken cancellationToken) =>
         RequestAsync(CommentaryPrompt.For(match), CommentaryPrompt.Schema, progress, cancellationToken);
-    private async Task<string> RequestAsync(string prompt, string responseSchema, IProgress<string>? progress, CancellationToken cancellationToken)
+    private CopilotClient CreateClient()
     {
         if (!Path.IsPathFullyQualified(cliPath) || !File.Exists(cliPath))
             throw new CopilotGenerationException("Copilot runtime executable is missing. Rebuild with bundled runtime acquisition enabled, or select a compatible CLI.");
+        Directory.CreateDirectory(workingDirectory);
+        return new(new CopilotClientOptions
+        {
+            Connection = RuntimeConnection.ForStdio(cliPath),
+            WorkingDirectory = workingDirectory,
+            UseLoggedInUser = true,
+            LogLevel = CopilotLogLevel.Error
+        });
+    }
+    private static async Task ConnectAsync(CopilotClient client, IProgress<string>? progress, Action<string> stage, CancellationToken token)
+    {
+        stage("startup"); progress?.Report("Starting local Copilot CLI…");
+        await client.StartAsync(token).ConfigureAwait(false);
+        stage("auth"); progress?.Report("Checking Copilot authentication…");
+        var auth = await client.GetAuthStatusAsync(token).ConfigureAwait(false);
+        if (!auth.IsAuthenticated) throw new CopilotGenerationException("Run copilot login in Terminal with a Copilot-enabled account.");
+        stage("models"); progress?.Report("Checking required GPT model availability…");
+        RequireModel(await client.ListModelsAsync(token).ConfigureAwait(false));
+    }
+    public async Task VerifyConnectionAsync(IProgress<string>? progress, CancellationToken token, bool includeSession = false)
+    {
+        var stage = "setup";
         try
         {
-            Directory.CreateDirectory(workingDirectory);
-            var client = new CopilotClient(new CopilotClientOptions
-            {
-                Connection = RuntimeConnection.ForStdio(cliPath),
-                WorkingDirectory = workingDirectory,
-                UseLoggedInUser = true,
-                LogLevel = CopilotLogLevel.Error
-            });
+            var client = CreateClient();
             await using var owner = new BoundedClient(client);
-            progress?.Report("Starting local Copilot CLI…");
-            await client.StartAsync(cancellationToken).ConfigureAwait(false);
-            progress?.Report("Checking Copilot authentication…");
-            var auth = await client.GetAuthStatusAsync(cancellationToken).ConfigureAwait(false);
-            if (!auth.IsAuthenticated) throw new CopilotGenerationException("Run copilot login in Terminal with a Copilot-enabled account.");
-            progress?.Report("Checking required GPT model availability…");
-            RequireModel(await client.ListModelsAsync(cancellationToken).ConfigureAwait(false));
+            await ConnectAsync(client, progress, value => stage = value, token).ConfigureAwait(false);
+            if (includeSession)
+            {
+                stage = "session";
+                progress?.Report("Checking empty SDK session creation (no model message)…");
+                var session = await client.CreateSessionAsync(CreateSessionConfig(), token).ConfigureAwait(false);
+                stage = "cleanup";
+                await session.AbortAsync(token).ConfigureAwait(false);
+            }
+            stage = "cleanup";
+        }
+        catch (JsonException e)
+        {
+            var diagnostic = Report(stage, e);
+            throw new CopilotGenerationException("SDK/runtime protocol mismatch. Clear the override to use bundled runtime 1.0.98.", e, diagnostic.Diagnostic);
+        }
+        catch (Exception e) when (e is IOException or InvalidOperationException or Win32Exception or TimeoutException or RemoteRpcException or UnauthorizedAccessException or AggregateException)
+        { throw Report(stage, e); }
+    }
+    private static CopilotGenerationException Report(string stage, Exception error)
+    {
+        var diagnostic = CopilotDiagnostics.Describe(stage, error);
+        Console.Error.WriteLine(diagnostic.Trace);
+        return new(diagnostic.Message, error, diagnostic.Trace);
+    }
+    private async Task<string> RequestAsync(string prompt, string responseSchema, IProgress<string>? progress, CancellationToken cancellationToken)
+    {
+        var stage = "setup";
+        try
+        {
+            var client = CreateClient();
+            await using var owner = new BoundedClient(client);
+            await ConnectAsync(client, progress, value => stage = value, cancellationToken).ConfigureAwait(false);
             progress?.Report($"Generating synthetic match content with {Model}…");
+            stage = "session";
             var session = await client.CreateSessionAsync(CreateSessionConfig(), cancellationToken).ConfigureAwait(false);
             try
             {
                 using var schema = JsonDocument.Parse(responseSchema);
+                stage = "response";
                 var response = await session.SendAndWaitAsync(new MessageOptions
                 {
                     Prompt = prompt,
@@ -61,8 +104,11 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
                 }, TimeSpan.FromMinutes(4.5), cancellationToken).ConfigureAwait(false);
                 return response?.Data.Content ?? throw new CopilotGenerationException("Copilot returned no match plan.");
             }
+            catch (Exception e) when (e is IOException or InvalidOperationException or Win32Exception or TimeoutException or RemoteRpcException or UnauthorizedAccessException or AggregateException)
+            { throw Report("response", e); }
             finally
             {
+                stage = "cleanup";
                 using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                 try { await session.AbortAsync(cleanup.Token).ConfigureAwait(false); }
                 catch (OperationCanceledException e) when (!cancellationToken.IsCancellationRequested)
@@ -74,7 +120,7 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
         catch (JsonException e)
         { throw new CopilotGenerationException("SDK/runtime protocol mismatch. Clear the override to use bundled runtime 1.0.98.", e); }
         catch (Exception e) when (e is IOException or InvalidOperationException or Win32Exception or TimeoutException or RemoteRpcException or UnauthorizedAccessException or AggregateException)
-        { throw new CopilotGenerationException($"Copilot SDK request failed ({e.GetType().Name}). Check login, network and access to {Model}.", e); }
+        { throw Report(stage, e); }
     }
     public static ModelInfo RequireModel(IEnumerable<ModelInfo> models)
     {
