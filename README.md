@@ -175,7 +175,9 @@ Clicking a shirt pauses replay and opens an adjacent player dialog with four
 key statistics; **Players** is the keyboard-accessible roster alternative.
 Each canvas shirt also has a transparent native HTML button named with its
 player, club and number. Tab/Enter/Space and accessibility activation use the
-same player-popup route. JS moves these twelve persistent targets with the
+same player-popup route. Targets are ordinary buttons with explicit "Open
+player details" labels and `aria-controls`, not macOS popup-menu buttons.
+JS moves these twelve persistent targets with the
 same cached transform and last-drawn positions as the visible shirts; there
 are no per-frame Blazor updates or second set of visible players. Focus has a
 visible ring and returns to the activating shirt button when the popup closes.

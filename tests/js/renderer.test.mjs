@@ -117,8 +117,9 @@ test("production renderer aligns12 accessible player buttons with shirts and dis
                     assert.ok(Math.abs(drawn.y / (canvas.height / rect.height) - (transform.top + position.y * transform.scale)) < 1e-8);
                     const button = layer.children.find(b => b.dataset.playerId === player.id);
                     assert.equal(button.type, "button");
-                    assert.equal(button.attributes["aria-label"], `${player.name}, ${player.teamId === "arsenal" ? "Arsenal" : "Manchester City"}, shirt ${player.number}`);
-                    assert.equal(button.attributes["aria-haspopup"], "dialog");
+                    assert.equal(button.attributes["aria-label"], `Open ${player.name} player details, ${player.teamId === "arsenal" ? "Arsenal" : "Manchester City"}, shirt ${player.number}`);
+                    assert.equal(button.attributes["aria-haspopup"], undefined);
+                    assert.equal(button.attributes["aria-controls"], "player-dialog");
                     const box = button.getBoundingClientRect();
                     assert.ok(Math.abs(box.left + box.width / 2 - rect.left - drawn.x / raster) < 1e-8);
                     assert.ok(Math.abs(box.top + box.height / 2 - rect.top - drawn.y / (canvas.height / rect.height)) < 1e-8);

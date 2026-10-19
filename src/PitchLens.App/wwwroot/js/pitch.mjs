@@ -128,8 +128,7 @@ function buildPlayerTargets() {
         button.type = "button";
         button.className = "player-target";
         button.dataset.playerId = p.id;
-        button.setAttribute("aria-label", `${p.name}, ${p.teamId === "arsenal" ? "Arsenal" : "Manchester City"}, shirt ${p.number}`);
-        button.setAttribute("aria-haspopup", "dialog");
+        button.setAttribute("aria-label", `Open ${p.name} player details, ${p.teamId === "arsenal" ? "Arsenal" : "Manchester City"}, shirt ${p.number}`);
         button.setAttribute("aria-controls", "player-dialog");
         button.style.zIndex = String(engine.drawPlayers.findIndex(player => player.id === p.id) + 1);
         const activate = () => {
