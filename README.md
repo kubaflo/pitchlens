@@ -73,10 +73,23 @@ scenario labeled **Fresh SDK / gpt-6.1-sol**; its actions remain synthetic.
 Restart resets playback, not the scenario. Reopening starts the bundled example;
 subsequent generated scenarios are not automatically persisted.
 
-The pitch shows a concise latest observed action. A goal callout shows the
-actual synthetic scorer, club and score for six seconds of **playback time**;
-it freezes on pause and disappears correctly on seek/restart. Score changes at
-the event time on the JS animation clock, not a wall-clock timer.
+The pitch shows a concise latest observed action. Goals now get a large
+club-coloured **GOAL!** plate, crest/scorer/score reveal, scorer spotlight and
+short deterministic net-side burst for eight seconds of **playback time**.
+These freeze on pause and reset correctly on seeks/restart; score still changes
+at the exact goal event, never from an animation callback or wall-clock timer.
+
+During the dead-ball interval, **Goal replays** (on by default) shows a labelled
+replay of the actual AI-authored goal move, then cuts directly back to the live
+kickoff. It replaces the uninteresting goal-to-centre ball drift without
+inventing player motion, changing match time or adding another goal. The clock,
+score, facts and commentary remain at authoritative match time; only the
+explicitly labelled replay camera samples earlier, already-observed knots.
+Shirt buttons/hit tests/following lenses use those actual displayed positions.
+Settings can disable the extra camera; reduced-motion preferences also suppress
+it and the decorative motion. No automatic time jump, playback pause or new
+model request occurs for a goal. The fixture heading replaces generic marketing
+copy, and subtitles use a stronger 22 px broadcast treatment.
 Match notes show completed phases, evidence event IDs and trajectory-derived
 movement. A beat is revealed only after its full time range has elapsed, so
 backward seeks remove future event/movement claims. Explanatory sentences are
@@ -86,14 +99,17 @@ deterministic renderings of validated facts, **not a second AI request**.
 
 **CC** controls optional AI-generated subtitles at the bottom of the pitch,
 on by default when available. These are actual **gpt-6.1-sol** output, not
-renamed scripted match notes. Startup uses **40 recorded cues** from one
-successful bounded SDK commentary request for the exact 22-player match facts.
-They span 3-298 seconds, last **2-5 replay seconds** each (152 seconds total),
-cover both goals, and are bundled unchanged in `recorded_11v11_commentary.json`.
+renamed scripted match notes. Startup now uses **41 recorded cues** from one
+successful bounded SDK commentary refresh for the exact same 22-player match
+facts: a sharper broadcast voice, varied short calls and emphatic factual goals,
+not repeated full-name/pass-completed templates. They span 3-297 seconds, last
+**2-5 replay seconds** each (124 seconds total), cover both goals, and are bundled
+unchanged in `recorded_11v11_commentary_broadcast.json`. The prior 40-cue recording
+is retained as historical data, not silently hand-edited or relabeled.
 The match-facts digest is
 `7b6e52ea484abf19165a8534ec5ebe6921fe155e54cd3797ffe00e6e92896865`;
 the commentary file SHA-256 is
-`81d32d547293ffe03e588f05e99bde7e519213f40a40b81a407ae0b26f3b5c39`.
+`88859ee4825e45b06228a5a45528f420b8683ed97eb818fb62dc9dd3071adb6e`.
 This was one actual Sol request, no retries or fallback. Startup and playback
 make no requests. Settings distinguishes recorded/generated commentary from
 scripted story facts; all describe synthetic actions.
@@ -472,7 +488,8 @@ roster, disclosures, mode buttons and transport. Check all 300 seconds and
 the far end), verify that exact player's following lens while playback continues,
 switch players, then test Close/Escape/outside and focus return. Repeat while
 paused: no action may autoplay. Resize/seek/change speed with the lens open.
-Observe the score/goal callout at 86 and 176 seconds;
+Observe the goal impact and labelled replay at 86 and 176 seconds, followed by
+the cut to the authored kickoff. Test Goal replays off and reduced motion;
 pause, seek backward and restart must preserve factual timing without duplicates.
 Open Match story and seek an observed event. Try each speed while playing and
 paused, seek in both directions, and restart: rate stays selected without a

@@ -8,6 +8,21 @@ public sealed class StoryTests
     private static ScenarioDocument Document() => ScenarioParser.ParseDocument(RecordedScenario.Json());
 
     [Fact]
+    public void Punchier_moment_titles_name_only_resolved_goal_or_interception_evidence()
+    {
+        var match = AuthoredMatchRecording.Create();
+        foreach (var beat in match.Story!.Beats.Where(b => b.Kind is "finish" or "turnover"))
+        {
+            Assert.DoesNotContain(StoryReplay.At(match, beat.EndTime - .001), m => m.Id == beat.Id);
+            var moment = StoryReplay.At(match, beat.EndTime).Single(m => m.Id == beat.Id);
+            var evidence = beat.EventIds.Select(id => match.Events.Single(e => e.Id == id)).ToArray();
+            var player = beat.Kind == "finish" ? evidence.First(e => e.Kind == EventKind.Goal).ActorId
+                : evidence.First(e => e.Kind == EventKind.Pass && e.Completed == false).ReceiverId!;
+            Assert.Contains(match.Player(player).Name, moment.Heading);
+        }
+    }
+
+    [Fact]
     public void Recorded_example_has_complete_causal_story_and_both_teams_participate()
     {
         var match = RecordedScenario.Create();

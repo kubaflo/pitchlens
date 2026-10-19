@@ -18,7 +18,7 @@
             </div>
         </header>
         <div class="page-heading">
-            <div><span class="eyebrow">Your match centre</span><h1>Every move matters.</h1></div>
+            <div><span class="eyebrow">Matchday / Synthetic 11v11</span><h1>Arsenal <span class="fixture-versus">v</span> City</h1></div>
             <div class="actions"><button id="players-button" class="button" @onclick='() => Open("roster-dialog")'>Players</button><button class="button purple" @onclick='() => Open("story-dialog")'>Match story</button></div>
         </div>
         <section class="score-strip" aria-label="Synthetic match score">
@@ -31,7 +31,11 @@
             <div class="pitch-slot">
                 <canvas @ref="canvas" id="pitch" tabindex="0" role="img" aria-label="Synthetic football replay. Click a shirt, or use Players for keyboard-accessible selection."></canvas>
                 <div id="pitch-players" class="pitch-players" role="group" aria-label="Select a player on the pitch"></div>
-                <div id="goal-banner" class="goal-banner" hidden role="status"><strong id="goal-title"></strong><span id="goal-detail"></span></div>
+                <div id="goal-banner" class="goal-banner" hidden role="status" aria-label="Goal celebration">
+                    <span class="goal-shout" aria-hidden="true">GOAL!</span>
+                    <div class="goal-card"><img id="goal-crest" alt="" /><div class="goal-copy"><span id="goal-team" class="goal-team"></span><strong id="goal-title"></strong><span id="goal-detail"></span></div><strong id="goal-score" class="goal-score"></strong></div>
+                </div>
+                <div id="goal-replay-tag" class="goal-replay-tag" hidden aria-live="off"><span></span> GOAL REPLAY <small>Back live at kickoff</small></div>
                 <div id="commentary-caption" class="commentary-caption" hidden aria-label="AI commentator subtitles" aria-live="off"></div>
             </div>
             <div class="pitch-caption"><span>Click a shirt. Get the player lens.</span><span>@(frame.Explanations.LastOrDefault()?.Text ?? "Play to reveal the story.")</span></div>
@@ -116,6 +120,8 @@
                     <p>All 22 explicit player trajectories and events were authored by Sol. The viewer only interpolates those knots; ball motion follows validated possession and events. No procedural support-path or formation solver. Illustrative 11v11 selection, not an actual starting XI.</p>
                 }
                 <div class="actions"><button class="button" @onclick="() => Seek(-5)">−5 seconds</button><button class="button" @onclick="() => Seek(5)">+5 seconds</button></div>
+                <button class="button" aria-pressed="@(goalReplays ? "true" : "false")" @onclick="ToggleGoalReplays">Goal replays: @(goalReplays ? "On" : "Off")</button>
+                <p class="caption">Goals get a broadcast celebration and replay of the actual goal move during the dead-ball reset. The match clock never jumps. Reduced-motion preferences suppress the extra replay/effects.</p>
                 <p>Space plays or pauses; Left/Right seek one second outside form controls. Player lens and roster preserve playback. Story, settings and creation pause replay.</p>
                 <details><summary>Advanced generation setup</summary><p>New requests use @CopilotScenarioSource.Model. Normal Copilot login and model access are required.</p><label for="cli">Compatible runtime override</label><input id="cli" placeholder="Bundled runtime (leave blank)" @bind="Session.CliOverride" disabled="@(Session.Generating || Session.CheckingConnection)" /><button class="button" @onclick="Session.CheckConnectionAsync" disabled="@(Session.Generating || Session.CheckingConnection)">Check SDK connection (no generation)</button><p role="status">@Session.ConnectionStatus</p></details>
             </div>
@@ -136,6 +142,7 @@
     private long loadedRevision;
     private PopupRequest? pendingPopup;
     private bool captionsEnabled = true;
+    private bool goalReplays = true;
     private sealed record PopupRequest(string Id);
     private static string Crest(string id) => id == "arsenal" ? "images/arsenal_crest.png" : "images/manchester_city_crest.png";
     private static string Club(Match match, string id) => match.Teams.Single(t => t.Id == id).Name;
@@ -158,6 +165,7 @@
                 await module.InvokeVoidAsync("initialize", canvas, reference);
                 await Refresh(true);
                 await module.InvokeVoidAsync("setCaptionsEnabled", captionsEnabled);
+                await module.InvokeVoidAsync("setGoalReplaysEnabled", goalReplays);
                 ticker = Tick();
             }
             if (!disposed && module is not null && pendingPopup is { } popup)
@@ -223,6 +231,13 @@
         try { if (module is not null) await module.InvokeVoidAsync("setCaptionsEnabled", captionsEnabled); }
         catch (JSDisconnectedException) { lifetime.Cancel(); }
         catch (JSException e) { error = $"Subtitle control failed: {e.Message}"; Session.Command("pause"); }
+    }
+    private async Task ToggleGoalReplays()
+    {
+        goalReplays = !goalReplays;
+        try { if (module is not null) await module.InvokeVoidAsync("setGoalReplaysEnabled", goalReplays); }
+        catch (JSDisconnectedException) { lifetime.Cancel(); }
+        catch (JSException e) { error = $"Goal replay control failed: {e.Message}"; Session.Command("pause"); }
     }
     private void Seek(double offset) => Session.Command("seek-by", offset);
     private void TimelineChanged(ChangeEventArgs e)

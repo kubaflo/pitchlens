@@ -160,7 +160,7 @@ public sealed class RateAndCommentaryTests
         Assert.Throws<ScenarioValidationException>(() => AuthoredMatchPlan.Build(plan));
         var json = JsonSerializer.Serialize(plan with { Commentary = initial.Commentary!.Cues.ToArray() }, AuthoredJsonContext.Default.AuthoredMatchDocument);
         var built = AuthoredMatchPlan.Parse(json);
-        Assert.Equal(40, built.Commentary!.Cues.Count);
+        Assert.Equal(41, built.Commentary!.Cues.Count);
         using var schema = JsonDocument.Parse(AuthoredMatchPrompt.Schema);
         Assert.Equal(22, schema.RootElement.GetProperty("properties").GetProperty("players").GetProperty("minItems").GetInt32());
         var service = new GenerationService(new Source(AuthoredMatchRecording.Json()), initial, ScenarioOrigin.RecordedSdkExample, AuthoredMatchRecording.Model);

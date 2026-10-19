@@ -20,7 +20,7 @@ public partial class CommentaryJsonContext : JsonSerializerContext;
 public static class CommentaryPrompt
 {
     public const string Instructions = """
-        Write actual AI-generated live-style football commentator subtitles, not generic templates.
+        Write actual AI-generated football BROADCAST commentary: sharp, rhythmic, expressive, not a database feed.
         All actions are synthetic; never imply real athlete performance. Use ONLY the provided event facts.
         Produce 36-48 concise cues spread throughout all five minutes, at least two in each minute and one for EVERY goal.
         Each cue: id(unique ASCII/hyphen),eventId, start,end,playerIds,text.
@@ -29,8 +29,14 @@ public static class CommentaryPrompt
         Include goal event IDs (not shot IDs) for goal captions. No future events, predictions, later outcomes, cumulative score or statistics.
         Plain text8-140 characters, one line, no markup or digits. Never use 'will', 'later', 'eventually', 'winner', 'prediction', 'finally'.
         Say 'goal', 'scores' or 'scored' ONLY on a goal event. Use only involved actor/receiver names and IDs;1-2playerIds.
-        Use full roster names when naming players; club names are okay. No unsupported assists, pressure, skills, direction or metrics.
-        Sound lively and varied while accurately describing that one observed pass/interception/carry/shot/goal/restart.
+        Use full roster names when naming players; club names are okay. Name only one participant when two names make a line clumsy.
+        Mix clipped action-first calls, name-first calls and occasional longer lines. Vary the opening words and punctuation.
+        A routine pass can be understated; an interception should snap; a goal deserves an unmistakable GOAL call and scorer spotlight.
+        Do NOT repeatedly write '[full name] finds [full name]' or 'passes to'. Do not announce 'pass completed' like a spreadsheet.
+        Aim for many punchy14-75-character lines, not uniform sentences. Short bursts and a well-placed exclamation have room to breathe.
+        Emotion is welcome, invention is not: no unsupported assists, pressure, skill, direction, crowd, shot power, goal corner or metrics.
+        Don't repeat the synthetic disclaimer in the commentary; the app labels the match. No fake quotation or real-world broadcast attribution.
+        Make each cue feel like someone reacting to THAT observed event, not reading a roster list.
         JSON only. No tools or additional requests.
         """;
     public const string CueSchema = """

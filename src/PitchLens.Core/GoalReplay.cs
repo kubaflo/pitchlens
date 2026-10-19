@@ -4,10 +4,11 @@ public sealed record GoalMoment(string EventId, double Time, string Scorer, stri
 
 public static class GoalReplay
 {
+    public const double CelebrationSeconds = 8;
     public static GoalMoment? At(Match match, double time)
     {
         time = match.ClampTime(time);
-        var goal = match.Events.LastOrDefault(e => e.Kind == EventKind.Goal && e.Time <= time && time < e.Time + 6);
+        var goal = match.Events.LastOrDefault(e => e.Kind == EventKind.Goal && e.Time <= time && time < e.Time + CelebrationSeconds);
         if (goal is null) return null;
         var scorer = match.Player(goal.ActorId);
         return new(goal.Id, goal.Time, scorer.Name, scorer.TeamId, Replay.At(match, goal.Time).Score);

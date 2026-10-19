@@ -27,13 +27,17 @@ public static class StoryReplay
             });
             var heading = b.Kind switch
             {
-                "build-up" => "Build-up under pressure",
-                "turnover" => "Possession changes hands",
-                "counterattack" => "The counterattack",
-                "support-run" => "Support into space",
-                "finish" => "The finish",
-                "response" => "The response",
-                "possession" => "Working the ball",
+                "build-up" => "Building the move",
+                "turnover" when events.FirstOrDefault(e => e.Kind == EventKind.Pass && e.Completed == false) is { } turnover =>
+                    $"{match.Player(turnover.ReceiverId!).Name} cuts it out!",
+                "turnover" => "Possession turned",
+                "counterattack" => "The break is on",
+                "support-run" => "A runner in space",
+                "finish" when events.FirstOrDefault(e => e.Kind == EventKind.Goal) is { } scored =>
+                    $"{match.Player(scored.ActorId).Name}. GOAL!",
+                "finish" => "The finishing move",
+                "response" => "Straight back to it",
+                "possession" => "Keep it moving",
                 _ => throw new InvalidOperationException("Unknown story beat.")
             };
             var movement = b.PlayerIds.Select(match.Player).Select(p => (p.Name, p.Id,

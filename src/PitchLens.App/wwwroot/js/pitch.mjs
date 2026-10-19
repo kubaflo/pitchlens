@@ -1,4 +1,5 @@
-import { ReplayEngine, at, keyboardAction, goalState } from "./replay.mjs";
+import { ReplayEngine, at, keyboardAction } from "./replay.mjs";
+import { broadcastFrame, goalParticles } from "./broadcast.mjs";
 import { PopupHost } from "./popups.mjs";
 import { viewportMap, applyField, fieldToViewport, pointerInDrawnViewport } from "./viewport.mjs";
 
@@ -7,6 +8,7 @@ let pointerHandler, visibilityHandler, keyboardHandler, rangeDown, rangeUp, rang
 let popups = null, lensPlayerId = null, canvasBox = null, geometryHandler = null;
 let map = null;
 let playerLayer = null;
+let goalReplaysEnabled = true, reducedMotion = false, motionQuery = null, motionHandler = null, lastClockTime = 0;
 const playerTargets = new Map();
 const now = () => performance.now();
 
@@ -17,6 +19,10 @@ export function initialize(element, dotnet) {
     if (!playerLayer) throw new Error("Pitch player controls are missing.");
     playerLayer.hidden = true;
     background = document.createElement("canvas");
+    motionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)") ?? null;
+    reducedMotion = motionQuery?.matches ?? false;
+    motionHandler = () => { reducedMotion = motionQuery.matches; draw(); };
+    motionQuery?.addEventListener("change", motionHandler);
     engine = new ReplayEngine((method, ...args) => {
         if (reference) reference.invokeMethodAsync(method, ...args).catch(error => {
             console.error("Pitch interaction failed", error);
@@ -94,11 +100,18 @@ function circle(c, x, y, radius, fill, stroke) {
 function draw() {
     stop();
     if (!engine?.scenario || !canvas || !width || !height || document.hidden) return;
-    const time = engine.frame(now());
+    const clockTime = engine.frame(now());
+    lastClockTime = clockTime;
+    const broadcast = broadcastFrame(engine.scenario, clockTime, goalReplaysEnabled && !reducedMotion);
+    const time = broadcast.time;
+    engine.lastDrawTime = time; // Hit testing and following lenses use the actual replay camera, not a future live position.
     const following = popups?.floating?.id === "player-dialog";
     let lensPoint = null;
     const c = context; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, canvas.width, canvas.height); c.drawImage(background, 0, 0);
     applyField(c, map);
+    if (broadcast.goal && broadcast.impact > 0 && !reducedMotion) {
+        c.globalAlpha = broadcast.impact * .22; c.fillStyle = "#37003c"; c.fillRect(0, 0, 105, 68); c.globalAlpha = 1;
+    }
     const selected = engine.scenario.players.find(p => p.id === engine.selectedId);
     if (selected) {
         c.beginPath();
@@ -109,6 +122,10 @@ function draw() {
     for (const p of engine.drawPlayers) {
         const point = at(p.frames, time);
         if (following && p.id === lensPlayerId) lensPoint = point;
+        if (p.id === broadcast.goal?.scorerId) {
+            c.lineWidth = .45;
+            circle(c, point.x, point.y, 3.2 + (reducedMotion ? 0 : broadcast.impact * 3), null, "#05f0ff");
+        }
         if (p.id === engine.selectedId) { c.lineWidth = .6; circle(c, point.x, point.y, 2.8, null, "#fff"); }
         circle(c, point.x + .15, point.y + .3, 2.2, "#23382b", null);
         c.lineWidth = .18; circle(c, point.x, point.y, 2, p.teamId === "arsenal" ? "#00ff87" : "#ff83b8", "#f4f4ef");
@@ -120,8 +137,20 @@ function draw() {
             target.button.style.transform = `translate(${centre.x}px, ${centre.y}px) translate(-50%, -50%)`;
         }
     }
-    const ball = at(engine.scenario.ball, time); c.lineWidth = .2; circle(c, ball.x, ball.y, .85, "#fff", "#000");
-    updateTransport(time);
+    if (!broadcast.deadBall || broadcast.replay || broadcast.phase === "impact") {
+        if (broadcast.replay) for (let i = 3; i > 0; i--) {
+            const trail = at(engine.scenario.ball, Math.max(0, time - i * .16));
+            c.globalAlpha = (4 - i) * .12; circle(c, trail.x, trail.y, .7, "#05f0ff", null);
+        }
+        c.globalAlpha = 1;
+        const ball = at(engine.scenario.ball, time); c.lineWidth = .2; circle(c, ball.x, ball.y, .85, "#fff", "#000");
+    }
+    for (const particle of goalParticles(broadcast.goal, broadcast.elapsed, reducedMotion)) {
+        c.globalAlpha = particle.alpha;
+        circle(c, particle.x, particle.y, particle.radius, broadcast.goal.teamId === "arsenal" ? "#00ff87" : "#05f0ff", null);
+    }
+    c.globalAlpha = 1;
+    updateTransport(clockTime, broadcast);
     if (lensPoint && canvasBox) {
         const local = fieldToViewport(map, lensPoint);
         const scaleX = canvasBox.width / map.width, scaleY = canvasBox.height / map.height;
@@ -130,7 +159,7 @@ function draw() {
             canvasBox, Math.max(12, 2.8 * map.field.scale * Math.max(scaleX, scaleY)) + 12);
     }
     playerLayer.hidden = false;
-    if (engine.clock.playing && time < engine.clock.duration) frameId = requestAnimationFrame(draw);
+    if (engine.clock.playing && clockTime < engine.clock.duration) frameId = requestAnimationFrame(draw);
 }
 function clearPlayerTargets() {
     for (const { button, activate } of playerTargets.values()) button.removeEventListener("click", activate);
@@ -160,11 +189,12 @@ function buildPlayerTargets() {
 }
 export function loadScenario(json) {
     if (engine?.load(JSON.parse(json), now())) {
+        lastClockTime = 0;
         popups?.close("player-dialog", false); popups?.close("roster-dialog", false); lensPlayerId = null;
-        buildPlayerTargets(); draw();
+        buildPlayerTargets(); updateTransport(0); draw();
     }
 }
-function updateTransport(time) {
+function updateTransport(time, broadcast = broadcastFrame(engine.scenario, time, goalReplaysEnabled && !reducedMotion)) {
     const output = document.getElementById("replay-clock");
     if (output) output.textContent = `${time.toFixed(1).padStart(4, "0")} / ${engine.scenario.duration.toFixed(1)} s`;
     if (range && !dragging) range.value = String(time);
@@ -172,33 +202,45 @@ function updateTransport(time) {
     if (caption) {
         const cue = engine.caption(time);
         caption.hidden = !cue;
+        caption.setAttribute("data-goal", broadcast.goal && cue?.eventId === broadcast.goal.id ? "true" : "false");
         if (cue && caption.textContent !== cue.text) caption.textContent = cue.text;
         if (!cue && caption.textContent) caption.textContent = "";
     }
-    const state = goalState(engine.scenario, time);
     const score = document.getElementById("match-score");
-    const value = `${state.score.arsenal} : ${state.score["manchester-city"]}`;
+    const value = `${broadcast.score.arsenal} : ${broadcast.score["manchester-city"]}`;
     if (score && score.textContent !== value) score.textContent = value;
     const banner = document.getElementById("goal-banner");
     if (banner) {
-        banner.hidden = !state.celebration;
+        banner.hidden = !broadcast.goal;
         const title = document.getElementById("goal-title"), detail = document.getElementById("goal-detail");
-        if (state.celebration) {
-            const heading = `Goal · ${state.celebration.scorer}`;
-            const facts = `${state.celebration.teamName} · ${value} · Synthetic match`;
+        if (broadcast.goal) {
+            const heading = broadcast.goal.scorer;
+            const facts = `${broadcast.goal.time.toFixed(1)}s · Synthetic match`;
             if (title.textContent !== heading) title.textContent = heading;
             if (detail.textContent !== facts) detail.textContent = facts;
+            if (banner.getAttribute("data-team") !== broadcast.goal.teamId) banner.setAttribute("data-team", broadcast.goal.teamId);
+            if (banner.getAttribute("data-phase") !== broadcast.phase) banner.setAttribute("data-phase", broadcast.phase);
+            banner.style.setProperty("--goal-reveal", String(reducedMotion ? 1 : broadcast.reveal));
+            banner.style.setProperty("--goal-fade", String(broadcast.fade));
+            const crest = document.getElementById("goal-crest"), team = document.getElementById("goal-team"), goalScore = document.getElementById("goal-score");
+            const image = `images/${broadcast.goal.teamId === "arsenal" ? "arsenal" : "manchester_city"}_crest.png`;
+            if (crest.getAttribute("src") !== image) { crest.setAttribute("src", image); crest.alt = broadcast.goal.teamName; }
+            if (team.textContent !== broadcast.goal.teamName) team.textContent = broadcast.goal.teamName;
+            if (goalScore.textContent !== value) goalScore.textContent = value;
         }
     }
+    const replayTag = document.getElementById("goal-replay-tag");
+    if (replayTag) replayTag.hidden = !broadcast.replay;
 }
 export function setCaptionsEnabled(enabled) { engine?.setCaptionsEnabled(enabled); draw(); }
+export function setGoalReplaysEnabled(enabled) { goalReplaysEnabled = enabled; draw(); }
 export function setClock(json) {
     if (engine?.update(JSON.parse(json), now())) {
         updateTransport(engine.clock.time(now()));
         draw();
     }
 }
-export function diagnostics() { return engine ? { ...engine.diagnostics, viewport: map, time: engine.lastDrawTime } : null; }
+export function diagnostics() { return engine ? { ...engine.diagnostics, viewport: map, time: lastClockTime, renderTime: engine.lastDrawTime } : null; }
 export function openPopup(id, selectedId = engine?.selectedId) {
     popups ??= new PopupHost(document, window);
     if (id === "player-dialog" && !engine?.scenario?.players.some(p => p.id === selectedId)) throw new Error("Selected player is missing.");
@@ -219,13 +261,18 @@ export function dispose() {
     if (geometryHandler) document.removeEventListener("scroll", geometryHandler, true);
     if (range && rangeDown) range.removeEventListener("pointerdown", rangeDown);
     if (rangeUp) window.removeEventListener("pointerup", rangeUp);
+    motionQuery?.removeEventListener("change", motionHandler);
     const caption = document.getElementById("commentary-caption");
     if (caption) { caption.hidden = true; caption.textContent = ""; }
+    const goalBanner = document.getElementById("goal-banner"), replayTag = document.getElementById("goal-replay-tag");
+    if (goalBanner) goalBanner.hidden = true;
+    if (replayTag) replayTag.hidden = true;
     engine?.dispose();
     clearPlayerTargets();
     engine = canvas = viewport = context = background = observer = reference = range = null;
     map = null;
     playerLayer = null;
+    motionQuery = motionHandler = null; reducedMotion = false; goalReplaysEnabled = true; lastClockTime = 0;
     geometryHandler = null;
     pointerHandler = visibilityHandler = keyboardHandler = rangeDown = rangeUp = null;
 }

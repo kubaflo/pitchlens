@@ -70,8 +70,8 @@ public sealed class FiveMinuteTests
         {
             Assert.Null(GoalReplay.At(match, goal.Time - .001));
             Assert.Equal(goal.Id, GoalReplay.At(match, goal.Time)!.EventId);
-            Assert.Equal(goal.Id, GoalReplay.At(match, goal.Time + 5.999)!.EventId);
-            Assert.Null(GoalReplay.At(match, goal.Time + 6));
+            Assert.Equal(goal.Id, GoalReplay.At(match, goal.Time + GoalReplay.CelebrationSeconds - .001)!.EventId);
+            Assert.Null(GoalReplay.At(match, goal.Time + GoalReplay.CelebrationSeconds));
             Assert.Equal(Replay.At(match, goal.Time).Score, GoalReplay.At(match, goal.Time)!.Score);
         }
         Assert.Null(GoalReplay.At(match, 0));

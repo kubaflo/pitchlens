@@ -14,7 +14,8 @@ test("300s score and celebration use exact playback event time, including pause,
     clock.reset(1, 300, 0);
     clock.apply({ revision: 1, sequence: 1, time: 50, playing: false }, 0);
     assert.equal(goalState(scene, clock.time(999999)).celebration.id, "g1");
-    assert.equal(goalState(scene, 55).celebration, null);
+    assert.equal(goalState(scene, 56.999).celebration.id, "g1");
+    assert.equal(goalState(scene, 57).celebration, null);
     assert.equal(goalState(scene, 120).score.arsenal, 1);
     assert.equal(goalState(scene, 300).celebration, null);
     assert.equal(goalState(scene, 0).score.arsenal, 0);

@@ -40,7 +40,7 @@ export function goalState(scenario, time) {
     for (const goal of scenario.goals || []) {
         if (goal.time > time) continue;
         score[goal.teamId]++;
-        if (time < goal.time + 6) celebration = goal;
+        if (time < goal.time + 8) celebration = goal;
     }
     return { score, celebration };
 }

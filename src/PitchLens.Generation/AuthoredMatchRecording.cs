@@ -6,7 +6,7 @@ public static class AuthoredMatchRecording
 {
     public const string Model = "gpt-6.1-sol";
     public static string Json() => Resource("recorded_11v11_paths.json");
-    public static string CommentaryJson() => Resource("recorded_11v11_commentary.json");
+    public static string CommentaryJson() => Resource("recorded_11v11_commentary_broadcast.json");
     private static string Resource(string name)
     {
         using var stream = typeof(AuthoredMatchRecording).Assembly.GetManifestResourceStream("PitchLens.Generation." + name)

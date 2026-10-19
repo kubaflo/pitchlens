@@ -31,7 +31,7 @@ public sealed class AuthoredMatchTests
         Assert.Equal(63, match.Events.Count(e => e.Kind == EventKind.Pass));
         Assert.Equal(21, match.Events.Count(e => e.Kind == EventKind.Carry));
         Assert.Equal(2, match.Events.Count(e => e.Kind == EventKind.Goal));
-        Assert.Equal(40, match.Commentary!.Cues.Count);
+        Assert.Equal(41, match.Commentary!.Cues.Count);
         AuthoredPathQuality.Validate(match);
     }
 
