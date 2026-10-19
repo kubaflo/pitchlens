@@ -16,6 +16,7 @@ test("resize follows the grid wrapper, not the canvas backing size, and releases
         addEventListener() {}, removeEventListener() {}
     };
     const listeners = new Map();
+    const playerLayer = { hidden: false, style: { setProperty() {} }, replaceChildren() {} };
     globalThis.window = {
         devicePixelRatio: 2,
         addEventListener: (name, handler) => listeners.set(name, handler),
@@ -23,7 +24,7 @@ test("resize follows the grid wrapper, not the canvas backing size, and releases
     };
     globalThis.document = {
         hidden: false, createElement: () => ({ getContext: () => context }),
-        getElementById: () => null, addEventListener() {}, removeEventListener() {}
+        getElementById: id => id === "pitch-players" ? playerLayer : null, addEventListener() {}, removeEventListener() {}
     };
     globalThis.ResizeObserver = class {
         constructor(callback) { this.callback = callback; observer = this; }
@@ -43,6 +44,7 @@ test("resize follows the grid wrapper, not the canvas backing size, and releases
         assert.deepEqual([canvas.width, canvas.height], [1100, 460]);
         rect.width = rect.height = 0;
         observer.callback();
+        assert.equal(playerLayer.hidden, true);
         rect.width = 800; rect.height = 300;
         observer.callback();
         assert.deepEqual([canvas.width, canvas.height], [1600, 600]);

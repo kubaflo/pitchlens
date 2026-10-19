@@ -38,6 +38,11 @@ small, .caption { font-size: 14px; line-height: 1.4; color: var(--muted); }
 .matchday-stage { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; margin: 16px 32px 0; }
 .pitch-slot { position: relative; flex: 1; min-width: 0; min-height: 0; }
 .pitch-slot canvas { position: absolute; inset: 0; width: 100%; height: 100%; min-width: 0; min-height: 0; display: block; border-radius: 5px; background: #23372f; touch-action: manipulation; }
+.pitch-players { position: absolute; inset: 0; pointer-events: none; }
+.pitch-players[hidden] { display: none; }
+.player-target { position: absolute; left: 0; top: 0; width: var(--player-size); height: var(--player-size); padding: 0; margin: 0; border: 0; border-radius: 50%; appearance: none; background: transparent; pointer-events: auto; touch-action: manipulation; }
+.player-target:hover { box-shadow: 0 0 0 2px white; }
+.player-target:focus-visible { outline: 3px solid var(--pink); outline-offset: 3px; box-shadow: 0 0 0 7px var(--purple); }
 .pitch-caption { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 0; font-size: 16px; flex: none; }
 .pitch-caption > span:last-child { font-size: 14px; color: var(--muted); }
 .pitch-caption > span:last-child { max-width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

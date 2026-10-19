@@ -91,7 +91,12 @@ export class ReplayEngine {
     select(x, y, width, height, now) {
         if (this.disposed || !this.scenario) return;
         const id = hit(this.scenario.players, this.lastDrawTime, fit(width, height), x, y);
-        if (id) { this.diagnostics.notifications++; this.notify("SelectFromPitch", id); }
+        if (id) this.selectPlayer(id);
+    }
+    selectPlayer(id) {
+        if (this.disposed || !this.scenario) return;
+        if (!this.scenario.players.some(p => p.id === id)) throw new RangeError("Unknown pitch player.");
+        this.diagnostics.notifications++; this.notify("SelectFromPitch", id);
     }
     hide(now) {
         if (this.disposed || !this.scenario) return;

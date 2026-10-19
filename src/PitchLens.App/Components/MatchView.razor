@@ -30,6 +30,7 @@
         <main class="matchday-stage">
             <div class="pitch-slot">
                 <canvas @ref="canvas" id="pitch" tabindex="0" role="img" aria-label="Synthetic football replay. Click a shirt, or use Players for keyboard-accessible selection."></canvas>
+                <div id="pitch-players" class="pitch-players" role="group" aria-label="Select a player on the pitch"></div>
                 <div id="goal-banner" class="goal-banner" hidden role="status"><strong id="goal-title"></strong><span id="goal-detail"></span></div>
             </div>
             <div class="pitch-caption"><span>Click a shirt. Get the player lens.</span><span>@(frame.Explanations.LastOrDefault()?.Text ?? "Play to reveal the story.")</span></div>

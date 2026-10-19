@@ -173,6 +173,12 @@ in both themes; they require no runtime image download.
 
 Clicking a shirt pauses replay and opens an adjacent player dialog with four
 key statistics; **Players** is the keyboard-accessible roster alternative.
+Each canvas shirt also has a transparent native HTML button named with its
+player, club and number. Tab/Enter/Space and accessibility activation use the
+same player-popup route. JS moves these twelve persistent targets with the
+same cached transform and last-drawn positions as the visible shirts; there
+are no per-frame Blazor updates or second set of visible players. Focus has a
+visible ring and returns to the activating shirt button when the popup closes.
 **Match story** opens a modal with only current-playhead evidence, Casual/Analyst
 modes and working replay links. **Settings** holds source/model provenance and
 advanced runtime configuration. Native dialogs provide Escape, close/backdrop
@@ -224,6 +230,8 @@ removing that trigger passes, and the corrected renderer passes with it present.
 Headless checks exercise actual shirt drawing and pointer-to-player-popup
 dispatch at 1x/2x, resize and the reported 66.8-second playhead. They do not
 certify the native WebView's visual popup behavior.
+The player-button regression checks all twelve labels, canvas/button centre
+alignment, activation, focus return, node reuse and replacement/disposal cleanup.
 Teardown cancels animation/timers, disconnects observers, removes handlers and
 releases JS/.NET references.
 

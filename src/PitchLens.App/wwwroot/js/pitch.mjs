@@ -1,16 +1,21 @@
 import { ReplayEngine, at, keyboardAction, goalState } from "./replay.mjs";
 import { PopupHost } from "./popups.mjs";
-import { viewportMap, applyField, pointerInDrawnViewport } from "./viewport.mjs";
+import { viewportMap, applyField, fieldToViewport, pointerInDrawnViewport } from "./viewport.mjs";
 
 let engine, canvas, viewport, context, background, observer, reference, frameId = null;
 let pointerHandler, visibilityHandler, keyboardHandler, rangeDown, rangeUp, range, width = 0, height = 0, dragging = false;
 let popups = null, lastPointer = null;
 let map = null;
+let playerLayer = null;
+const playerTargets = new Map();
 const now = () => performance.now();
 
 export function initialize(element, dotnet) {
     dispose();
     canvas = element; viewport = element.parentElement; reference = dotnet; context = canvas.getContext("2d");
+    playerLayer = document.getElementById("pitch-players");
+    if (!playerLayer) throw new Error("Pitch player controls are missing.");
+    playerLayer.hidden = true;
     background = document.createElement("canvas");
     engine = new ReplayEngine((method, ...args) => {
         if (reference) reference.invokeMethodAsync(method, ...args).catch(error => {
@@ -32,7 +37,7 @@ export function initialize(element, dotnet) {
         if (point) engine?.select(point.x, point.y, map.width, map.height, now());
     };
     canvas.addEventListener("pointerdown", pointerHandler);
-    visibilityHandler = () => { if (document.hidden) { engine?.hide(now()); stop(); } else draw(); };
+    visibilityHandler = () => { if (document.hidden) { playerLayer.hidden = true; engine?.hide(now()); stop(); } else draw(); };
     document.addEventListener("visibilitychange", visibilityHandler);
     keyboardHandler = event => {
         if (document.querySelector?.("dialog[open]")) return;
@@ -53,11 +58,12 @@ function resize() {
     if (!canvas || !viewport) return;
     const box = viewport.getBoundingClientRect();
     width = box.width; height = box.height;
-    if (width <= 0 || height <= 0) { stop(); return; }
+    if (width <= 0 || height <= 0) { playerLayer.hidden = true; stop(); return; }
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
     background.width = canvas.width; background.height = canvas.height;
     map = viewportMap(width, height, canvas.width, canvas.height);
+    playerLayer.style.setProperty("--player-size", `${Math.max(24, 4 * map.field.scale)}px`);
     const c = background.getContext("2d");
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.fillStyle = "#23372f"; c.fillRect(0, 0, background.width, background.height);
@@ -98,12 +104,49 @@ function draw() {
         c.lineWidth = .18; circle(c, point.x, point.y, 2, p.teamId === "arsenal" ? "#00ff87" : "#ff83b8", "#f4f4ef");
         c.fillStyle = "#37003c"; c.font = "700 2.5px Barlow, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
         c.fillText(String(p.number), point.x, point.y);
+        const target = playerTargets.get(p.id);
+        if (target) {
+            const centre = fieldToViewport(map, point);
+            target.button.style.transform = `translate(${centre.x}px, ${centre.y}px) translate(-50%, -50%)`;
+        }
     }
     const ball = at(engine.scenario.ball, time); c.lineWidth = .2; circle(c, ball.x, ball.y, .85, "#fff", "#000");
     updateTransport(time);
+    playerLayer.hidden = false;
     if (engine.clock.playing && time < engine.clock.duration) frameId = requestAnimationFrame(draw);
 }
-export function loadScenario(json) { if (engine?.load(JSON.parse(json), now())) draw(); }
+function clearPlayerTargets() {
+    for (const { button, activate } of playerTargets.values()) button.removeEventListener("click", activate);
+    playerTargets.clear();
+    playerLayer?.replaceChildren();
+}
+function buildPlayerTargets() {
+    clearPlayerTargets();
+    const revision = engine.scenario.revision;
+    for (const p of engine.scenario.players) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "player-target";
+        button.dataset.playerId = p.id;
+        button.setAttribute("aria-label", `${p.name}, ${p.teamId === "arsenal" ? "Arsenal" : "Manchester City"}, shirt ${p.number}`);
+        button.setAttribute("aria-haspopup", "dialog");
+        button.setAttribute("aria-controls", "player-dialog");
+        button.style.zIndex = String(engine.drawPlayers.findIndex(player => player.id === p.id) + 1);
+        const activate = () => {
+            if (engine?.scenario?.revision !== revision) return;
+            const box = button.getBoundingClientRect();
+            lastPointer = { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+            button.focus({ preventScroll: true });
+            engine.selectPlayer(p.id);
+        };
+        button.addEventListener("click", activate);
+        playerTargets.set(p.id, { button, activate });
+        playerLayer.appendChild(button);
+    }
+}
+export function loadScenario(json) {
+    if (engine?.load(JSON.parse(json), now())) { buildPlayerTargets(); draw(); }
+}
 function updateTransport(time) {
     const output = document.getElementById("replay-clock");
     if (output) output.textContent = `${time.toFixed(1).padStart(4, "0")} / ${engine.scenario.duration.toFixed(1)} s`;
@@ -149,7 +192,9 @@ export function dispose() {
     if (range && rangeDown) range.removeEventListener("pointerdown", rangeDown);
     if (rangeUp) window.removeEventListener("pointerup", rangeUp);
     engine?.dispose();
+    clearPlayerTargets();
     engine = canvas = viewport = context = background = observer = reference = range = null;
     map = null;
+    playerLayer = null;
     pointerHandler = visibilityHandler = keyboardHandler = rangeDown = rangeUp = null;
 }
