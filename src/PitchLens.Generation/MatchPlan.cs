@@ -15,7 +15,7 @@ public sealed record PlannedPhase([property: JsonRequired] string Id, [property:
     [property: JsonRequired] PlanPoint[] Arsenal, [property: JsonRequired] PlanPoint[] City,
     [property: JsonRequired] PlannedAction[] Actions);
 public sealed record MatchPlan([property: JsonRequired] double Duration, [property: JsonRequired] string Title,
-    [property: JsonRequired] string InitialOwnerId, [property: JsonRequired] PlannedPhase[] Phases);
+    [property: JsonRequired] string InitialOwnerId, [property: JsonRequired] PlannedPhase[] Phases, CommentaryCue[]? Commentary = null);
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow)]
@@ -29,18 +29,18 @@ public static class FiveMinutePlan
     {
         if (!valid) throw new ScenarioValidationException(message);
     }
-    public static Match Parse(string json)
+    public static Match Parse(string json, bool requireCommentary = true)
     {
         Require(!string.IsNullOrWhiteSpace(json) && json.Length <= 200_000, "Empty or oversized match plan.");
         try
         {
             var options = new JsonSerializerOptions(PlanJsonContext.Default.Options) { AllowDuplicateProperties = false, MaxDepth = 32 };
             var context = new PlanJsonContext(options);
-            return Build(JsonSerializer.Deserialize(json, context.MatchPlan) ?? throw new ScenarioValidationException("Null match plan."));
+            return Build(JsonSerializer.Deserialize(json, context.MatchPlan) ?? throw new ScenarioValidationException("Null match plan."), requireCommentary);
         }
         catch (JsonException e) { throw new ScenarioValidationException("Malformed five-minute plan JSON.", e); }
     }
-    public static Match Build(MatchPlan plan)
+    public static Match Build(MatchPlan plan, bool requireCommentary = true)
     {
         Require(plan.Duration == Duration, "Match duration must be 300 seconds; the SDK request timeout is separate.");
         Require(plan.Title != "Seventy-Two Seconds" && StoryQuality.Titles.Contains(plan.Title), "Use a neutral supported five-minute story title.");
@@ -208,6 +208,12 @@ public static class FiveMinutePlan
             p.Actions.SelectMany(a => new[] { a.ActorId, a.ReceiverId }).OfType<string>().Distinct().ToArray())).ToArray();
         var match = new Match(Duration, skeleton.Teams, players, events, new(ballFrames), possession, new(plan.Title, beats));
         SustainedQuality.Validate(match);
+        Require(!requireCommentary || plan.Commentary is not null, "AI commentator cues are required for a new SDK match.");
+        if (plan.Commentary is not null)
+        {
+            try { return match.WithCommentary(plan.Commentary, CopilotScenarioSource.Model); }
+            catch (ArgumentException e) { throw new ScenarioValidationException($"Invalid AI commentary: {e.Message}", e); }
+        }
         return match;
     }
 }

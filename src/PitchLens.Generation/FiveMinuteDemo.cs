@@ -61,5 +61,5 @@ public static class FiveMinuteDemo
                 A("a63","pass",296,298,c3,c6,49,15,true), A("a64","carry",298,300,c6,null,43,16))
         ]);
     }
-    public static Match Create() => FiveMinutePlan.Build(Plan());
+    public static Match Create() => FiveMinutePlan.Build(Plan(), requireCommentary: false);
 }

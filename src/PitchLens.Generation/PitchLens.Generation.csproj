@@ -12,5 +12,6 @@
   <ItemGroup>
     <EmbeddedResource Include="Resources/recorded_match.json" LogicalName="PitchLens.Generation.recorded_match.json" />
     <EmbeddedResource Include="Resources/recorded_300_plan.json" LogicalName="PitchLens.Generation.recorded_300_plan.json" />
+    <EmbeddedResource Include="Resources/recorded_300_commentary.json" LogicalName="PitchLens.Generation.recorded_300_commentary.json" />
   </ItemGroup>
 </Project>

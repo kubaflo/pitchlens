@@ -33,6 +33,9 @@ The SDK does not emit thousands of fragile frames, only a seed or commentary.
 A JSON schema and sustained-action validator are authoritative before replacement.
 Unreachable targets or invalid play are rejected, not silently repaired into a
 fake successful SDK match. Roster facts come from the verified local roster.
+New requests also include **AI-authored timed commentator cues for that new
+match** in the same JSON response. Missing/invalid cues reject replacement;
+startup captions are never attached to a different generated game.
 
 The UI shows connecting/authentication/model/generation/validation progress and
 a Cancel action. Generation runs off the UI thread, is limited to five minutes
@@ -61,6 +64,40 @@ Match notes show completed phases, evidence event IDs and trajectory-derived
 movement. A beat is revealed only after its full time range has elapsed, so
 backward seeks remove future event/movement claims. Explanatory sentences are
 deterministic renderings of validated facts, **not a second AI request**.
+
+### AI commentator subtitles and speed
+
+**CC** controls optional AI-generated subtitles at the bottom of the pitch,
+on by default when available. These are actual **gpt-6.1-sol** output, not
+renamed scripted match notes. Startup uses **42 recorded cues** from one
+successful bounded SDK commentary request for the exact existing match facts.
+They span 3-300 seconds, last **3-4 replay seconds** each (153 seconds total),
+cover all four goals, and are bundled unchanged in `recorded_300_commentary.json`.
+The match-facts digest is
+`82776c91906bc3727322c84b71943affebf823a36509d15a35c1ec916d1c9bf8`;
+the commentary file SHA-256 is
+`eedec4366d7b8b034a53c8ff6b800bc743a6ac2d169a09b12b392f0cf0c5ba95`.
+This was one actual Sol request, no retries or fallback. Startup and playback
+make no requests. Settings distinguishes recorded/generated commentary from
+scripted story facts; all describe synthetic actions.
+
+Cues reference a resolved event and involved roster IDs, start no earlier than
+their evidence, are ordered/nonoverlapping and bounded to 2-6 seconds and
+140 plain-text characters. Every minute and every goal need coverage.
+Unknown references, early/overlapping cues, markup, numeric statistics and
+explicit prediction/unsupported goal wording are rejected. This is a bounded
+grounding contract, not a claim that a validator proves every natural-language
+meaning. Model text is rendered with `textContent`, never HTML.
+
+The transport offers **1x / 2x / 3x / 5x**. Rate changes re-anchor the native
+monotonic clock without moving the playhead; JS projects from that anchor with
+the same rate, exactly once. Pause, seek, goals and subtitles share replay time.
+At 5x only the current cue is shown, with no queued-caption backlog. CC does
+not reset playback. Restart and scenario replacement retain the selected rate
+and CC preference; reopening defaults to 1x/CC on. Match duration stays 300
+seconds, generation timeout is unchanged, and player statistics are not
+multiplied by presentation speed. Native timer snapshots remain at most 4 Hz
+in wall time at every rate; cues cross interop once per scene.
 
 ### Authentication and the compatible runtime
 
@@ -244,7 +281,7 @@ dotnet run --project tools/PitchLens.Performance -c Release
 node --test tests/js/*.test.mjs
 ```
 
-On the current 300-second recording, the headless 30 Hz **pure computation**
+Before the caption addition, on the 300-second recording, the headless 30 Hz **pure computation**
 workload (Casual explanation mode) measured **9,001 updates, 1,398.45 ms,
 546.27 MiB allocations** versus **1,201 bounded snapshots, 40.57 ms,
 19.44 MiB**, with **79** explanation builds and **11** story builds.
@@ -334,7 +371,11 @@ roster, disclosures, mode buttons and transport. Check all 300 seconds and
 the far end), verify that exact player's popup, then close/Escape/backdrop and
 focus return. Observe the score/goal callout at 49, 120, 194 and 226 seconds;
 pause, seek backward and restart must preserve factual timing without duplicates.
-Open Match story and seek an observed event. Generate a match with normal
+Open Match story and seek an observed event. Try each speed while playing and
+paused, seek in both directions, and restart: rate stays selected without a
+playhead jump. Check CC at 3 seconds and on goals, turn it off/on without
+resetting, and verify that seeking backward removes later commentary.
+Generate a match with normal
 login, verify progress and successful provenance change, cancel another request,
 and test an invalid CLI override: the last valid match must stay playable and
 failures must be visible. Close while generating to verify cleanup. Each actual

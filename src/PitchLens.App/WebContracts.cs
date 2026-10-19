@@ -7,8 +7,9 @@ namespace PitchLens.App;
 public sealed record WebFrame(double Time, double X, double Y);
 public sealed record WebPlayer(string Id, string TeamId, string Name, int Number, WebFrame[] Frames);
 public sealed record WebGoal(string Id, double Time, string Scorer, string TeamId, string TeamName);
-public sealed record WebScenario(long Revision, double Duration, WebPlayer[] Players, WebFrame[] Ball, WebGoal[] Goals);
-public sealed record WebClock(long Revision, long Sequence, double Time, bool Playing, string SelectedId);
+public sealed record WebCaption(string Id, double Start, double End, string Text);
+public sealed record WebScenario(long Revision, double Duration, WebPlayer[] Players, WebFrame[] Ball, WebGoal[] Goals, WebCaption[] Captions);
+public sealed record WebClock(long Revision, long Sequence, double Time, bool Playing, string SelectedId, double Rate);
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(WebScenario))]
@@ -26,10 +27,10 @@ public static class WebContracts
             {
                 var scorer = match.Player(e.ActorId);
                 return new WebGoal(e.Id, e.Time, scorer.Name, scorer.TeamId, match.Teams.Single(t => t.Id == scorer.TeamId).Name);
-            }).ToArray());
+            }).ToArray(), match.Commentary?.Cues.Select(c => new WebCaption(c.Id, c.Start, c.End, c.Text)).ToArray() ?? []);
         return JsonSerializer.Serialize(dto, WebJsonContext.Default.WebScenario);
     }
     public static string Clock(PresentationFrame frame) => JsonSerializer.Serialize(
-        new WebClock(frame.Revision, frame.Sequence, frame.Snapshot.Time, frame.Playing, frame.SelectedId),
+        new WebClock(frame.Revision, frame.Sequence, frame.Snapshot.Time, frame.Playing, frame.SelectedId, frame.Rate),
         WebJsonContext.Default.WebClock);
 }

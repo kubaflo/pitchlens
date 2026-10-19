@@ -73,9 +73,11 @@ public sealed class Match
     public Trajectory Ball { get; }
     public IReadOnlyList<PossessionChange> Possession { get; }
     public MatchStory? Story { get; }
+    public CommentaryTrack? Commentary { get; }
 
     public Match(double duration, IEnumerable<Team> teams, IEnumerable<Player> players,
-        IEnumerable<MatchEvent> events, Trajectory ball, IEnumerable<PossessionChange> possession, MatchStory? story = null)
+        IEnumerable<MatchEvent> events, Trajectory ball, IEnumerable<PossessionChange> possession, MatchStory? story = null,
+        IEnumerable<CommentaryCue>? commentary = null, string? commentaryModel = null)
     {
         Duration = duration;
         Teams = Array.AsReadOnly(teams.ToArray());
@@ -85,7 +87,11 @@ public sealed class Match
         Possession = Array.AsReadOnly(possession.ToArray());
         Story = story;
         Validate();
+        if (commentary is not null) Commentary = new(this, commentaryModel ?? throw new ArgumentException("Commentary model required."), commentary);
     }
+
+    public Match WithCommentary(IEnumerable<CommentaryCue> cues, string model) =>
+        new(Duration, Teams, Players, Events, Ball, Possession, Story, cues, model);
 
     public Player Player(string id) => Players.Single(p => p.Id == id);
     public double ClampTime(double time) => double.IsFinite(time)

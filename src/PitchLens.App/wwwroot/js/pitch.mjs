@@ -150,6 +150,13 @@ function updateTransport(time) {
     const output = document.getElementById("replay-clock");
     if (output) output.textContent = `${time.toFixed(1).padStart(4, "0")} / ${engine.scenario.duration.toFixed(1)} s`;
     if (range && !dragging) range.value = String(time);
+    const caption = document.getElementById("commentary-caption");
+    if (caption) {
+        const cue = engine.caption(time);
+        caption.hidden = !cue;
+        if (cue && caption.textContent !== cue.text) caption.textContent = cue.text;
+        if (!cue && caption.textContent) caption.textContent = "";
+    }
     const state = goalState(engine.scenario, time);
     const score = document.getElementById("match-score");
     const value = `${state.score.arsenal} : ${state.score["manchester-city"]}`;
@@ -166,6 +173,7 @@ function updateTransport(time) {
         }
     }
 }
+export function setCaptionsEnabled(enabled) { engine?.setCaptionsEnabled(enabled); draw(); }
 export function setClock(json) {
     if (engine?.update(JSON.parse(json), now())) {
         updateTransport(engine.clock.time(now()));
@@ -190,6 +198,8 @@ export function dispose() {
     if (keyboardHandler) window.removeEventListener("keydown", keyboardHandler);
     if (range && rangeDown) range.removeEventListener("pointerdown", rangeDown);
     if (rangeUp) window.removeEventListener("pointerup", rangeUp);
+    const caption = document.getElementById("commentary-caption");
+    if (caption) { caption.hidden = true; caption.textContent = ""; }
     engine?.dispose();
     clearPlayerTargets();
     engine = canvas = viewport = context = background = observer = reference = range = null;

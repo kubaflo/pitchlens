@@ -44,21 +44,30 @@ export function goalState(scenario, time) {
     }
     return { score, celebration };
 }
+export function captionAt(cues, time, enabled = true) {
+    if (!Number.isFinite(time)) throw new RangeError("Invalid subtitle time.");
+    if (!enabled || !cues?.length) return null;
+    let low = 0, high = cues.length;
+    while (low < high) { const mid = (low + high) >>> 1; if (cues[mid].start <= time) low = mid + 1; else high = mid; }
+    return low > 0 && time < cues[low - 1].end ? cues[low - 1] : null;
+}
 export class ProjectionClock {
-    revision = 0; sequence = -1; position = 0; anchor = 0; playing = false; duration = 0;
+    revision = 0; sequence = -1; position = 0; anchor = 0; playing = false; duration = 0; rate = 1;
     reset(revision, duration, now) {
         this.revision = revision; this.duration = duration; this.sequence = -1;
-        this.position = 0; this.anchor = now; this.playing = false;
+        this.position = 0; this.anchor = now; this.playing = false; this.rate = 1;
     }
     apply(packet, now) {
         if (packet.revision !== this.revision || packet.sequence <= this.sequence) return false;
         if (!Number.isFinite(packet.time) || packet.time < 0 || packet.time > this.duration) throw new RangeError("Invalid clock packet.");
+        const rate = packet.rate ?? 1;
+        if (![1, 2, 3, 5].includes(rate)) throw new RangeError("Invalid replay rate.");
         this.sequence = packet.sequence; this.position = packet.time;
-        this.anchor = now; this.playing = packet.playing;
+        this.anchor = now; this.playing = packet.playing; this.rate = rate;
         return true;
     }
     time(now) {
-        return Math.min(this.duration, Math.max(0, this.position + (this.playing ? Math.max(0, now - this.anchor) / 1000 : 0)));
+        return Math.min(this.duration, Math.max(0, this.position + (this.playing ? Math.max(0, now - this.anchor) / 1000 * this.rate : 0)));
     }
     freeze(now) {
         this.position = this.time(now); this.anchor = now; this.playing = false;
@@ -68,6 +77,7 @@ export class ProjectionClock {
 export class ReplayEngine {
     clock = new ProjectionClock(); scenario = null; selectedId = null; disposed = false;
     lastDrawTime = 0;
+    captionsEnabled = true;
     diagnostics = { frames: 0, notifications: 0, scenarioLoads: 0, clockPackets: 0 };
     constructor(notify = () => {}) { this.notify = notify; }
     load(scenario, now) {
@@ -88,6 +98,8 @@ export class ReplayEngine {
         this.lastDrawTime = this.clock.time(now);
         return this.lastDrawTime;
     }
+    caption(time = this.lastDrawTime) { return this.disposed ? null : captionAt(this.scenario?.captions, time, this.captionsEnabled); }
+    setCaptionsEnabled(enabled) { if (!this.disposed) this.captionsEnabled = enabled; }
     select(x, y, width, height, now) {
         if (this.disposed || !this.scenario) return;
         const id = hit(this.scenario.players, this.lastDrawTime, fit(width, height), x, y);

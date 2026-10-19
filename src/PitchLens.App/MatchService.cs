@@ -48,6 +48,7 @@ public sealed class MatchService : IDisposable
                 case "pause": presentation.Pause(); break;
                 case "restart": presentation.Restart(); break;
                 case "toggle": if (Active) presentation.Toggle(); break;
+                case "rate": presentation.SetRate(value); break;
                 case "seek": presentation.Seek(value); break;
                 case "seek-by": presentation.Seek(presentation.Position + value); break;
                 case "select": presentation.Select(id ?? throw new ArgumentException("Player ID required.")); break;

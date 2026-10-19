@@ -50,7 +50,13 @@ small, .caption { font-size: 14px; line-height: 1.4; color: var(--muted); }
 .goal-banner strong { display: block; font-size: 26px; }
 .goal-banner span { display: block; font-size: 16px; margin-top: 4px; }
 .goal-banner[hidden] { display: none; }
-.transport { display: flex; align-items: center; gap: 16px; padding: 8px 32px 20px; flex: none; }
+.commentary-caption { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); width: max-content; max-width: min(760px, calc(100% - 32px)); padding: 10px 18px; border-radius: 8px; background: #180020ed; color: white; font-size: 20px; line-height: 1.35; text-align: center; pointer-events: none; z-index: 20; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.commentary-caption[hidden] { display: none; }
+.rate-control { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+.rate-control select { color: var(--purple); background: white; border: 1px solid var(--line); border-radius: 8px; padding: 8px; font: inherit; min-height: 44px; }
+.cc-button { padding: 8px 12px; font-size: 16px; }
+.cc-button[aria-pressed="true"] { border-color: var(--purple); }
+.transport { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 8px 32px 20px; flex: none; }
 .play { min-width: 96px; }
 .scrub-label { display: flex; align-items: center; gap: 16px; flex: 1; min-width: 0; font-size: 16px; }
 .scrub-label input { flex: 1; min-width: 80px; height: 28px; accent-color: #953bff; }

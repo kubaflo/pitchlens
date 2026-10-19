@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text.Json;
 using GitHub.Copilot;
 using GitHub.Copilot.Rpc;
+using PitchLens.Core;
 
 namespace PitchLens.Generation;
 
@@ -11,7 +12,11 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
 {
     public const string Model = "gpt-6.1-sol";
     public static string Prompt => FiveMinutePrompt.Text;
-    public async Task<string> GenerateAsync(IProgress<string>? progress, CancellationToken cancellationToken)
+    public Task<string> GenerateAsync(IProgress<string>? progress, CancellationToken cancellationToken) =>
+        RequestAsync(Prompt, FiveMinutePrompt.Schema, progress, cancellationToken);
+    public Task<string> GenerateCommentaryAsync(Match match, IProgress<string>? progress, CancellationToken cancellationToken) =>
+        RequestAsync(CommentaryPrompt.For(match), CommentaryPrompt.Schema, progress, cancellationToken);
+    private async Task<string> RequestAsync(string prompt, string responseSchema, IProgress<string>? progress, CancellationToken cancellationToken)
     {
         if (!Path.IsPathFullyQualified(cliPath) || !File.Exists(cliPath))
             throw new CopilotGenerationException("Copilot runtime executable is missing. Rebuild with bundled runtime acquisition enabled, or select a compatible CLI.");
@@ -20,8 +25,10 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
             Directory.CreateDirectory(workingDirectory);
             var client = new CopilotClient(new CopilotClientOptions
             {
-                Connection = RuntimeConnection.ForStdio(cliPath), WorkingDirectory = workingDirectory,
-                UseLoggedInUser = true, LogLevel = CopilotLogLevel.Error
+                Connection = RuntimeConnection.ForStdio(cliPath),
+                WorkingDirectory = workingDirectory,
+                UseLoggedInUser = true,
+                LogLevel = CopilotLogLevel.Error
             });
             await using var owner = new BoundedClient(client);
             progress?.Report("Starting local Copilot CLI…");
@@ -31,14 +38,15 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
             if (!auth.IsAuthenticated) throw new CopilotGenerationException("Run copilot login in Terminal with a Copilot-enabled account.");
             progress?.Report("Checking required GPT model availability…");
             RequireModel(await client.ListModelsAsync(cancellationToken).ConfigureAwait(false));
-            progress?.Report($"Planning a five-minute synthetic match with {Model}…");
+            progress?.Report($"Generating synthetic match content with {Model}…");
             var session = await client.CreateSessionAsync(CreateSessionConfig(), cancellationToken).ConfigureAwait(false);
             try
             {
-                using var schema = JsonDocument.Parse(FiveMinutePrompt.Schema);
+                using var schema = JsonDocument.Parse(responseSchema);
                 var response = await session.SendAndWaitAsync(new MessageOptions
                 {
-                    Prompt = Prompt, ResponseSchema = schema.RootElement.Clone()
+                    Prompt = prompt,
+                    ResponseSchema = schema.RootElement.Clone()
                 }, TimeSpan.FromMinutes(4.5), cancellationToken).ConfigureAwait(false);
                 return response?.Data.Content ?? throw new CopilotGenerationException("Copilot returned no match plan.");
             }
@@ -66,16 +74,22 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
     }
     public static SessionConfig CreateSessionConfig() => new()
     {
-        Model = Model, ReasoningEffort = "medium", AvailableTools = [],
+        Model = Model,
+        ReasoningEffort = "medium",
+        AvailableTools = [],
         OnPermissionRequest = (_, _) => Task.FromResult(PermissionDecision.Reject("Match planning does not permit tool access.")),
-        EnableConfigDiscovery = false, EnableSkills = false, EnableFileHooks = false,
-        EnableHostGitOperations = false, EnableSessionStore = false,
-        EnableOnDemandInstructionDiscovery = false, EnableSessionTelemetry = false,
+        EnableConfigDiscovery = false,
+        EnableSkills = false,
+        EnableFileHooks = false,
+        EnableHostGitOperations = false,
+        EnableSessionStore = false,
+        EnableOnDemandInstructionDiscovery = false,
+        EnableSessionTelemetry = false,
         InfiniteSessions = new InfiniteSessionConfig { Enabled = false },
         SystemMessage = new()
         {
             Mode = SystemMessageMode.Replace,
-            Content = "Plan an original sustained five-minute synthetic football match using compact causal actions and tactical positions. Only structured JSON. No tools, agents, files or external services. Never claim actual athlete performance."
+            Content = "Generate original synthetic football match plans or evidence-anchored commentary as requested. Only structured JSON. No tools, agents, files or external services. Never claim actual athlete performance or reveal future outcomes in timed commentary."
         }
     };
     private sealed class BoundedClient(CopilotClient client) : IAsyncDisposable

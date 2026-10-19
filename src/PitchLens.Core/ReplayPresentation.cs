@@ -1,13 +1,14 @@
 namespace PitchLens.Core;
 
 public sealed record PresentationFrame(long Revision, long Sequence, Match Match, Snapshot Snapshot, bool Playing,
-    string SelectedId, ExplanationMode Mode, IReadOnlyList<Explanation> Explanations, IReadOnlyList<StoryMoment> Story);
+    string SelectedId, ExplanationMode Mode, IReadOnlyList<Explanation> Explanations, IReadOnlyList<StoryMoment> Story, double Rate);
 
 public sealed class ReplayPresentation : IDisposable
 {
     private readonly IMonotonicClock clock;
     private Playback playback;
     private double lastTime = double.NaN;
+    private double lastSampleClock = double.NaN;
     private int eventCount = -1, storyCount = -1;
     private ExplanationMode cachedMode;
     private IReadOnlyList<Explanation> explanations = [];
@@ -24,6 +25,7 @@ public sealed class ReplayPresentation : IDisposable
     public int StoryComputations { get; private set; }
     public bool Playing => playback.IsPlaying;
     public double Position => playback.Position;
+    public double Rate => playback.Rate;
 
     public ReplayPresentation(Match match, IMonotonicClock clock)
     {
@@ -37,9 +39,11 @@ public sealed class ReplayPresentation : IDisposable
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         var time = playback.Position;
+        var now = clock.Seconds;
         if (!force && double.IsFinite(lastTime) && time >= lastTime &&
-            Math.Floor(time * 4) == Math.Floor(lastTime * 4)) return null;
+            Math.Floor(now * 4) == Math.Floor(lastSampleClock * 4)) return null;
         lastTime = time;
+        lastSampleClock = now;
         var snapshot = cachedSnapshot;
         if (snapshot is null || snapshot.Time != time)
         {
@@ -61,13 +65,14 @@ public sealed class ReplayPresentation : IDisposable
             StoryComputations++;
             storyCount = beats;
         }
-        return new(Revision, ++sequence, Match, snapshot, playback.IsPlaying, SelectedId, Mode, explanations, story);
+        return new(Revision, ++sequence, Match, snapshot, playback.IsPlaying, SelectedId, Mode, explanations, story, playback.Rate);
     }
 
     public void Play() { ObjectDisposedException.ThrowIf(disposed, this); playback.Play(); }
     public void Pause() { ObjectDisposedException.ThrowIf(disposed, this); playback.Pause(); }
     public void Seek(double time) { ObjectDisposedException.ThrowIf(disposed, this); playback.Seek(time); }
     public void Restart() { ObjectDisposedException.ThrowIf(disposed, this); playback.Restart(); }
+    public void SetRate(double rate) { ObjectDisposedException.ThrowIf(disposed, this); playback.SetRate(rate); }
     public void Toggle()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
@@ -92,7 +97,9 @@ public sealed class ReplayPresentation : IDisposable
         ObjectDisposedException.ThrowIf(disposed, this);
         playback.Pause();
         Match = match;
+        var rate = playback.Rate;
         playback = new(match.Duration, clock);
+        playback.SetRate(rate);
         if (!match.Players.Any(p => p.Id == SelectedId)) SelectedId = match.Players[0].Id;
         Revision++;
         eventCount = storyCount = -1;

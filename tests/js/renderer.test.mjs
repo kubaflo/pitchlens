@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-const { initialize, loadScenario, setClock, diagnostics, dispose, openPopup } =
+const { initialize, loadScenario, setClock, diagnostics, dispose, openPopup, setCaptionsEnabled } =
     await import(process.env.PITCH_TEST_RENDERER || new URL("../../src/PitchLens.App/wwwroot/js/pitch.mjs", import.meta.url));
 import { at, fit } from "../../src/PitchLens.App/wwwroot/js/replay.mjs";
 
@@ -9,6 +9,7 @@ test("production renderer aligns12 accessible player buttons with shirts and dis
     const originals = Object.fromEntries(keys.map(k => [k, globalThis[k]]));
     const rect = { left: 40, top: 187, width: 1144, height: 595 };
     const native = [], callbacks = new Map();
+    const caption = { hidden: true, textContent: "", set innerHTML(value) { throw new Error("Model text must not be parsed as HTML"); } };
     let observation;
     class Context {
         matrix = [1, 0, 0, 1, 0, 0]; labels = []; field = null;
@@ -60,7 +61,7 @@ test("production renderer aligns12 accessible player buttons with shirts and dis
     globalThis.window = { devicePixelRatio: 2, innerWidth: 1280, innerHeight: 900, addEventListener() {}, removeEventListener() {} };
     globalThis.document = {
         hidden: false, activeElement: canvas,
-        getElementById: id => id === dialog.id ? dialog : id === "pitch-players" ? layer : null,
+        getElementById: id => id === dialog.id ? dialog : id === "pitch-players" ? layer : id === "commentary-caption" ? caption : null,
         querySelector: () => dialog.open ? dialog : null,
         querySelectorAll: () => dialog.open ? [dialog] : [],
         addEventListener() {}, removeEventListener() {},
@@ -72,7 +73,7 @@ test("production renderer aligns12 accessible player buttons with shirts and dis
     globalThis.requestAnimationFrame = () => 1;
     globalThis.cancelAnimationFrame = () => {};
     const clip = {
-        revision: 1, duration: 300, goals: [],
+        revision: 1, duration: 300, goals: [], captions: [{ id: "goal", start: 49, end: 53, text: "Goal! Erling Haaland scores!" }],
         players: [
             ["arsenal-raya", "David Raya", 1, 6, 34, 8, 36],
             ["arsenal-saliba", "William Saliba", 2, 25, 18, 38, 20],
@@ -140,7 +141,17 @@ test("production renderer aligns12 accessible player buttons with shirts and dis
             rect.width = density === 2 ? 800 : 1144; rect.height = density === 2 ? 440 : 595;
         }
         assert.deepEqual(layer.children, originalButtons); // Clock updates move existing nodes, never rebuild them.
-        loadScenario(JSON.stringify({ ...clip, revision: 2 }));
+        setClock(JSON.stringify({ revision: 1, sequence: ++sequence, time: 49, playing: false, rate: 5 }));
+        assert.equal(caption.hidden, false);
+        assert.equal(caption.textContent, clip.captions[0].text);
+        setCaptionsEnabled(false);
+        assert.equal(caption.hidden, true);
+        assert.equal(caption.textContent, "");
+        setCaptionsEnabled(true);
+        assert.equal(caption.hidden, false);
+        loadScenario(JSON.stringify({ ...clip, revision: 2, captions: [] }));
+        assert.equal(caption.hidden, true);
+        assert.equal(caption.textContent, "");
         assert.equal(layer.children.length, 12);
         const notifications = native.length;
         for (const button of originalButtons) {
@@ -152,6 +163,7 @@ test("production renderer aligns12 accessible player buttons with shirts and dis
         loadScenario(JSON.stringify(clip)); // Stale scene must not replace the current controls.
         assert.deepEqual(layer.children, replacementButtons);
         dispose();
+        assert.equal(caption.hidden, true);
         assert.equal(layer.children.length, 0);
         assert.ok(replacementButtons.every(b => b.handlers.size === 0));
         assert.equal(callbacks.size, 0);

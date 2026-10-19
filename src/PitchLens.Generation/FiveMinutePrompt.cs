@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace PitchLens.Generation;
 
@@ -37,11 +38,24 @@ public static class FiveMinutePrompt
         Final action must end295..300s; no idle padding, repeated loop, slow-motion stretch or random jitter.
         Plan internally a coherent possession chain over ten distinct phases. The deterministic compiler supplies detail,
         but you must invent all action choices, role-shape anchors, receiver/carry targets and evolving match story.
-        The match duration300s is separate from the bounded SDK REQUEST timeout. Do not emit commentary/markdown.
+        The match duration300s is separate from the bounded SDK REQUEST timeout. No prose outside the JSON.
         Verified roster IDs/names/numbers:
-        """ + JsonSerializer.Serialize(PremierLeagueRoster.Players.ToArray(), ScenarioJsonContext.Default.RosterPlayerArray);
+        """ + JsonSerializer.Serialize(PremierLeagueRoster.Players.ToArray(), ScenarioJsonContext.Default.RosterPlayerArray)
+        + "\nInclude a root commentary array for THIS invented match. Goal event IDs are shotActionId + '-goal'.\n"
+        + CommentaryPrompt.Instructions;
 
-    public const string Schema = """
+    public static string Schema
+    {
+        get
+        {
+            var root = JsonNode.Parse(PlanSchema)!;
+            root["required"]!.AsArray().Add("commentary");
+            root["properties"]!["commentary"] = JsonNode.Parse("""{"type":"array","minItems":24,"maxItems":64,"items":{"$ref":"#/$defs/cue"}}""");
+            root["$defs"]!["cue"] = JsonNode.Parse(CommentaryPrompt.CueSchema);
+            return root.ToJsonString();
+        }
+    }
+    private const string PlanSchema = """
     {"type":"object","additionalProperties":false,"required":["duration","title","initialOwnerId","phases"],
      "properties":{"duration":{"type":"number","const":300},"title":{"type":"string","enum":["Pressure and Space","The Turning Tide","A Game of Transitions"]},
        "initialOwnerId":{"type":"string"},"phases":{"type":"array","minItems":10,"maxItems":10,"items":{"$ref":"#/$defs/phase"}}},

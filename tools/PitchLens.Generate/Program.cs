@@ -2,6 +2,35 @@ using PitchLens.Core;
 using PitchLens.Generation;
 using GitHub.Copilot;
 
+if (args is ["--validate-commentary", var storedPlan, var storedCommentary])
+{
+    try
+    {
+        var match = FiveMinutePlan.Parse(await File.ReadAllTextAsync(storedPlan), requireCommentary: false);
+        var validated = CommentaryPrompt.Attach(await File.ReadAllTextAsync(storedCommentary), match);
+        Console.WriteLine($"VALIDATED COMMENTARY | cues={validated.Commentary!.Cues.Count} | model={validated.Commentary.Model} | factsHash={CommentaryPrompt.Hash(match)}");
+        return 0;
+    }
+    catch (Exception e) when (e is ScenarioValidationException or IOException or UnauthorizedAccessException)
+    { Console.Error.WriteLine($"COMMENTARY INVALID: {e.Message}"); return 1; }
+}
+if (args is ["--commentary", var commentaryRuntime, var matchPath, var commentaryOutput])
+{
+    using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+    try
+    {
+        var match = FiveMinutePlan.Parse(await File.ReadAllTextAsync(matchPath), requireCommentary: false);
+        var commentarySource = new CopilotScenarioSource(commentaryRuntime, Path.Combine(Path.GetDirectoryName(Path.GetFullPath(commentaryOutput))!, "commentary-work"));
+        var json = await commentarySource.GenerateCommentaryAsync(match, new Progress<string>(Console.WriteLine), deadline.Token);
+        await File.WriteAllTextAsync(commentaryOutput + ".unvalidated.json", json, deadline.Token);
+        var validated = CommentaryPrompt.Attach(json, match);
+        await File.WriteAllTextAsync(commentaryOutput, json, deadline.Token);
+        Console.WriteLine($"LIVE COMMENTARY VERIFIED | model={CopilotScenarioSource.Model} | cues={validated.Commentary!.Cues.Count} | scenarioHash={CommentaryPrompt.Hash(match)}");
+        return 0;
+    }
+    catch (Exception e) when (e is ScenarioValidationException or CopilotGenerationException or OperationCanceledException or IOException)
+    { Console.Error.WriteLine($"LIVE COMMENTARY NOT VERIFIED: {e.Message}"); return 1; }
+}
 if (args is ["--demo"])
 {
     PrintStory(FiveMinuteDemo.Create());
@@ -40,7 +69,7 @@ if (args is ["--validate", var artifact])
     {
         var json = await File.ReadAllTextAsync(artifact);
         using var shape = System.Text.Json.JsonDocument.Parse(json);
-        var scenario = shape.RootElement.TryGetProperty("phases", out _) ? FiveMinutePlan.Parse(json) : ScenarioValidator.Parse(json);
+        var scenario = shape.RootElement.TryGetProperty("phases", out _) ? FiveMinutePlan.Parse(json, requireCommentary: false) : ScenarioValidator.Parse(json);
         Console.WriteLine($"VALIDATED STORED SCENARIO | duration={scenario.Duration} | players={scenario.Players.Count} | events={scenario.Events.Count}");
         PrintStory(scenario);
         return 0;
@@ -56,6 +85,8 @@ if (args is not ["--live", var cli, var output] || !Path.IsPathFullyQualified(ou
     Console.WriteLine("One paid SDK request, no retries: --live /absolute/path/to/copilot /absolute/output/scenario.json");
     Console.WriteLine("Validate existing JSON without AI/network: --validate /path/to/scenario.json");
     Console.WriteLine("Check SDK model availability without generation: --check-model /path/to/runtime exact-model-id");
+    Console.WriteLine("Validate recorded captions without AI: --validate-commentary /path/to/plan.json /path/to/commentary.json");
+    Console.WriteLine("One paid commentary request: --commentary /path/to/runtime /path/to/plan.json /absolute/output/commentary.json");
     return 2;
 }
 using var cancellation = new CancellationTokenSource(TimeSpan.FromMinutes(5));

@@ -10,6 +10,11 @@ public sealed class GenerationTests
 
     private static string Json(ScenarioDocument scenario) =>
         JsonSerializer.Serialize(scenario, ScenarioJsonContext.Default.ScenarioDocument);
+    private static string NewPlan()
+    {
+        var plan = JsonSerializer.Deserialize(FiveMinuteRecording.Json(), PlanJsonContext.Default.MatchPlan)!;
+        return JsonSerializer.Serialize(plan with { Commentary = FiveMinuteRecording.Create().Commentary!.Cues.ToArray() }, PlanJsonContext.Default.MatchPlan);
+    }
 
     [Fact]
     public void Valid_roster_scenario_maps_to_coherent_deterministic_replay()
@@ -169,7 +174,7 @@ public sealed class GenerationTests
     public async Task Successful_fake_response_commits_only_after_validation()
     {
         var initial = PremierLeagueRoster.CreateDeterministicDemo();
-        var source = new FakeSource((_, _) => Task.FromResult(FiveMinuteRecording.Json()));
+        var source = new FakeSource((_, _) => Task.FromResult(NewPlan()));
         var service = new GenerationService(source, initial);
         await service.GenerateAsync(null, CancellationToken.None);
         Assert.Equal(1, source.Calls);
@@ -206,7 +211,7 @@ public sealed class GenerationTests
         var source = new FakeSource(async (_, token) =>
         {
             await Task.Delay(Timeout.InfiniteTimeSpan, token);
-            return FiveMinuteRecording.Json();
+            return NewPlan();
         });
         var service = new GenerationService(source, initial);
         using var cancel = new CancellationTokenSource();
@@ -228,9 +233,9 @@ public sealed class GenerationTests
         var calls = 0;
         var source = new FakeSource((_, _) =>
         {
-            if (++calls == 1) return Task.FromResult(FiveMinuteRecording.Json());
+            if (++calls == 1) return Task.FromResult(NewPlan());
             cancellation.Cancel();
-            return Task.FromResult(FiveMinuteRecording.Json());
+            return Task.FromResult(NewPlan());
         });
         var service = new GenerationService(source, PremierLeagueRoster.CreateDeterministicDemo());
         await service.GenerateAsync(null, CancellationToken.None);
@@ -245,7 +250,7 @@ public sealed class GenerationTests
     public async Task Authentication_failure_after_success_keeps_last_generated_match_and_provenance()
     {
         var calls = 0;
-        var source = new FakeSource((_, _) => ++calls == 1 ? Task.FromResult(FiveMinuteRecording.Json())
+        var source = new FakeSource((_, _) => ++calls == 1 ? Task.FromResult(NewPlan())
             : Task.FromException<string>(new CopilotGenerationException("Authentication required.")));
         var service = new GenerationService(source, PremierLeagueRoster.CreateDeterministicDemo());
         await service.GenerateAsync(null, CancellationToken.None);

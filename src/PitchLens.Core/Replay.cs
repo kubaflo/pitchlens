@@ -19,6 +19,8 @@ public sealed class Playback
     private readonly double duration;
     private double position, anchor;
     public bool IsPlaying { get; private set; }
+    public double Rate { get; private set; } = 1;
+    public static bool IsSupportedRate(double rate) => rate is 1 or 2 or 3 or 5;
 
     public Playback(double duration, IMonotonicClock clock)
     {
@@ -33,7 +35,7 @@ public sealed class Playback
         {
             if (IsPlaying)
             {
-                var current = Math.Min(duration, position + Math.Max(0, clock.Seconds - anchor));
+                var current = Math.Min(duration, position + Math.Max(0, clock.Seconds - anchor) * Rate);
                 if (current < duration) return current;
                 position = duration;
                 IsPlaying = false;
@@ -67,6 +69,14 @@ public sealed class Playback
     {
         IsPlaying = false;
         Seek(0);
+    }
+
+    public void SetRate(double rate)
+    {
+        if (!IsSupportedRate(rate)) throw new ArgumentOutOfRangeException(nameof(rate));
+        position = Position;
+        anchor = clock.Seconds;
+        Rate = rate;
     }
 }
 

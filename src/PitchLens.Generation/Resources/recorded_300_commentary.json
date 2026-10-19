@@ -1,0 +1,341 @@
+{
+  "scenarioHash": "82776c91906bc3727322c84b71943affebf823a36509d15a35c1ec916d1c9bf8",
+  "cues": [
+    {
+      "id": "cue-01",
+      "eventId": "a01",
+      "start": 3,
+      "end": 7,
+      "playerIds": ["arsenal-raya", "arsenal-saliba"],
+      "text": "In this simulation, David Raya finds William Saliba."
+    },
+    {
+      "id": "cue-02",
+      "eventId": "a03",
+      "start": 11,
+      "end": 15,
+      "playerIds": ["arsenal-saliba", "arsenal-rice"],
+      "text": "William Saliba connects with Declan Rice."
+    },
+    {
+      "id": "cue-03",
+      "eventId": "a05",
+      "start": 19,
+      "end": 23,
+      "playerIds": ["arsenal-rice", "arsenal-odegaard"],
+      "text": "Declan Rice delivers the ball to Martin Odegaard."
+    },
+    {
+      "id": "cue-04",
+      "eventId": "a07",
+      "start": 27,
+      "end": 30,
+      "playerIds": ["arsenal-odegaard"],
+      "text": "Martin Odegaard's pass goes astray!"
+    },
+    {
+      "id": "cue-05",
+      "eventId": "a09",
+      "start": 35,
+      "end": 38,
+      "playerIds": ["manchester-city-cherki"],
+      "text": "Rayan Cherki on the ball, carrying it."
+    },
+    {
+      "id": "cue-06",
+      "eventId": "a10",
+      "start": 38,
+      "end": 42,
+      "playerIds": ["manchester-city-cherki", "manchester-city-doku"],
+      "text": "Rayan Cherki picks out Jérémy Doku."
+    },
+    {
+      "id": "cue-07",
+      "eventId": "a12",
+      "start": 46,
+      "end": 49,
+      "playerIds": ["manchester-city-doku", "manchester-city-haaland"],
+      "text": "Jérémy Doku finds Erling Haaland!"
+    },
+    {
+      "id": "cue-08",
+      "eventId": "a13-goal",
+      "start": 49,
+      "end": 53,
+      "playerIds": ["manchester-city-haaland"],
+      "text": "Goal! Erling Haaland scores for Manchester City!"
+    },
+    {
+      "id": "cue-09",
+      "eventId": "a14",
+      "start": 54,
+      "end": 57,
+      "playerIds": ["arsenal-saka"],
+      "text": "Bukayo Saka takes the kickoff for Arsenal."
+    },
+    {
+      "id": "cue-10",
+      "eventId": "a16",
+      "start": 60,
+      "end": 64,
+      "playerIds": ["arsenal-rice", "arsenal-odegaard"],
+      "text": "Declan Rice finds Martin Odegaard with the pass."
+    },
+    {
+      "id": "cue-11",
+      "eventId": "a19",
+      "start": 73,
+      "end": 76,
+      "playerIds": ["arsenal-saka"],
+      "text": "Bukayo Saka carries the ball for Arsenal."
+    },
+    {
+      "id": "cue-12",
+      "eventId": "a20",
+      "start": 76,
+      "end": 80,
+      "playerIds": ["arsenal-saka", "arsenal-gyokeres"],
+      "text": "Bukayo Saka links up with Viktor Gyokeres."
+    },
+    {
+      "id": "cue-13",
+      "eventId": "a22",
+      "start": 84,
+      "end": 87,
+      "playerIds": ["arsenal-gyokeres"],
+      "text": "No connection on that Viktor Gyokeres pass!"
+    },
+    {
+      "id": "cue-14",
+      "eventId": "a24",
+      "start": 90,
+      "end": 94,
+      "playerIds": ["manchester-city-foden", "manchester-city-cherki"],
+      "text": "Phil Foden sends the ball to Rayan Cherki."
+    },
+    {
+      "id": "cue-15",
+      "eventId": "a27",
+      "start": 101,
+      "end": 105,
+      "playerIds": ["manchester-city-doku"],
+      "text": "Jérémy Doku's pass does not connect."
+    },
+    {
+      "id": "cue-16",
+      "eventId": "a29",
+      "start": 109,
+      "end": 112,
+      "playerIds": ["arsenal-rice", "arsenal-odegaard"],
+      "text": "Declan Rice to Martin Odegaard, pass completed."
+    },
+    {
+      "id": "cue-17",
+      "eventId": "a31",
+      "start": 117,
+      "end": 120,
+      "playerIds": ["arsenal-gyokeres"],
+      "text": "Viktor Gyokeres carries the ball."
+    },
+    {
+      "id": "cue-18",
+      "eventId": "a32-goal",
+      "start": 120,
+      "end": 124,
+      "playerIds": ["arsenal-gyokeres"],
+      "text": "Viktor Gyokeres scores! A goal for Arsenal!"
+    },
+    {
+      "id": "cue-19",
+      "eventId": "a34",
+      "start": 128,
+      "end": 132,
+      "playerIds": ["manchester-city-haaland", "manchester-city-foden"],
+      "text": "Erling Haaland connects with Phil Foden."
+    },
+    {
+      "id": "cue-20",
+      "eventId": "a37",
+      "start": 141,
+      "end": 144,
+      "playerIds": ["manchester-city-cherki"],
+      "text": "Rayan Cherki has it, carrying the ball."
+    },
+    {
+      "id": "cue-21",
+      "eventId": "a38",
+      "start": 144,
+      "end": 147,
+      "playerIds": ["manchester-city-cherki"],
+      "text": "Rayan Cherki's pass goes astray!"
+    },
+    {
+      "id": "cue-22",
+      "eventId": "a40",
+      "start": 150,
+      "end": 154,
+      "playerIds": ["arsenal-rice", "arsenal-odegaard"],
+      "text": "Martin Odegaard receives the pass from Declan Rice."
+    },
+    {
+      "id": "cue-23",
+      "eventId": "a42",
+      "start": 158,
+      "end": 162,
+      "playerIds": ["arsenal-odegaard", "arsenal-saka"],
+      "text": "Martin Odegaard finds Bukayo Saka."
+    },
+    {
+      "id": "cue-24",
+      "eventId": "a44",
+      "start": 166,
+      "end": 170,
+      "playerIds": ["arsenal-saka"],
+      "text": "Bukayo Saka cannot complete that pass!"
+    },
+    {
+      "id": "cue-25",
+      "eventId": "a46",
+      "start": 174,
+      "end": 178,
+      "playerIds": ["manchester-city-dias", "manchester-city-foden"],
+      "text": "Rúben Dias delivers to Phil Foden."
+    },
+    {
+      "id": "cue-26",
+      "eventId": "a48",
+      "start": 183,
+      "end": 187,
+      "playerIds": ["manchester-city-foden", "manchester-city-doku"],
+      "text": "Phil Foden picks out Jérémy Doku."
+    },
+    {
+      "id": "cue-27",
+      "eventId": "a50",
+      "start": 191,
+      "end": 194,
+      "playerIds": ["manchester-city-doku", "manchester-city-haaland"],
+      "text": "Jérémy Doku connects with Erling Haaland!"
+    },
+    {
+      "id": "cue-28",
+      "eventId": "a51-goal",
+      "start": 194,
+      "end": 198,
+      "playerIds": ["manchester-city-haaland"],
+      "text": "Erling Haaland scores! Goal for Manchester City!"
+    },
+    {
+      "id": "cue-29",
+      "eventId": "a52",
+      "start": 199,
+      "end": 202,
+      "playerIds": ["arsenal-gyokeres"],
+      "text": "Viktor Gyokeres restarts play with the kickoff."
+    },
+    {
+      "id": "cue-30",
+      "eventId": "a55",
+      "start": 210,
+      "end": 214,
+      "playerIds": ["arsenal-odegaard", "arsenal-saka"],
+      "text": "Martin Odegaard sends the ball to Bukayo Saka."
+    },
+    {
+      "id": "cue-31",
+      "eventId": "a57",
+      "start": 218,
+      "end": 222,
+      "playerIds": ["arsenal-saka", "arsenal-gyokeres"],
+      "text": "Bukayo Saka finds Viktor Gyokeres!"
+    },
+    {
+      "id": "cue-32",
+      "eventId": "a59-goal",
+      "start": 226,
+      "end": 230,
+      "playerIds": ["arsenal-gyokeres"],
+      "text": "Goal for Arsenal! Viktor Gyokeres scores!"
+    },
+    {
+      "id": "cue-33",
+      "eventId": "a61",
+      "start": 234,
+      "end": 238,
+      "playerIds": ["manchester-city-foden", "manchester-city-cherki"],
+      "text": "Phil Foden links up with Rayan Cherki."
+    },
+    {
+      "id": "cue-34",
+      "eventId": "a63",
+      "start": 243,
+      "end": 247,
+      "playerIds": ["manchester-city-cherki", "manchester-city-doku"],
+      "text": "Jérémy Doku receives from Rayan Cherki."
+    },
+    {
+      "id": "cue-35",
+      "eventId": "a65",
+      "start": 251,
+      "end": 255,
+      "playerIds": ["manchester-city-doku", "manchester-city-haaland"],
+      "text": "Jérémy Doku delivers the pass to Erling Haaland."
+    },
+    {
+      "id": "cue-36",
+      "eventId": "a67",
+      "start": 259,
+      "end": 263,
+      "playerIds": ["manchester-city-haaland"],
+      "text": "Erling Haaland's pass goes incomplete!"
+    },
+    {
+      "id": "cue-37",
+      "eventId": "a69",
+      "start": 267,
+      "end": 270,
+      "playerIds": ["arsenal-saliba", "arsenal-rice"],
+      "text": "William Saliba finds Declan Rice."
+    },
+    {
+      "id": "cue-38",
+      "eventId": "a71",
+      "start": 275,
+      "end": 279,
+      "playerIds": ["arsenal-odegaard"],
+      "text": "Martin Odegaard on the ball for Arsenal, carrying it."
+    },
+    {
+      "id": "cue-39",
+      "eventId": "a73",
+      "start": 281,
+      "end": 284,
+      "playerIds": ["arsenal-saka"],
+      "text": "That pass from Bukayo Saka does not connect!"
+    },
+    {
+      "id": "cue-40",
+      "eventId": "a74",
+      "start": 284,
+      "end": 288,
+      "playerIds": ["manchester-city-dias", "manchester-city-cherki"],
+      "text": "Rúben Dias finds Rayan Cherki with the pass."
+    },
+    {
+      "id": "cue-41",
+      "eventId": "a76",
+      "start": 292,
+      "end": 296,
+      "playerIds": ["manchester-city-cherki", "manchester-city-doku"],
+      "text": "Rayan Cherki connects with Jérémy Doku."
+    },
+    {
+      "id": "cue-42",
+      "eventId": "a77",
+      "start": 297,
+      "end": 300,
+      "playerIds": ["manchester-city-doku"],
+      "text": "Jérémy Doku carries the ball for Manchester City."
+    }
+  ]
+}
