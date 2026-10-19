@@ -169,7 +169,7 @@ public sealed class GenerationTests
     public async Task Successful_fake_response_commits_only_after_validation()
     {
         var initial = PremierLeagueRoster.CreateDeterministicDemo();
-        var source = new FakeSource((_, _) => Task.FromResult(Json(Valid())));
+        var source = new FakeSource((_, _) => Task.FromResult(FiveMinuteRecording.Json()));
         var service = new GenerationService(source, initial);
         await service.GenerateAsync(null, CancellationToken.None);
         Assert.Equal(1, source.Calls);
@@ -206,7 +206,7 @@ public sealed class GenerationTests
         var source = new FakeSource(async (_, token) =>
         {
             await Task.Delay(Timeout.InfiniteTimeSpan, token);
-            return Json(Valid());
+            return FiveMinuteRecording.Json();
         });
         var service = new GenerationService(source, initial);
         using var cancel = new CancellationTokenSource();
@@ -228,9 +228,9 @@ public sealed class GenerationTests
         var calls = 0;
         var source = new FakeSource((_, _) =>
         {
-            if (++calls == 1) return Task.FromResult(Json(Valid()));
+            if (++calls == 1) return Task.FromResult(FiveMinuteRecording.Json());
             cancellation.Cancel();
-            return Task.FromResult(Json(Valid()));
+            return Task.FromResult(FiveMinuteRecording.Json());
         });
         var service = new GenerationService(source, PremierLeagueRoster.CreateDeterministicDemo());
         await service.GenerateAsync(null, CancellationToken.None);
@@ -245,7 +245,7 @@ public sealed class GenerationTests
     public async Task Authentication_failure_after_success_keeps_last_generated_match_and_provenance()
     {
         var calls = 0;
-        var source = new FakeSource((_, _) => ++calls == 1 ? Task.FromResult(Json(Valid()))
+        var source = new FakeSource((_, _) => ++calls == 1 ? Task.FromResult(FiveMinuteRecording.Json())
             : Task.FromException<string>(new CopilotGenerationException("Authentication required.")));
         var service = new GenerationService(source, PremierLeagueRoster.CreateDeterministicDemo());
         await service.GenerateAsync(null, CancellationToken.None);

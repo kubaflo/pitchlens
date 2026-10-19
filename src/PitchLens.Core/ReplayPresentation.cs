@@ -68,6 +68,13 @@ public sealed class ReplayPresentation : IDisposable
     public void Pause() { ObjectDisposedException.ThrowIf(disposed, this); playback.Pause(); }
     public void Seek(double time) { ObjectDisposedException.ThrowIf(disposed, this); playback.Seek(time); }
     public void Restart() { ObjectDisposedException.ThrowIf(disposed, this); playback.Restart(); }
+    public void Toggle()
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (playback.Position >= Match.Duration) { playback.Restart(); playback.Play(); }
+        else if (playback.IsPlaying) playback.Pause();
+        else playback.Play();
+    }
     public void Select(string id)
     {
         ObjectDisposedException.ThrowIf(disposed, this);

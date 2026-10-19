@@ -1,9 +1,11 @@
-import { ReplayEngine, at, fit, keyboardAction } from "./replay.mjs";
+import { ReplayEngine, at, keyboardAction, goalState } from "./replay.mjs";
 import { PopupHost } from "./popups.mjs";
+import { viewportMap, applyField, pointerInDrawnViewport } from "./viewport.mjs";
 
 let engine, canvas, viewport, context, background, observer, reference, frameId = null;
 let pointerHandler, visibilityHandler, keyboardHandler, rangeDown, rangeUp, range, width = 0, height = 0, dragging = false;
 let popups = null, lastPointer = null;
+let map = null;
 const now = () => performance.now();
 
 export function initialize(element, dotnet) {
@@ -26,7 +28,8 @@ export function initialize(element, dotnet) {
     pointerHandler = event => {
         lastPointer = { x: event.clientX, y: event.clientY };
         const box = canvas.getBoundingClientRect();
-        engine?.select(event.clientX - box.left, event.clientY - box.top, box.width, box.height, now());
+        const point = map && pointerInDrawnViewport(map, box, event.clientX, event.clientY);
+        if (point) engine?.select(point.x, point.y, map.width, map.height, now());
     };
     canvas.addEventListener("pointerdown", pointerHandler);
     visibilityHandler = () => { if (document.hidden) { engine?.hide(now()); stop(); } else draw(); };
@@ -54,10 +57,11 @@ function resize() {
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
     background.width = canvas.width; background.height = canvas.height;
-    const c = background.getContext("2d"), t = fit(width, height);
-    c.setTransform(dpr, 0, 0, dpr, 0, 0);
-    c.fillStyle = "#23372f"; c.fillRect(0, 0, width, height);
-    c.translate(t.left, t.top); c.scale(t.scale, t.scale);
+    map = viewportMap(width, height, canvas.width, canvas.height);
+    const c = background.getContext("2d");
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.fillStyle = "#23372f"; c.fillRect(0, 0, background.width, background.height);
+    applyField(c, map);
     c.fillStyle = "#4b7355"; c.fillRect(0, 0, 105, 68);
     c.fillStyle = "#50795a";
     for (let i = 0; i < 10; i += 2) c.fillRect(i * 10.5, 0, 10.5, 68);
@@ -77,9 +81,9 @@ function circle(c, x, y, radius, fill, stroke) {
 function draw() {
     stop();
     if (!engine?.scenario || !canvas || !width || !height || document.hidden) return;
-    const time = engine.frame(now()), t = fit(width, height), dpr = window.devicePixelRatio || 1;
+    const time = engine.frame(now());
     const c = context; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, canvas.width, canvas.height); c.drawImage(background, 0, 0);
-    c.setTransform(dpr, 0, 0, dpr, 0, 0); c.translate(t.left, t.top); c.scale(t.scale, t.scale);
+    applyField(c, map);
     const selected = engine.scenario.players.find(p => p.id === engine.selectedId);
     if (selected) {
         c.beginPath();
@@ -104,6 +108,21 @@ function updateTransport(time) {
     const output = document.getElementById("replay-clock");
     if (output) output.textContent = `${time.toFixed(1).padStart(4, "0")} / ${engine.scenario.duration.toFixed(1)} s`;
     if (range && !dragging) range.value = String(time);
+    const state = goalState(engine.scenario, time);
+    const score = document.getElementById("match-score");
+    const value = `${state.score.arsenal} : ${state.score["manchester-city"]}`;
+    if (score && score.textContent !== value) score.textContent = value;
+    const banner = document.getElementById("goal-banner");
+    if (banner) {
+        banner.hidden = !state.celebration;
+        const title = document.getElementById("goal-title"), detail = document.getElementById("goal-detail");
+        if (state.celebration) {
+            const heading = `Goal · ${state.celebration.scorer}`;
+            const facts = `${state.celebration.teamName} · ${value} · Synthetic match`;
+            if (title.textContent !== heading) title.textContent = heading;
+            if (detail.textContent !== facts) detail.textContent = facts;
+        }
+    }
 }
 export function setClock(json) {
     if (engine?.update(JSON.parse(json), now())) {
@@ -111,7 +130,7 @@ export function setClock(json) {
         draw();
     }
 }
-export function diagnostics() { return engine ? { ...engine.diagnostics } : null; }
+export function diagnostics() { return engine ? { ...engine.diagnostics, viewport: map, time: engine.lastDrawTime } : null; }
 export function openPopup(id, adjacent = false, atPointer = false) {
     popups ??= new PopupHost(document, window);
     const box = canvas.getBoundingClientRect();
@@ -131,5 +150,6 @@ export function dispose() {
     if (rangeUp) window.removeEventListener("pointerup", rangeUp);
     engine?.dispose();
     engine = canvas = viewport = context = background = observer = reference = range = null;
+    map = null;
     pointerHandler = visibilityHandler = keyboardHandler = rangeDown = rangeUp = null;
 }

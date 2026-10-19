@@ -40,6 +40,11 @@ small, .caption { font-size: 14px; line-height: 1.4; color: var(--muted); }
 .pitch-slot canvas { position: absolute; inset: 0; width: 100%; height: 100%; min-width: 0; min-height: 0; display: block; border-radius: 5px; background: #23372f; touch-action: manipulation; }
 .pitch-caption { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 0; font-size: 16px; flex: none; }
 .pitch-caption > span:last-child { font-size: 14px; color: var(--muted); }
+.pitch-caption > span:last-child { max-width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.goal-banner { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); z-index: 2; padding: 16px 24px; background: #37003cee; color: white; border-bottom: 4px solid var(--mint); border-radius: 10px; text-align: center; max-width: calc(100% - 32px); pointer-events: none; }
+.goal-banner strong { display: block; font-size: 26px; }
+.goal-banner span { display: block; font-size: 16px; margin-top: 4px; }
+.goal-banner[hidden] { display: none; }
 .transport { display: flex; align-items: center; gap: 16px; padding: 8px 32px 20px; flex: none; }
 .play { min-width: 96px; }
 .scrub-label { display: flex; align-items: center; gap: 16px; flex: 1; min-width: 0; font-size: 16px; }

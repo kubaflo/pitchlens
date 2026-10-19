@@ -10,15 +10,16 @@ public interface IScenarioSource
 public enum GenerationState { Ready, Generating, Succeeded, Failed, Cancelled }
 public enum ScenarioOrigin { DeterministicDemo, RecordedSdkExample, FreshSdkGeneration }
 
-public sealed class GenerationService(IScenarioSource source, Match initial, ScenarioOrigin initialOrigin = ScenarioOrigin.DeterministicDemo)
+public sealed class GenerationService(IScenarioSource source, Match initial, ScenarioOrigin initialOrigin = ScenarioOrigin.DeterministicDemo,
+    string? initialModel = null)
 {
     private int running;
     public Match Current { get; private set; } = initial;
     public GenerationState State { get; private set; }
     public string Status { get; private set; } = initialOrigin == ScenarioOrigin.RecordedSdkExample
-        ? $"Recorded SDK example · {RecordedScenario.Model} · Not a fresh request" : "Deterministic demo · Not SDK-generated";
+        ? $"Recorded SDK example · {initialModel ?? RecordedScenario.Model} · Not a fresh request" : "Deterministic demo · Not SDK-generated";
     public ScenarioOrigin Origin { get; private set; } = initialOrigin;
-    public string? CurrentModel { get; private set; } = initialOrigin == ScenarioOrigin.RecordedSdkExample ? RecordedScenario.Model : null;
+    public string? CurrentModel { get; private set; } = initialOrigin == ScenarioOrigin.RecordedSdkExample ? initialModel ?? RecordedScenario.Model : null;
     public bool IsSdkGenerated => Origin == ScenarioOrigin.FreshSdkGeneration;
 
     public async Task GenerateAsync(IProgress<string>? progress, CancellationToken cancellationToken)
@@ -34,7 +35,7 @@ public sealed class GenerationService(IScenarioSource source, Match initial, Sce
             var json = await source.GenerateAsync(progress, timeout.Token).ConfigureAwait(false);
             timeout.Token.ThrowIfCancellationRequested();
             progress?.Report("Validating roster, trajectories, possession and event causality…");
-            var candidate = ScenarioValidator.Parse(json);
+            var candidate = FiveMinutePlan.Parse(json);
             timeout.Token.ThrowIfCancellationRequested();
             Current = candidate;
             Origin = ScenarioOrigin.FreshSdkGeneration;

@@ -17,20 +17,22 @@ or either club; submission remains deferred.
 
 ## Generate a match with Copilot
 
-Click **Generate match**. This makes **one bounded request** through
+Open **New match**, then choose **Create match with Sol 6.1**. This makes **one bounded request** through
 `GitHub.Copilot.SDK` **1.0.22**, explicitly selecting **GPT-6.1 Sol (`gpt-6.1-sol`)** with medium reasoning.
 There is no Auto, Anthropic/Claude, alternate-provider or model fallback path.
 Normal Copilot authentication and model entitlement are required. Generation
 uses Copilot services over the network and may consume your Copilot usage.
 No API key or token is configured or read by application code.
 
-The model plans a **story first**, then produces structured JSON containing
-**all player keyframes, timestamped events and linked story phases**, not merely
-commentary, playback-speed changes or a random seed. The arc covers pressured
-build-up, a turnover, counterattack, an advancing off-ball support run, finish
-and the other team's response. A JSON response schema constrains output; application validation is the
-authority before it can become a playable match. Roster names, clubs and shirt
-numbers are mapped from the verified local roster, never invented by the model.
+The model invents a **300-second match plan**: ten distinct 30-second phases,
+both teams' outfield spatial anchors, and causal actions with chosen actors,
+receiver/carry targets, interceptions, finishes and responses. A bounded
+deterministic compiler fills in continuous role/support/defensive movement,
+receiver arrival and ball trajectories from those substantive model choices.
+The SDK does not emit thousands of fragile frames, only a seed or commentary.
+A JSON schema and sustained-action validator are authoritative before replacement.
+Unreachable targets or invalid play are rejected, not silently repaired into a
+fake successful SDK match. Roster facts come from the verified local roster.
 
 The UI shows connecting/authentication/model/generation/validation progress and
 a Cancel action. Generation runs off the UI thread, is limited to five minutes
@@ -43,15 +45,18 @@ retires the request; SDK session/runtime resources are disposed.
 Cleanup has its own deadline; if graceful SDK disposal stalls, only that
 generation's owned runtime is stopped and the cleanup error is reported.
 
-On startup the app plays a reviewed **recorded SDK example**, bundled unchanged
-from the successful live story-generation response on 2026-10-18. This is labeled
+On startup the app plays a reviewed **five-minute Sol recording**, bundled unchanged
+from a successful live compact-plan request on 2026-10-19. This is labeled
 **Recorded SDK example · Not a fresh request**, not falsely presented as a new
 generation. Startup makes no model request. Clicking Generate produces a new
 scenario labeled **Fresh SDK / gpt-6.1-sol**; its actions remain synthetic.
 Restart resets playback, not the scenario. Reopening starts the bundled example;
 subsequent generated scenarios are not automatically persisted.
 
-The pitch shows the neutral, spoiler-free story title and latest verified beat.
+The pitch shows a concise latest observed action. A goal callout shows the
+actual synthetic scorer, club and score for six seconds of **playback time**;
+it freezes on pause and disappears correctly on seek/restart. Score changes at
+the event time on the JS animation clock, not a wall-clock timer.
 Match notes show completed phases, evidence event IDs and trajectory-derived
 movement. A beat is revealed only after its full time range has elapsed, so
 backward seeks remove future event/movement claims. Explanatory sentences are
@@ -82,34 +87,28 @@ No OS settings, Gatekeeper warnings or authentication prompts are bypassed.
 
 ### Live verification evidence
 
-A real SDK request using the pinned native runtime and `gpt-5.4` produced
-**A Game of Transitions**, a **72-second** scenario with **12 roster players,
-20 ordered events: 9 passes, 8 carries, 1 shot, 1 goal and 1 kickoff**.
-Arsenal build under pressure from Dias; Doku intercepts Rice's pass, City counter,
-Doku makes a supporting run to receive Cherki's pass, and Haaland finishes at
-45.5 s. Odegaard restarts at 48.5 s and Arsenal respond through Saka, Gyokeres
-and Rice. These actions are entirely invented.
+One actual **gpt-6.1-sol** compact-plan request on 2026-10-19 succeeded and passed
+the final compiler/quality checks: **300 seconds, 12 players, 82 resolved events**
+(42 passes, 28 carries, 4 shots, 4 goals, 4 kickoffs), 7 interceptions, final
+score **Arsenal 2 : 2 Manchester City**. Haaland finishes at 49 and 194 seconds;
+Gyokeres at 120 and 226 seconds. All actions remain invented.
 
-Arsenal have **4/5** and City **5/5** outfielders meeting the active-motion
-checks. Outfielders travel **64.6-110.1 m**, with **2-5** purposeful turns;
-the maximum speed is **4.854 m/s**. Both keepers remain at their own end.
-The exact validated response is bundled in
-`src/PitchLens.Generation/Resources/recorded_match.json` as a recorded synthetic
-example, not as a real match. The first story request hit the old 150-second
-timeout; one concrete correction (medium reasoning and a bounded longer wait)
-succeeded. There is no automatic paid retry loop. This verifies the headless
-SDK path and scenario, not native desktop UI acceptance.
+In **every 20-second window sampled at 10-second intervals**, all five
+outfielders of each club move at least 8 m. Outfield travel is **405.8-473.8 m**,
+peak speed **4.676 m/s**. Both keepers stay at their own ends. Actions continue
+through the final seconds: this is not the old recording stretched or looped.
+The exact successful plan is
+`src/PitchLens.Generation/Resources/recorded_300_plan.json`, SHA-256
+`6a5519c4a301bd112a33f9ff1a44d7a06029368e3c261b6058217b46c5523e49`.
+This verifies real headless SDK generation and replay data, not native UI rendering.
 
-The later requested model switch was checked through normal authenticated SDK
-`ListModels`: **`gpt-6.1-sol` is exposed, policy enabled, reasoning supported**.
-One bounded actual Sol generation hit the 270-second response timeout without
-returning a validated scenario. It is **not** claimed as a successful Sol
-generation. Future Generate actions use only that exact Sol ID, with no fallback.
-The bundled recorded example remains the verified **gpt-5.4** response above;
-its model identity is shown explicitly in the app and retained independently of
-the requested model. The Sol switch does not relabel old data.
-Remote model-generation latency is separate from replay rendering. The Hybrid
-migration does not shorten inference or relax the bounded generation timeout.
+The older 72-second **gpt-5.4** recording (`recorded_match.json`) remains only
+as historical/test data and is not relabeled as Sol or five minutes. Earlier
+Sol timeout evidence remains historical; the newer compact-plan request above
+succeeded without a paid retry loop. `FiveMinuteDemo` is a separately labeled
+authored test/demo plan, never a fallback counted as SDK success.
+Match length **300 seconds** and SDK request timeout **five minutes** are
+different concepts. Remote inference latency is not playback duration/speed.
 
 For an explicit, opt-in headless check (one model request, no retries):
 
@@ -124,7 +123,7 @@ Never use these synthetic outputs as evidence of real player actions.
 
 ## Replay and validation contract
 
-The replay lasts 72 seconds on a 105 x 68 metre pitch. Stable local IDs identify
+The default/new replay lasts **300 seconds** on a 105 x 68 metre pitch. Stable local IDs identify
 teams/players independently of third-party databases. The SDK may change
 trajectories and event choices/times; a validated scenario then replays
 deterministically, independent of render frequency.
@@ -135,26 +134,23 @@ coordinates, unordered timestamps, invalid references, duplicate event IDs,
 overlapping actions, incorrect possession actors, inconsistent pass outcomes,
 stationary carries, unpaired shots/goals and invalid opposing kickoffs.
 Player segments must stay at or below **8 m/s**, ball flights at or below
-**40 m/s**. Each trajectory covers 0-72 seconds. This bounded generator supports
+**40 m/s**. Each trajectory covers 0-300 seconds. This bounded generator supports
 only scoring shots with explicit same-time shot/goal ordering; no xG, assists,
 clean-sheet, pressure or formation metrics are invented.
 
-Story validation also requires contiguous ordered phase coverage and known
-time-bounded event/player anchors, both clubs completing passes/carries, an
-interception and a causal kickoff response. Build-up/counterattack must name an
-opposing defender who travels at least 8 m, closes at least 5 m and ends within
-15 m of the ball. A support receiver must be off-ball, travel at least 10 m and
-advance at least 8 m toward the attacking goal before receiving.
-Each club needs at least three outfielders with six or more keyframes, 35 m
-travel, a 3 m/s burst and two turns exceeding about 32 degrees between segments
-at least 4 m long. Tiny jitter does not count. Teams retain 20 m of outfield
-spread at phase boundaries; keepers start at their own goal and remain in their
-own goal area. These are choreography quality gates, not inferred match metrics.
+Each 30-second phase contains 4-8 meaningful causal actions. Every sliding
+20-second window requires at least six moving outfielders (at least two per
+club, >=8 m each) and two meaningful events. Every minute includes completed
+passes from both clubs. Final action must reach at least 295 seconds; both clubs
+must finish, and there must be multiple genuine interceptions. Every five seconds
+each team's outfielders retain lateral width and at least 25 m separation;
+keepers stay at x6/x99 in their own goal area. These sustained spatial/activity
+checks replace the inadequate old aggregate-distance-only gates.
 
 Ball motion/possession are deterministically derived from validated player paths
 and events, not accepted as an unrelated model-supplied track. Possession is null
 during flights and goal-to-kickoff resets. The attacking goal is x=105 for Arsenal,
-x=0 for City. Kickoff must be at centre by the opposing team after at least two
+x=0 for City. Kickoff must be at centre by the opposing team after at least three
 seconds. The ball follows its owner outside flights/resets.
 
 One authoritative native monotonic clock supports play/pause/restart and forward/backward seeks.
@@ -162,7 +158,8 @@ Statistics filter resolved events through the current playhead, avoiding future
 events or double counting. Pass accuracy is explicitly **unavailable before an
 attempt**. Distance includes partial trajectory segments; max speed includes
 only segments with positive elapsed time. Selection persists across seeks and
-generation, since roster IDs remain stable.
+generation, since roster IDs remain stable. Fulltime offers **Replay match**,
+which atomically restarts and plays rather than presenting a disabled Play.
 
 Drawing and inverse click hit-testing share the same aspect-preserving transform.
 Letterbox margins do not select players. Nearest player within the marker radius
@@ -219,6 +216,14 @@ native deactivation pauses the authority. Resize/hit-testing share CSS-pixel,
 aspect-preserving transforms, and selection uses last-drawn player positions.
 The canvas fills an intrinsic-size-independent grid-slot wrapper; resize observes
 that wrapper, so HiDPI backing dimensions cannot enlarge the layout row.
+The earlier half-scale/corner-cluster defect was a renderer mismatch: moving
+objects resampled device density after the static pitch had been rasterized.
+Both now share one cached backing-to-CSS matrix, also used by last-drawn hit
+mapping. The previous production renderer fails the density-change regression;
+removing that trigger passes, and the corrected renderer passes with it present.
+Headless checks exercise actual shirt drawing and pointer-to-player-popup
+dispatch at 1x/2x, resize and the reported 66.8-second playhead. They do not
+certify the native WebView's visual popup behavior.
 Teardown cancels animation/timers, disconnects observers, removes handlers and
 releases JS/.NET references.
 
@@ -229,10 +234,10 @@ dotnet run --project tools/PitchLens.Performance -c Release
 node --test tests/js/*.test.mjs
 ```
 
-On this machine, the representative 72-second/30 Hz **pure computation** workload
-(Casual explanation mode)
-went from **2,161 updates, 109.39 ms, 72.82 MiB allocations** to **289 snapshots,
-2.82 ms, 4.27 MiB**, with **20** explanation builds and **7** story builds.
+On the current 300-second recording, the headless 30 Hz **pure computation**
+workload (Casual explanation mode) measured **9,001 updates, 1,398.45 ms,
+546.27 MiB allocations** versus **1,201 bounded snapshots, 40.57 ms,
+19.44 MiB**, with **79** explanation builds and **11** story builds.
 Timing/allocation values are medians of five warmed runs, not pass/fail thresholds.
 The comparison conservatively retains the same legacy ranking calculations in
 both cases; the simplified viewer no longer renders those boards. Node tests execute 600 actual
@@ -314,7 +319,12 @@ Confirm pitch-first startup with the full pitch inside its slot at 1024x768 and
 1586x967, real names/shirts, accessible synthetic/source disclosure,
 playback/seeks/selection, initial accuracy with no attempts, no future notes
 after backward seeks, readable light/dark layout, and keyboard-accessible
-roster, disclosures, mode buttons and transport. Generate a match with normal
+roster, disclosures, mode buttons and transport. Check all 300 seconds and
+**Replay match** at fulltime. Click a visible shirt once (including a keeper at
+the far end), verify that exact player's popup, then close/Escape/backdrop and
+focus return. Observe the score/goal callout at 49, 120, 194 and 226 seconds;
+pause, seek backward and restart must preserve factual timing without duplicates.
+Open Match story and seek an observed event. Generate a match with normal
 login, verify progress and successful provenance change, cancel another request,
 and test an invalid CLI override: the last valid match must stay playable and
 failures must be visible. Close while generating to verify cleanup. Each actual

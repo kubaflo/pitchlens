@@ -1,11 +1,11 @@
 export function at(frames, time) {
     if (time <= frames[0].time) return { x: frames[0].x, y: frames[0].y };
-    for (let i = 1; i < frames.length; i++) {
-        const b = frames[i], a = frames[i - 1];
-        if (time <= b.time) {
-            const f = (time - a.time) / (b.time - a.time);
-            return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
-        }
+    let low = 1, high = frames.length - 1;
+    while (low < high) { const mid = (low + high) >>> 1; if (frames[mid].time < time) low = mid + 1; else high = mid; }
+    const b = frames[low], a = frames[low - 1];
+    if (time <= b.time) {
+        const f = (time - a.time) / (b.time - a.time);
+        return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
     }
     return { x: frames.at(-1).x, y: frames.at(-1).y };
 }
@@ -34,8 +34,18 @@ export function keyboardAction(event) {
         target?.closest?.("input,textarea,select,button,a,summary,[contenteditable='true'],[role='textbox']")) return null;
     return event.key === " " ? "toggle" : event.key === "ArrowLeft" ? "back" : event.key === "ArrowRight" ? "forward" : null;
 }
+export function goalState(scenario, time) {
+    const score = { arsenal: 0, "manchester-city": 0 };
+    let celebration = null;
+    for (const goal of scenario.goals || []) {
+        if (goal.time > time) continue;
+        score[goal.teamId]++;
+        if (time < goal.time + 6) celebration = goal;
+    }
+    return { score, celebration };
+}
 export class ProjectionClock {
-    revision = 0; sequence = -1; position = 0; anchor = 0; playing = false; duration = 72;
+    revision = 0; sequence = -1; position = 0; anchor = 0; playing = false; duration = 0;
     reset(revision, duration, now) {
         this.revision = revision; this.duration = duration; this.sequence = -1;
         this.position = 0; this.anchor = now; this.playing = false;

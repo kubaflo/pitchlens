@@ -3,28 +3,29 @@ using PitchLens.Generation;
 
 namespace PitchLens.App;
 
-public sealed record NativeView(PresentationFrame Frame, string? Model, bool Fresh, string Status, bool Generating);
+public sealed record NativeView(PresentationFrame Frame, string? Model, bool Fresh, string Status, bool Generating, ScenarioOrigin Origin);
 
 public sealed class MatchService : IDisposable
 {
     private readonly object gate = new();
-    private readonly ReplayPresentation presentation = new(RecordedScenario.Create(), new MonotonicClock());
+    private readonly ReplayPresentation presentation = new(FiveMinuteRecording.Create(), new MonotonicClock());
     private readonly GenerationService generation;
     private CancellationTokenSource? cancellation;
     private bool disposed;
     public event Action? Changed;
     public bool Active { get; private set; } = true;
     public string CliOverride { get; set; } = "";
-    public string Status { get; private set; } = $"Recorded SDK example · {RecordedScenario.Model} · Not a fresh request";
+    public string Status { get; private set; } = "Recorded five-minute Sol example · Not a fresh request";
     public bool Generating => cancellation is not null;
-    public string? CurrentModel { get; private set; } = RecordedScenario.Model;
+    public string? CurrentModel { get; private set; } = FiveMinuteRecording.Model;
+    public ScenarioOrigin Origin { get; private set; } = ScenarioOrigin.RecordedSdkExample;
     public bool Fresh { get; private set; }
     public GenerationState RequestState => generation.State;
     public Match Match => presentation.Match;
 
     public MatchService()
     {
-        generation = new(new NativeSource(this), presentation.Match, ScenarioOrigin.RecordedSdkExample);
+        generation = new(new NativeSource(this), presentation.Match, ScenarioOrigin.RecordedSdkExample, FiveMinuteRecording.Model);
         presentation.Select("arsenal-odegaard");
     }
 
@@ -33,7 +34,7 @@ public sealed class MatchService : IDisposable
         lock (gate)
         {
             var frame = disposed ? null : presentation.Sample(force);
-            return frame is null ? null : new(frame, CurrentModel, Fresh, Status, Generating);
+            return frame is null ? null : new(frame, CurrentModel, Fresh, Status, Generating, Origin);
         }
     }
     public void Command(string command, double value = 0, string? id = null)
@@ -46,6 +47,7 @@ public sealed class MatchService : IDisposable
                 case "play": if (Active) presentation.Play(); break;
                 case "pause": presentation.Pause(); break;
                 case "restart": presentation.Restart(); break;
+                case "toggle": if (Active) presentation.Toggle(); break;
                 case "seek": presentation.Seek(value); break;
                 case "seek-by": presentation.Seek(presentation.Position + value); break;
                 case "select": presentation.Select(id ?? throw new ArgumentException("Player ID required.")); break;
@@ -104,6 +106,7 @@ public sealed class MatchService : IDisposable
                     presentation.Replace(generation.Current);
                     CurrentModel = generation.CurrentModel;
                     Fresh = true;
+                    Origin = generation.Origin;
                 }
             }
         }

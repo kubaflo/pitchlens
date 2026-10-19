@@ -33,6 +33,7 @@ public static class StoryReplay
                 "support-run" => "Support into space",
                 "finish" => "The finish",
                 "response" => "The response",
+                "possession" => "Working the ball",
                 _ => throw new InvalidOperationException("Unknown story beat.")
             };
             var movement = b.PlayerIds.Select(match.Player).Select(p => (p.Name, p.Id,

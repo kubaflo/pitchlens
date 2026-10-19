@@ -2,6 +2,11 @@ using PitchLens.Core;
 using PitchLens.Generation;
 using GitHub.Copilot;
 
+if (args is ["--demo"])
+{
+    PrintStory(FiveMinuteDemo.Create());
+    return 0;
+}
 if (args is ["--check-model", var runtime, var modelId])
 {
     using var check = new CancellationTokenSource(TimeSpan.FromSeconds(45));
@@ -33,12 +38,14 @@ if (args is ["--validate", var artifact])
 {
     try
     {
-        var scenario = ScenarioValidator.Parse(await File.ReadAllTextAsync(artifact));
+        var json = await File.ReadAllTextAsync(artifact);
+        using var shape = System.Text.Json.JsonDocument.Parse(json);
+        var scenario = shape.RootElement.TryGetProperty("phases", out _) ? FiveMinutePlan.Parse(json) : ScenarioValidator.Parse(json);
         Console.WriteLine($"VALIDATED STORED SCENARIO | duration={scenario.Duration} | players={scenario.Players.Count} | events={scenario.Events.Count}");
         PrintStory(scenario);
         return 0;
     }
-    catch (Exception e) when (e is ScenarioValidationException or IOException or UnauthorizedAccessException)
+    catch (Exception e) when (e is ScenarioValidationException or System.Text.Json.JsonException or IOException or UnauthorizedAccessException)
     {
         Console.Error.WriteLine($"SCENARIO INVALID: {e.Message}");
         return 1;
@@ -59,7 +66,7 @@ try
 {
     var json = await source.GenerateAsync(progress, cancellation.Token);
     await File.WriteAllTextAsync(output + ".unvalidated.json", json, cancellation.Token);
-    var match = ScenarioValidator.Parse(json);
+    var match = FiveMinutePlan.Parse(json);
     await File.WriteAllTextAsync(output, json, cancellation.Token);
     var snapshot = Replay.At(match, match.Duration);
     Console.WriteLine($"LIVE SDK VERIFIED | model={CopilotScenarioSource.Model} | duration={match.Duration} | players={match.Players.Count} | events={match.Events.Count}");
@@ -83,11 +90,14 @@ static void PrintStory(Match match)
         Console.WriteLine($"  {beat.StartTime:0.#}-{beat.EndTime:0.#}s {beat.Kind}: {string.Join(",", beat.EventIds)}");
     foreach (var team in match.Teams)
     {
-        Console.WriteLine($"{team.Name}: active outfielders {match.Players.Count(p => p.TeamId == team.Id && StoryQuality.IsActiveOutfielder(p))}/5");
+        var minimumMoving = Enumerable.Range(0, (int)((match.Duration - 20) / 10) + 1).Min(n =>
+            match.Players.Count(p => p.TeamId == team.Id && !StoryQuality.IsKeeper(p) &&
+                p.Path.Measure(n * 10 + 20).Distance - p.Path.Measure(n * 10).Distance >= 8));
+        Console.WriteLine($"{team.Name}: minimum moving outfielders per20s={minimumMoving}/5");
         foreach (var player in match.Players.Where(p => p.TeamId == team.Id))
         {
-            var motion = player.Path.Measure(72);
-            Console.WriteLine($"  {player.Name}: {motion.Distance:F1}m, {motion.MaxSpeed:F2}m/s, {StoryQuality.DirectionChanges(player.Path)} turns, {player.Path.Frames.Count} frames");
+            var motion = player.Path.Measure(match.Duration);
+            Console.WriteLine($"  {player.Name}: {motion.Distance:F1}m, {motion.MaxSpeed:F2}m/s, {player.Path.Frames.Count} frames");
         }
     }
 }
