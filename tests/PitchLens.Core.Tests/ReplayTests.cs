@@ -166,6 +166,7 @@ public sealed class ReplayTests
     {
         var clock = new FakeClock();
         var player = new Playback(72, clock);
+        player.SetRate(1);
         player.Play();
         for (var i = 0; i < 50 * frequency; i++)
         {
@@ -182,6 +183,7 @@ public sealed class ReplayTests
     {
         var clock = new FakeClock();
         var player = new Playback(72, clock);
+        player.SetRate(1);
         player.Play();
         clock.Seconds = 12;
         player.Pause();

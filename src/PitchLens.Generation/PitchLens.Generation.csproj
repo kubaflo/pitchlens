@@ -13,5 +13,7 @@
     <EmbeddedResource Include="Resources/recorded_match.json" LogicalName="PitchLens.Generation.recorded_match.json" />
     <EmbeddedResource Include="Resources/recorded_300_plan.json" LogicalName="PitchLens.Generation.recorded_300_plan.json" />
     <EmbeddedResource Include="Resources/recorded_300_commentary.json" LogicalName="PitchLens.Generation.recorded_300_commentary.json" />
+    <EmbeddedResource Include="Resources/recorded_11v11_paths.json" LogicalName="PitchLens.Generation.recorded_11v11_paths.json" />
+    <EmbeddedResource Include="Resources/recorded_11v11_commentary.json" LogicalName="PitchLens.Generation.recorded_11v11_commentary.json" />
   </ItemGroup>
 </Project>

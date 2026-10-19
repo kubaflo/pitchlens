@@ -8,16 +8,16 @@ public sealed record NativeView(PresentationFrame Frame, string? Model, bool Fre
 public sealed class MatchService : IDisposable
 {
     private readonly object gate = new();
-    private readonly ReplayPresentation presentation = new(FiveMinuteRecording.Create(), new MonotonicClock());
+    private readonly ReplayPresentation presentation = new(AuthoredMatchRecording.Create(), new MonotonicClock());
     private readonly GenerationService generation;
     private CancellationTokenSource? cancellation;
     private bool disposed;
     public event Action? Changed;
     public bool Active { get; private set; } = true;
     public string CliOverride { get; set; } = "";
-    public string Status { get; private set; } = "Recorded five-minute Sol example · Not a fresh request";
+    public string Status { get; private set; } = "Recorded AI-authored 11v11 Sol example · Not a fresh request";
     public bool Generating => cancellation is not null;
-    public string? CurrentModel { get; private set; } = FiveMinuteRecording.Model;
+    public string? CurrentModel { get; private set; } = AuthoredMatchRecording.Model;
     public ScenarioOrigin Origin { get; private set; } = ScenarioOrigin.RecordedSdkExample;
     public bool Fresh { get; private set; }
     public GenerationState RequestState => generation.State;
@@ -25,7 +25,7 @@ public sealed class MatchService : IDisposable
 
     public MatchService()
     {
-        generation = new(new NativeSource(this), presentation.Match, ScenarioOrigin.RecordedSdkExample, FiveMinuteRecording.Model);
+        generation = new(new NativeSource(this), presentation.Match, ScenarioOrigin.RecordedSdkExample, AuthoredMatchRecording.Model);
         presentation.Select("arsenal-odegaard");
     }
 

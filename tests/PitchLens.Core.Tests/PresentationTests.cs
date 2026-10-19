@@ -10,6 +10,7 @@ public sealed class PresentationTests
     {
         var clock = new Clock();
         using var surface = new ReplayPresentation(RecordedScenario.Create(), clock);
+        surface.SetRate(1);
         surface.Play();
         for (var i = 0; i <= 4320; i++)
         {

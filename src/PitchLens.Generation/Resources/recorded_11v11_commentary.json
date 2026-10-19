@@ -1,0 +1,325 @@
+{
+  "scenarioHash": "7b6e52ea484abf19165a8534ec5ebe6921fe155e54cd3797ffe00e6e92896865",
+  "cues": [
+    {
+      "id": "cue-a",
+      "eventId": "e1",
+      "start": 3,
+      "end": 7,
+      "playerIds": ["arsenal-zubimendi", "arsenal-rice"],
+      "text": "Synthetic match action: Martin Zubimendi finds Declan Rice."
+    },
+    {
+      "id": "cue-b",
+      "eventId": "e2",
+      "start": 7,
+      "end": 10,
+      "playerIds": ["arsenal-rice"],
+      "text": "Declan Rice carries the ball now."
+    },
+    {
+      "id": "cue-c",
+      "eventId": "e4",
+      "start": 13,
+      "end": 17,
+      "playerIds": ["arsenal-calafiori", "arsenal-martinelli"],
+      "text": "Riccardo Calafiori connects with Gabriel Martinelli."
+    },
+    {
+      "id": "cue-d",
+      "eventId": "e7",
+      "start": 23,
+      "end": 27,
+      "playerIds": ["arsenal-odegaard", "arsenal-saka"],
+      "text": "Martin Odegaard sends the ball to Bukayo Saka."
+    },
+    {
+      "id": "cue-e",
+      "eventId": "e10",
+      "start": 33,
+      "end": 37,
+      "playerIds": ["arsenal-timber", "manchester-city-doku"],
+      "text": "Jurrien Timber's pass goes astray! Jérémy Doku takes possession."
+    },
+    {
+      "id": "cue-f",
+      "eventId": "e13",
+      "start": 43,
+      "end": 47,
+      "playerIds": ["manchester-city-kovacic", "manchester-city-ait-nouri"],
+      "text": "Mateo Kovačić picks out Rayan Aït-Nouri."
+    },
+    {
+      "id": "cue-g",
+      "eventId": "e16",
+      "start": 53,
+      "end": 57,
+      "playerIds": ["manchester-city-cherki", "manchester-city-haaland"],
+      "text": "Rayan Cherki finds Erling Haaland with the pass."
+    },
+    {
+      "id": "cue-h",
+      "eventId": "e19",
+      "start": 62,
+      "end": 66,
+      "playerIds": ["arsenal-gabriel", "arsenal-zubimendi"],
+      "text": "Gabriel passes to Martin Zubimendi."
+    },
+    {
+      "id": "cue-i",
+      "eventId": "e22",
+      "start": 72,
+      "end": 76,
+      "playerIds": ["arsenal-rice", "arsenal-martinelli"],
+      "text": "Declan Rice links up with Gabriel Martinelli."
+    },
+    {
+      "id": "cue-j",
+      "eventId": "e26",
+      "start": 84,
+      "end": 86,
+      "playerIds": ["arsenal-saka", "arsenal-gyokeres"],
+      "text": "Bukayo Saka finds Viktor Gyokeres!"
+    },
+    {
+      "id": "cue-k",
+      "eventId": "e28",
+      "start": 86,
+      "end": 91,
+      "playerIds": ["arsenal-gyokeres"],
+      "text": "Goal! Viktor Gyokeres scores for Arsenal!"
+    },
+    {
+      "id": "cue-l",
+      "eventId": "e29",
+      "start": 96,
+      "end": 100,
+      "playerIds": ["manchester-city-anderson"],
+      "text": "Elliot Anderson takes the kickoff for Manchester City."
+    },
+    {
+      "id": "cue-m",
+      "eventId": "e31",
+      "start": 102,
+      "end": 106,
+      "playerIds": ["manchester-city-lewis", "manchester-city-foden"],
+      "text": "Rico Lewis delivers the pass to Phil Foden."
+    },
+    {
+      "id": "cue-n",
+      "eventId": "e34",
+      "start": 112,
+      "end": 116,
+      "playerIds": ["manchester-city-kovacic", "manchester-city-guehi"],
+      "text": "Mateo Kovačić connects with Marc Guéhi."
+    },
+    {
+      "id": "cue-o",
+      "eventId": "e37",
+      "start": 122,
+      "end": 125,
+      "playerIds": ["manchester-city-anderson", "manchester-city-cherki"],
+      "text": "Elliot Anderson passes to Rayan Cherki."
+    },
+    {
+      "id": "cue-p",
+      "eventId": "e38",
+      "start": 125,
+      "end": 129,
+      "playerIds": ["manchester-city-cherki", "arsenal-rice"],
+      "text": "Rayan Cherki's pass is intercepted by Declan Rice!"
+    },
+    {
+      "id": "cue-q",
+      "eventId": "e41",
+      "start": 135,
+      "end": 139,
+      "playerIds": ["arsenal-calafiori", "arsenal-martinelli"],
+      "text": "Gabriel Martinelli receives the pass from Riccardo Calafiori."
+    },
+    {
+      "id": "cue-r",
+      "eventId": "e44",
+      "start": 145,
+      "end": 149,
+      "playerIds": ["arsenal-gyokeres", "arsenal-odegaard"],
+      "text": "Viktor Gyokeres sends it to Martin Odegaard."
+    },
+    {
+      "id": "cue-s",
+      "eventId": "e47",
+      "start": 155,
+      "end": 159,
+      "playerIds": ["arsenal-saka", "manchester-city-ait-nouri"],
+      "text": "Rayan Aït-Nouri intercepts Bukayo Saka's pass!"
+    },
+    {
+      "id": "cue-t",
+      "eventId": "e50",
+      "start": 165,
+      "end": 169,
+      "playerIds": ["manchester-city-anderson", "manchester-city-doku"],
+      "text": "Elliot Anderson finds Jérémy Doku."
+    },
+    {
+      "id": "cue-u",
+      "eventId": "e53",
+      "start": 174,
+      "end": 176,
+      "playerIds": ["manchester-city-cherki", "manchester-city-haaland"],
+      "text": "Rayan Cherki passes to Erling Haaland!"
+    },
+    {
+      "id": "cue-v",
+      "eventId": "e55",
+      "start": 176,
+      "end": 181,
+      "playerIds": ["manchester-city-haaland"],
+      "text": "Goal for Manchester City! Erling Haaland scores!"
+    },
+    {
+      "id": "cue-w",
+      "eventId": "e56",
+      "start": 186,
+      "end": 190,
+      "playerIds": ["arsenal-zubimendi"],
+      "text": "Martin Zubimendi gets Arsenal restarted with the kickoff."
+    },
+    {
+      "id": "cue-x",
+      "eventId": "e59",
+      "start": 195,
+      "end": 199,
+      "playerIds": ["arsenal-calafiori", "arsenal-rice"],
+      "text": "Riccardo Calafiori finds Declan Rice."
+    },
+    {
+      "id": "cue-y",
+      "eventId": "e61",
+      "start": 202,
+      "end": 206,
+      "playerIds": ["arsenal-rice", "arsenal-martinelli"],
+      "text": "Gabriel Martinelli takes the pass from Declan Rice."
+    },
+    {
+      "id": "cue-z",
+      "eventId": "e64",
+      "start": 212,
+      "end": 215,
+      "playerIds": ["arsenal-saka"],
+      "text": "Bukayo Saka on the ball, carrying it."
+    },
+    {
+      "id": "cue-aa",
+      "eventId": "e65",
+      "start": 215,
+      "end": 219,
+      "playerIds": ["arsenal-saka", "manchester-city-guehi"],
+      "text": "Bukayo Saka's pass is cut out by Marc Guéhi!"
+    },
+    {
+      "id": "cue-ab",
+      "eventId": "e67",
+      "start": 221,
+      "end": 225,
+      "playerIds": ["manchester-city-dias", "manchester-city-lewis"],
+      "text": "Rúben Dias passes to Rico Lewis."
+    },
+    {
+      "id": "cue-ac",
+      "eventId": "e70",
+      "start": 231,
+      "end": 235,
+      "playerIds": ["manchester-city-foden", "manchester-city-kovacic"],
+      "text": "Phil Foden connects with Mateo Kovačić."
+    },
+    {
+      "id": "cue-ad",
+      "eventId": "e73",
+      "start": 241,
+      "end": 245,
+      "playerIds": ["manchester-city-cherki", "manchester-city-doku"],
+      "text": "Rayan Cherki sends the ball to Jérémy Doku."
+    },
+    {
+      "id": "cue-ae",
+      "eventId": "e74",
+      "start": 245,
+      "end": 249,
+      "playerIds": ["manchester-city-doku", "arsenal-timber"],
+      "text": "Jurrien Timber intercepts! Jérémy Doku's pass goes astray."
+    },
+    {
+      "id": "cue-af",
+      "eventId": "e76",
+      "start": 252,
+      "end": 256,
+      "playerIds": ["arsenal-timber", "arsenal-zubimendi"],
+      "text": "Jurrien Timber finds Martin Zubimendi."
+    },
+    {
+      "id": "cue-ag",
+      "eventId": "e79",
+      "start": 261,
+      "end": 265,
+      "playerIds": ["arsenal-calafiori", "arsenal-martinelli"],
+      "text": "Riccardo Calafiori supplies Gabriel Martinelli."
+    },
+    {
+      "id": "cue-ah",
+      "eventId": "e80",
+      "start": 265,
+      "end": 268,
+      "playerIds": ["arsenal-martinelli"],
+      "text": "Gabriel Martinelli carries the ball for Arsenal."
+    },
+    {
+      "id": "cue-ai",
+      "eventId": "e82",
+      "start": 271,
+      "end": 275,
+      "playerIds": ["arsenal-gyokeres", "arsenal-odegaard"],
+      "text": "Martin Odegaard receives from Viktor Gyokeres."
+    },
+    {
+      "id": "cue-aj",
+      "eventId": "e83",
+      "start": 275,
+      "end": 279,
+      "playerIds": ["arsenal-odegaard", "manchester-city-anderson"],
+      "text": "Elliot Anderson cuts out Martin Odegaard's pass!"
+    },
+    {
+      "id": "cue-ak",
+      "eventId": "e85",
+      "start": 281,
+      "end": 285,
+      "playerIds": ["manchester-city-ait-nouri", "manchester-city-doku"],
+      "text": "Rayan Aït-Nouri connects with Jérémy Doku."
+    },
+    {
+      "id": "cue-al",
+      "eventId": "e86",
+      "start": 285,
+      "end": 288,
+      "playerIds": ["manchester-city-doku"],
+      "text": "Jérémy Doku carries it for Manchester City."
+    },
+    {
+      "id": "cue-am",
+      "eventId": "e88",
+      "start": 291,
+      "end": 294,
+      "playerIds": ["manchester-city-kovacic", "manchester-city-cherki"],
+      "text": "Mateo Kovačić finds Rayan Cherki."
+    },
+    {
+      "id": "cue-an",
+      "eventId": "e89",
+      "start": 294,
+      "end": 298,
+      "playerIds": ["manchester-city-cherki", "manchester-city-foden"],
+      "text": "Rayan Cherki completes the pass to Phil Foden."
+    }
+  ]
+}

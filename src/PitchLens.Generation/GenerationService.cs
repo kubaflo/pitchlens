@@ -29,13 +29,13 @@ public sealed class GenerationService(IScenarioSource source, Match initial, Sce
         State = GenerationState.Generating;
         Status = "Requesting synthetic scenario through Copilot SDK…";
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromMinutes(5));
+        timeout.CancelAfter(TimeSpan.FromMinutes(10));
         try
         {
             var json = await source.GenerateAsync(progress, timeout.Token).ConfigureAwait(false);
             timeout.Token.ThrowIfCancellationRequested();
             progress?.Report("Validating roster, trajectories, possession and event causality…");
-            var candidate = FiveMinutePlan.Parse(json);
+            var candidate = AuthoredMatchPlan.Parse(json);
             timeout.Token.ThrowIfCancellationRequested();
             Current = candidate;
             Origin = ScenarioOrigin.FreshSdkGeneration;
@@ -51,7 +51,7 @@ public sealed class GenerationService(IScenarioSource source, Match initial, Sce
         catch (OperationCanceledException)
         {
             State = GenerationState.Failed;
-            Status = "Generation timed out after five minutes. Previous match kept.";
+            Status = "Generation timed out after ten minutes (bounded path and commentary stages). Previous match kept.";
         }
         catch (Exception e) when (e is ScenarioValidationException or CopilotGenerationException or TimeoutException or IOException or InvalidOperationException or UnauthorizedAccessException)
         {

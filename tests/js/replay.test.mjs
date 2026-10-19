@@ -25,7 +25,7 @@ test("viewer shortcuts work outside controls without intercepting typing or nati
 test("native anchors reset seeks and ignore stale clock packets", () => {
     const clock = new ProjectionClock();
     clock.reset(1, 72, 0);
-    clock.apply({ revision: 1, sequence: 1, time: 10, playing: true }, 1000);
+    clock.apply({ revision: 1, sequence: 1, time: 10, playing: true, rate: 1 }, 1000);
     assert.equal(clock.time(2000), 11);
     clock.apply({ revision: 1, sequence: 2, time: 3, playing: false }, 2000);
     assert.equal(clock.time(99999), 3);
@@ -38,7 +38,7 @@ test("native anchors reset seeks and ignore stale clock packets", () => {
 test("scenario replacement resets motion and rejects old clips and packets", () => {
     const engine = new ReplayEngine();
     engine.load(clip, 0);
-    engine.update({ revision: 1, sequence: 1, time: 60, playing: true }, 0);
+    engine.update({ revision: 1, sequence: 1, time: 60, playing: true, rate: 1 }, 0);
     assert.equal(engine.frame(1000), 61);
     engine.load({ ...clip, revision: 2 }, 1000);
     assert.equal(engine.frame(2000), 0);
@@ -50,7 +50,7 @@ test("600 animation frames perform zero native notifications and transfer no sce
     let nativeCalls = 0;
     const engine = new ReplayEngine(() => nativeCalls++);
     engine.load(clip, 0);
-    engine.update({ revision: 1, sequence: 1, time: 0, playing: true, selectedId: "h1" }, 0);
+    engine.update({ revision: 1, sequence: 1, time: 0, playing: true, selectedId: "h1", rate: 1 }, 0);
     for (let i = 0; i < 600; i++) assert.ok(Math.abs(engine.frame(i * 1000 / 60) - i / 60) < 1e-10);
     assert.equal(nativeCalls, 0);
     assert.deepEqual(engine.diagnostics, { frames: 600, notifications: 0, scenarioLoads: 1, clockPackets: 1 });
@@ -59,7 +59,7 @@ test("tab hiding freezes and reports once; disposal releases callbacks", () => {
     const messages = [];
     const engine = new ReplayEngine((...args) => messages.push(args));
     engine.load(clip, 0);
-    engine.update({ revision: 1, sequence: 1, time: 4, playing: true }, 0);
+    engine.update({ revision: 1, sequence: 1, time: 4, playing: true, rate: 1 }, 0);
     engine.hide(2000);
     assert.deepEqual(messages, [["PageHidden", 6, 1]]);
     assert.equal(engine.frame(10000), 6);
@@ -92,7 +92,7 @@ test("interpolation and end clamp are deterministic across frame frequencies", (
     assert.deepEqual(at([{ time: 0, x: 0, y: 0 }, { time: 2, x: 3, y: 4 }], 1), { x: 1.5, y: 2 });
     for (const rate of [24, 60, 144]) {
         const clock = new ProjectionClock(); clock.reset(1, 72, 0);
-        clock.apply({ revision: 1, sequence: 1, time: 0, playing: true }, 0);
+        clock.apply({ revision: 1, sequence: 1, time: 0, playing: true, rate: 1 }, 0);
         for (let i = 0; i < rate * 20; i++) clock.time(i * 1000 / rate);
         assert.equal(clock.time(51123.45), 51.12345);
         assert.equal(clock.time(999999), 72);

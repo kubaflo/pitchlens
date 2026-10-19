@@ -52,15 +52,15 @@ export function captionAt(cues, time, enabled = true) {
     return low > 0 && time < cues[low - 1].end ? cues[low - 1] : null;
 }
 export class ProjectionClock {
-    revision = 0; sequence = -1; position = 0; anchor = 0; playing = false; duration = 0; rate = 1;
+    revision = 0; sequence = -1; position = 0; anchor = 0; playing = false; duration = 0; rate = 3;
     reset(revision, duration, now) {
         this.revision = revision; this.duration = duration; this.sequence = -1;
-        this.position = 0; this.anchor = now; this.playing = false; this.rate = 1;
+        this.position = 0; this.anchor = now; this.playing = false; this.rate = 3;
     }
     apply(packet, now) {
         if (packet.revision !== this.revision || packet.sequence <= this.sequence) return false;
         if (!Number.isFinite(packet.time) || packet.time < 0 || packet.time > this.duration) throw new RangeError("Invalid clock packet.");
-        const rate = packet.rate ?? 1;
+        const rate = packet.rate ?? 3;
         if (![1, 2, 3, 5].includes(rate)) throw new RangeError("Invalid replay rate.");
         this.sequence = packet.sequence; this.position = packet.time;
         this.anchor = now; this.playing = packet.playing; this.rate = rate;

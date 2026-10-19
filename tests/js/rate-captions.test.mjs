@@ -11,9 +11,21 @@ const cues = [
 const scene = { revision: 1, duration: 300, players: [], captions: cues,
     goals: [{ id: "goal", time: 49, scorer: "Haaland", teamId: "manchester-city" }] };
 
-test("all42 actual Sol cues follow the same start-inclusive/end-exclusive selection contract as core", () => {
-    const recorded = JSON.parse(readFileSync(new URL("../../src/PitchLens.Generation/Resources/recorded_300_commentary.json", import.meta.url), "utf8")).cues;
-    assert.equal(recorded.length, 42);
+test("default projection/reset is3x while explicit rate packets remain authoritative", () => {
+    const clock = new ProjectionClock();
+    assert.equal(clock.rate, 3);
+    clock.reset(1, 300, 0);
+    clock.apply({ revision: 1, sequence: 1, time: 0, playing: true }, 0);
+    assert.equal(clock.time(10000), 30);
+    clock.apply({ revision: 1, sequence: 2, time: 30, playing: true, rate: 1 }, 10000);
+    assert.equal(clock.time(20000), 40);
+    clock.reset(2, 300, 20000);
+    assert.equal(clock.rate, 3);
+});
+
+test("all40 current11v11 Sol cues follow the same start-inclusive/end-exclusive selection contract as core", () => {
+    const recorded = JSON.parse(readFileSync(new URL("../../src/PitchLens.Generation/Resources/recorded_11v11_commentary.json", import.meta.url), "utf8")).cues;
+    assert.equal(recorded.length, 40);
     for (const time of [0, 300, ...recorded.flatMap(c => [c.start - .001, c.start, c.end - .001, c.end])].reverse()) {
         assert.equal(captionAt(recorded, time), recorded.find(c => c.start <= time && time < c.end) ?? null);
         assert.equal(captionAt(recorded, time, false), null);

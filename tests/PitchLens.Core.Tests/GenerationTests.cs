@@ -12,8 +12,8 @@ public sealed class GenerationTests
         JsonSerializer.Serialize(scenario, ScenarioJsonContext.Default.ScenarioDocument);
     private static string NewPlan()
     {
-        var plan = JsonSerializer.Deserialize(FiveMinuteRecording.Json(), PlanJsonContext.Default.MatchPlan)!;
-        return JsonSerializer.Serialize(plan with { Commentary = FiveMinuteRecording.Create().Commentary!.Cues.ToArray() }, PlanJsonContext.Default.MatchPlan);
+        var plan = AuthoredMatchPlan.Document(AuthoredMatchRecording.Json());
+        return JsonSerializer.Serialize(plan with { Commentary = AuthoredMatchRecording.Create().Commentary!.Cues.ToArray() }, AuthoredJsonContext.Default.AuthoredMatchDocument);
     }
 
     [Fact]

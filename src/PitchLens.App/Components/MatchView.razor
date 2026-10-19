@@ -11,7 +11,7 @@
     <div class="matchday">
         <header class="brand-bar">
             <div class="wordmark">PitchLens <span>Matchday</span></div>
-            <button class="synthetic-badge" @onclick='() => Open("settings-dialog")'>Synthetic match · 6v6</button>
+            <button class="synthetic-badge" @onclick='() => Open("settings-dialog")'>Synthetic match · @($"{match.Players.Count / 2}v{match.Players.Count / 2}")</button>
             <div class="actions">
                 @if (Session.Generating) { <button class="button ghost" id="cancel-generation" @onclick="Session.Cancel">Cancel creation</button> }
                 <button id="generate-match" class="button mint" @onclick='() => Open("generation-dialog")'>@(Session.Generating ? "Creating…" : "New match")</button>
@@ -99,8 +99,8 @@
         <dialog id="generation-dialog" aria-labelledby="generation-title">
             <header class="dialog-head"><div><span class="eyebrow">Copilot SDK</span><h2 id="generation-title">Create a new match.</h2><span class="caption">A real generation request, not a scripted preview.</span></div><button class="close" data-close-popup>Close</button></header>
             <div class="dialog-body">
-                <p>Arsenal vs Manchester City · Five minutes (300 seconds) · Synthetic 6v6 story, evolving movement and events.</p>
-                <p>Only GPT-6.1 Sol (@CopilotScenarioSource.Model), using normal local Copilot login. Creating a match may consume usage. No model fallback.</p>
+                <p>Arsenal vs Manchester City · Five minutes (300 seconds) · Synthetic 11v11. All 22 player paths and events authored by AI.</p>
+                <p>Only GPT-6.1 Sol (@CopilotScenarioSource.Model), using normal local Copilot login. Two bounded stages: match paths/events, then grounded subtitles. Up to ten minutes; may consume usage. No model fallback.</p>
                 <div class="actions"><button class="button purple" @onclick="Generate" disabled="@Session.Generating">@(Session.Generating ? "Creating…" : "Create match with Sol 6.1")</button>@if (Session.Generating) { <button class="button" @onclick="Session.Cancel">Cancel creation</button> }</div>
                 <p id="generation-status" role="@(Session.RequestState == GenerationState.Failed ? "alert" : "status")">@Session.Status</p>
                 <p class="caption">Closing this popup does not cancel creation. Cancel is also available in the main brand bar. Invalid output or cancellation keeps the last valid match.</p>
@@ -111,6 +111,10 @@
             <div class="dialog-body">
                 <section id="scenario-provenance"><h3>@(view!.Origin == ScenarioOrigin.DeterministicDemo ? "Authored five-minute demo" : view.Fresh ? "New SDK-generated match" : "Recorded SDK example")</h3><p>Source model: @(view.Model ?? "None — authored locally"). @(view.Fresh ? "Generated in this session." : "Not a fresh request.")</p><p>All actions are synthetic. Real 2026/27 roster names; no real match result or athlete performance claim.</p></section>
                 <p>@(match.Commentary is { } commentary ? $"AI commentator subtitles: {commentary.Model}, {commentary.Cues.Count} timed cues for this match. {(view.Fresh ? "Generated with this match." : "Recorded generation, not a fresh request.")} Match story facts remain scripted." : "AI commentator subtitles unavailable; match story facts are scripted, not AI commentary.")</p>
+                @if (match.Players.Count == 22)
+                {
+                    <p>All 22 explicit player trajectories and events were authored by Sol. The viewer only interpolates those knots; ball motion follows validated possession and events. No procedural support-path or formation solver. Illustrative 11v11 selection, not an actual starting XI.</p>
+                }
                 <div class="actions"><button class="button" @onclick="() => Seek(-5)">−5 seconds</button><button class="button" @onclick="() => Seek(5)">+5 seconds</button></div>
                 <p>Space plays or pauses; Left/Right seek one second outside form controls and popups. Replay stays paused after closing a popup.</p>
                 <details><summary>Advanced generation setup</summary><p>New requests use @CopilotScenarioSource.Model. Normal Copilot login and model access are required.</p><label for="cli">Compatible runtime override</label><input id="cli" placeholder="Bundled runtime (leave blank)" @bind="Session.CliOverride" disabled="@Session.Generating" /></details>

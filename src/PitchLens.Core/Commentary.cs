@@ -34,9 +34,13 @@ public sealed class CommentaryTrack
                 "Commentary cannot predict future outcomes.");
             Require(evidence!.Kind == EventKind.Goal || !words.Any(w => w is "goal" or "scores" or "scored"),
                 "Goal commentary requires goal evidence.");
-            foreach (var player in match.Players)
-                Require(!cue.Text.Contains(player.Name, StringComparison.OrdinalIgnoreCase) || cue.PlayerIds.Contains(player.Id),
-                    "Named commentary player is not in its evidence.");
+            var remainingNames = cue.Text;
+            foreach (var player in match.Players.OrderByDescending(p => p.Name.Length))
+                if (remainingNames.Contains(player.Name, StringComparison.OrdinalIgnoreCase))
+                {
+                    Require(cue.PlayerIds.Contains(player.Id), "Named commentary player is not in its evidence.");
+                    remainingNames = remainingNames.Replace(player.Name, "", StringComparison.OrdinalIgnoreCase);
+                }
             previousEnd = cue.End;
         }
         for (double minute = 0; minute < match.Duration; minute += 60)

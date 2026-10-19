@@ -2,7 +2,7 @@ using System.Diagnostics;
 using PitchLens.Core;
 using PitchLens.Generation;
 
-var match = FiveMinuteRecording.Create();
+var match = AuthoredMatchRecording.Create();
 var legacy = Measure(() => Legacy(match));
 Console.WriteLine($"Legacy {match.Duration}s / 30Hz pure computation: {legacy.Result} updates, {legacy.Milliseconds:F2}ms, {legacy.Bytes / 1024d / 1024:F2}MiB allocated.");
 var optimized = Measure(() => Optimized(match));
@@ -32,6 +32,7 @@ static ReplayPresentation Optimized(Match match)
 {
     var clock = new FakeClock();
     var surface = new ReplayPresentation(match, clock);
+    surface.SetRate(1);
     surface.Play();
     Func<PlayerStats, double>[] metrics = [p => p.Goals, p => p.Shots, p => p.Passes, p => p.Distance];
     for (var i = 0; i <= match.Duration * 30; i++)

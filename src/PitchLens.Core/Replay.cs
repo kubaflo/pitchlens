@@ -19,7 +19,7 @@ public sealed class Playback
     private readonly double duration;
     private double position, anchor;
     public bool IsPlaying { get; private set; }
-    public double Rate { get; private set; } = 1;
+    public double Rate { get; private set; } = 3;
     public static bool IsSupportedRate(double rate) => rate is 1 or 2 or 3 or 5;
 
     public Playback(double duration, IMonotonicClock clock)

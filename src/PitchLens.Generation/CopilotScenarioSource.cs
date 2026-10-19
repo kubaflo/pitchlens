@@ -11,9 +11,20 @@ namespace PitchLens.Generation;
 public sealed class CopilotScenarioSource(string cliPath, string workingDirectory) : IScenarioSource
 {
     public const string Model = "gpt-6.1-sol";
-    public static string Prompt => FiveMinutePrompt.Text;
-    public Task<string> GenerateAsync(IProgress<string>? progress, CancellationToken cancellationToken) =>
-        RequestAsync(Prompt, FiveMinutePrompt.Schema, progress, cancellationToken);
+    public static string Prompt => AuthoredMatchPrompt.Text;
+    public Task<string> GeneratePlanAsync(IProgress<string>? progress, CancellationToken cancellationToken) =>
+        RequestAsync(Prompt, AuthoredMatchPrompt.Schema, progress, cancellationToken);
+    public async Task<string> GenerateAsync(IProgress<string>? progress, CancellationToken cancellationToken)
+    {
+        var json = await GeneratePlanAsync(progress, cancellationToken).ConfigureAwait(false);
+        progress?.Report("Validating all 22 AI-authored paths and events…");
+        var match = AuthoredMatchPlan.Parse(json, requireCommentary: false);
+        progress?.Report("Generating AI commentator subtitles for the validated match…");
+        var commentary = await GenerateCommentaryAsync(match, progress, cancellationToken).ConfigureAwait(false);
+        var narrated = CommentaryPrompt.Attach(commentary, match);
+        var document = AuthoredMatchPlan.Document(json) with { Commentary = narrated.Commentary!.Cues.ToArray() };
+        return JsonSerializer.Serialize(document, AuthoredJsonContext.Default.AuthoredMatchDocument);
+    }
     public Task<string> GenerateCommentaryAsync(Match match, IProgress<string>? progress, CancellationToken cancellationToken) =>
         RequestAsync(CommentaryPrompt.For(match), CommentaryPrompt.Schema, progress, cancellationToken);
     private async Task<string> RequestAsync(string prompt, string responseSchema, IProgress<string>? progress, CancellationToken cancellationToken)

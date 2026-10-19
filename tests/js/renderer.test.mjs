@@ -4,7 +4,7 @@ const { initialize, loadScenario, setClock, diagnostics, dispose, openPopup, set
     await import(process.env.PITCH_TEST_RENDERER || new URL("../../src/PitchLens.App/wwwroot/js/pitch.mjs", import.meta.url));
 import { at, fit } from "../../src/PitchLens.App/wwwroot/js/replay.mjs";
 
-test("production renderer aligns12 accessible player buttons with shirts and dispatches click→popup at changing1x/2x", () => {
+test("production renderer aligns22 accessible player buttons with shirts and dispatches click→popup at changing1x/2x", () => {
     const keys = ["window", "document", "ResizeObserver", "requestAnimationFrame", "cancelAnimationFrame"];
     const originals = Object.fromEntries(keys.map(k => [k, globalThis[k]]));
     const rect = { left: 40, top: 187, width: 1144, height: 595 };
@@ -86,7 +86,17 @@ test("production renderer aligns12 accessible player buttons with shirts and dis
             ["manchester-city-foden", "Phil Foden", 47, 60, 48, 50, 46],
             ["manchester-city-cherki", "Rayan Cherki", 10, 55, 30, 45, 32],
             ["manchester-city-haaland", "Erling Haaland", 9, 35, 42, 25, 44],
-            ["manchester-city-doku", "Jérémy Doku", 11, 65, 12, 55, 14]
+            ["manchester-city-doku", "Jérémy Doku", 11, 65, 12, 55, 14],
+            ["arsenal-timber", "Jurrien Timber", 12, 26, 6, 38, 8],
+            ["arsenal-gabriel", "Gabriel", 6, 23, 42, 30, 44],
+            ["arsenal-calafiori", "Riccardo Calafiori", 33, 24, 62, 38, 60],
+            ["arsenal-zubimendi", "Martin Zubimendi", 36, 36, 40, 44, 38],
+            ["arsenal-martinelli", "Gabriel Martinelli", 11, 68, 62, 75, 58],
+            ["manchester-city-lewis", "Rico Lewis", 82, 78, 62, 72, 60],
+            ["manchester-city-guehi", "Marc Guéhi", 6, 80, 42, 74, 44],
+            ["manchester-city-ait-nouri", "Rayan Aït-Nouri", 21, 79, 6, 72, 8],
+            ["manchester-city-anderson", "Elliot Anderson", 5, 64, 40, 56, 38],
+            ["manchester-city-kovacic", "Mateo Kovačić", 8, 56, 20, 50, 22]
         ].map(([id, name, number, x, y, endX, endY]) => ({ id, name, number,
             teamId: id.startsWith("arsenal") ? "arsenal" : "manchester-city",
             frames: [{ time: 0, x, y }, { time: 300, x: endX, y: endY }] })),
@@ -100,7 +110,7 @@ test("production renderer aligns12 accessible player buttons with shirts and dis
             return Promise.resolve();
         } });
         loadScenario(JSON.stringify(clip));
-        assert.equal(layer.children.length, 12);
+        assert.equal(layer.children.length, 22);
         const originalButtons = [...layer.children];
         const drawnOrder = [...clip.players].sort((a, b) => a.id < b.id ? 1 : -1);
         for (const density of [2, 1, 2]) {
@@ -152,7 +162,7 @@ test("production renderer aligns12 accessible player buttons with shirts and dis
         loadScenario(JSON.stringify({ ...clip, revision: 2, captions: [] }));
         assert.equal(caption.hidden, true);
         assert.equal(caption.textContent, "");
-        assert.equal(layer.children.length, 12);
+        assert.equal(layer.children.length, 22);
         const notifications = native.length;
         for (const button of originalButtons) {
             assert.equal(button.handlers.size, 0);

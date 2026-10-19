@@ -11,7 +11,8 @@ public sealed class RateAndCommentaryTests
     {
         var clock = new Clock();
         var playback = new Playback(300, clock);
-        Assert.Equal(1, playback.Rate);
+        Assert.Equal(3, playback.Rate);
+        playback.SetRate(1);
         playback.Play();
         clock.Seconds = 2.5;
         playback.SetRate(2);
@@ -154,15 +155,15 @@ public sealed class RateAndCommentaryTests
     [Fact]
     public async Task New_match_contract_requires_its_own_valid_cues_and_failure_keeps_last_track()
     {
-        var initial = FiveMinuteRecording.Create();
-        var plan = JsonSerializer.Deserialize(FiveMinuteRecording.Json(), PlanJsonContext.Default.MatchPlan)!;
-        Assert.Throws<ScenarioValidationException>(() => FiveMinutePlan.Build(plan));
-        var json = JsonSerializer.Serialize(plan with { Commentary = initial.Commentary!.Cues.ToArray() }, PlanJsonContext.Default.MatchPlan);
-        var built = FiveMinutePlan.Parse(json);
-        Assert.Equal(42, built.Commentary!.Cues.Count);
-        using var schema = JsonDocument.Parse(FiveMinutePrompt.Schema);
-        Assert.Contains(schema.RootElement.GetProperty("required").EnumerateArray(), e => e.GetString() == "commentary");
-        var service = new GenerationService(new Source(FiveMinuteRecording.Json()), initial, ScenarioOrigin.RecordedSdkExample, FiveMinuteRecording.Model);
+        var initial = AuthoredMatchRecording.Create();
+        var plan = AuthoredMatchPlan.Document(AuthoredMatchRecording.Json());
+        Assert.Throws<ScenarioValidationException>(() => AuthoredMatchPlan.Build(plan));
+        var json = JsonSerializer.Serialize(plan with { Commentary = initial.Commentary!.Cues.ToArray() }, AuthoredJsonContext.Default.AuthoredMatchDocument);
+        var built = AuthoredMatchPlan.Parse(json);
+        Assert.Equal(40, built.Commentary!.Cues.Count);
+        using var schema = JsonDocument.Parse(AuthoredMatchPrompt.Schema);
+        Assert.Equal(22, schema.RootElement.GetProperty("properties").GetProperty("players").GetProperty("minItems").GetInt32());
+        var service = new GenerationService(new Source(AuthoredMatchRecording.Json()), initial, ScenarioOrigin.RecordedSdkExample, AuthoredMatchRecording.Model);
         await service.GenerateAsync(null, CancellationToken.None);
         Assert.Equal(GenerationState.Failed, service.State);
         Assert.Same(initial, service.Current);

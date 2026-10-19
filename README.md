@@ -9,7 +9,7 @@ pitch-first framing. Statistics and event notes are revealed through popups.
 
 **Real roster names; synthetic match actions.** The app uses selected Arsenal and
 Manchester City players from a verified **2026/27** snapshot, checked
-**2026-10-18**. These are illustrative **6-a-side selections**, not actual
+**2026-10-19**. These are illustrative **11-a-side selections (22 players)**, not actual
 starting XIs, match results, athlete performance or a season dataset. We chose
 2026/27 as the current season when the requested “Premier League 2026” season
 could not be clarified. PitchLens is independent and unaffiliated with the league
@@ -17,29 +17,33 @@ or either club; submission remains deferred.
 
 ## Generate a match with Copilot
 
-Open **New match**, then choose **Create match with Sol 6.1**. This makes **one bounded request** through
+Open **New match**, then choose **Create match with Sol 6.1**. This runs **two bounded stages** through
 `GitHub.Copilot.SDK` **1.0.22**, explicitly selecting **GPT-6.1 Sol (`gpt-6.1-sol`)** with medium reasoning.
 There is no Auto, Anthropic/Claude, alternate-provider or model fallback path.
 Normal Copilot authentication and model entitlement are required. Generation
 uses Copilot services over the network and may consume your Copilot usage.
 No API key or token is configured or read by application code.
 
-The model invents a **300-second match plan**: ten distinct 30-second phases,
-both teams' outfield spatial anchors, and causal actions with chosen actors,
-receiver/carry targets, interceptions, finishes and responses. A bounded
-deterministic compiler fills in continuous role/support/defensive movement,
-receiver arrival and ball trajectories from those substantive model choices.
-The SDK does not emit thousands of fragile frames, only a seed or commentary.
-A JSON schema and sustained-action validator are authoritative before replacement.
-Unreachable targets or invalid play are rejected, not silently repaired into a
-fake successful SDK match. Roster facts come from the verified local roster.
-New requests also include **AI-authored timed commentator cues for that new
-match** in the same JSON response. Missing/invalid cues reject replacement;
-startup captions are never attached to a different generated game.
+The model authors the **complete 300-second event sequence and explicit
+time/position trajectories for ALL 22 players**. Each player supplies 31-81
+compact `[time,x,y]` knots, spanning 0-300 seconds with gaps at most 12 seconds.
+Every numerical knot is copied unchanged into the replay. There is **no**
+formation/role-following solver, ball-relative offset, support-path expansion,
+random jitter, seed-generated movement or repaired receiver approach. The
+viewer only linearly interpolates between the AI's own knots. Ball motion is
+derived from causal events and those paths; it is not a separate invented track.
+The model also supplies ten phase tags. Local data maps verified roster IDs to
+names/shirt numbers and illustrative roles, not actual coach decisions.
+
+After the path/event stage passes validation, a second bounded Sol request
+authors **timed commentator cues for those exact facts**. Both must validate
+before atomic replacement. Invalid paths are rejected, never auto-corrected;
+missing/invalid cues keep the previous valid match. Historical 6v6 trajectories
+and captions are not attached to a new 11v11 game.
 
 The UI shows connecting/authentication/model/generation/validation progress and
-a Cancel action. Generation runs off the UI thread, is limited to five minutes
-(the model response wait is 270 seconds), and never automatically retries.
+a Cancel action. Generation runs off the UI thread, is limited to ten minutes
+overall (each model response wait is bounded to 270 seconds), and never automatically retries.
 Malformed data, authentication, entitlement, compatibility, timeout and transport
 errors are visible. Failure/cancellation **keeps the previous valid match**, with
 no success-shaped demo fallback. A successful generation replaces the match
@@ -49,7 +53,7 @@ Cleanup has its own deadline; if graceful SDK disposal stalls, only that
 generation's owned runtime is stopped and the cleanup error is reported.
 
 On startup the app plays a reviewed **five-minute Sol recording**, bundled unchanged
-from a successful live compact-plan request on 2026-10-19. This is labeled
+from successful live explicit-path and commentary requests on 2026-10-19. This is labeled
 **Recorded SDK example · Not a fresh request**, not falsely presented as a new
 generation. Startup makes no model request. Clicking Generate produces a new
 scenario labeled **Fresh SDK / gpt-6.1-sol**; its actions remain synthetic.
@@ -69,14 +73,14 @@ deterministic renderings of validated facts, **not a second AI request**.
 
 **CC** controls optional AI-generated subtitles at the bottom of the pitch,
 on by default when available. These are actual **gpt-6.1-sol** output, not
-renamed scripted match notes. Startup uses **42 recorded cues** from one
-successful bounded SDK commentary request for the exact existing match facts.
-They span 3-300 seconds, last **3-4 replay seconds** each (153 seconds total),
-cover all four goals, and are bundled unchanged in `recorded_300_commentary.json`.
+renamed scripted match notes. Startup uses **40 recorded cues** from one
+successful bounded SDK commentary request for the exact 22-player match facts.
+They span 3-298 seconds, last **2-5 replay seconds** each (152 seconds total),
+cover both goals, and are bundled unchanged in `recorded_11v11_commentary.json`.
 The match-facts digest is
-`82776c91906bc3727322c84b71943affebf823a36509d15a35c1ec916d1c9bf8`;
+`7b6e52ea484abf19165a8534ec5ebe6921fe155e54cd3797ffe00e6e92896865`;
 the commentary file SHA-256 is
-`eedec4366d7b8b034a53c8ff6b800bc743a6ac2d169a09b12b392f0cf0c5ba95`.
+`81d32d547293ffe03e588f05e99bde7e519213f40a40b81a407ae0b26f3b5c39`.
 This was one actual Sol request, no retries or fallback. Startup and playback
 make no requests. Settings distinguishes recorded/generated commentary from
 scripted story facts; all describe synthetic actions.
@@ -94,8 +98,8 @@ monotonic clock without moving the playhead; JS projects from that anchor with
 the same rate, exactly once. Pause, seek, goals and subtitles share replay time.
 At 5x only the current cue is shown, with no queued-caption backlog. CC does
 not reset playback. Restart and scenario replacement retain the selected rate
-and CC preference; reopening defaults to 1x/CC on. Match duration stays 300
-seconds, generation timeout is unchanged, and player statistics are not
+and CC preference; reopening defaults to **3x / CC on**. Match duration stays 300
+replay seconds (100 wall seconds at uninterrupted 3x), and player statistics are not
 multiplied by presentation speed. Native timer snapshots remain at most 4 Hz
 in wall time at every rate; cues cross interop once per scene.
 
@@ -124,38 +128,44 @@ No OS settings, Gatekeeper warnings or authentication prompts are bypassed.
 
 ### Live verification evidence
 
-One actual **gpt-6.1-sol** compact-plan request on 2026-10-19 succeeded and passed
-the final compiler/quality checks: **300 seconds, 12 players, 82 resolved events**
-(42 passes, 28 carries, 4 shots, 4 goals, 4 kickoffs), 7 interceptions, final
-score **Arsenal 2 : 2 Manchester City**. Haaland finishes at 49 and 194 seconds;
-Gyokeres at 120 and 226 seconds. All actions remain invented.
+The first actual 22-player output had 768 explicit knots but almost everyone
+walked throughout (peak only 2.69 m/s). It is **not** the startup match.
+One distinct bounded correction requested actual running bursts and varied
+carries, rather than procedurally boosting or repairing those paths.
+The corrected **gpt-6.1-sol** output passed final gates: **22 players, 805 exact
+AI-authored knots, 90 explicit events** (63 passes, 21 carries, 2 shots, 2 goals,
+2 kickoffs), 300 seconds, score **1 : 1**. Gyokeres scores at 86 seconds;
+Haaland at 176 seconds. Every event, including goals, is in the model response.
 
-In **every 20-second window sampled at 10-second intervals**, all five
-outfielders of each club move at least 8 m. Outfield travel is **405.8-473.8 m**,
-peak speed **4.676 m/s**. Both keepers stay at their own ends. Actions continue
-through the final seconds: this is not the old recording stretched or looped.
-The exact successful plan is
-`src/PitchLens.Generation/Resources/recorded_300_plan.json`, SHA-256
-`6a5519c4a301bd112a33f9ff1a44d7a06029368e3c261b6058217b46c5523e49`.
-This verifies real headless SDK generation and replay data, not native UI rendering.
+Five Arsenal and six City outfielders have >=3 m/s running bursts, four per
+club exceed 4 m/s; peak is **4.714 m/s**. Other roles remain slower, not all
+22 sprinting continuously. Every sampled 20-second window has >=9 Arsenal and
+>=6 City outfielders moving >=8 m. At one-second shape samples, minimum team
+width is **41 m**, depth **25.689 m**, maximum cluster within 5 m is three
+players, maximum sub-0.4 m pair count is one. Maximum sampled knot-to-knot
+acceleration is **1.8634 m/s²**. Keepers stay at their own ends. These are
+bounded synthetic realism checks, not a full football/rules simulation.
 
-The older 72-second **gpt-5.4** recording (`recorded_match.json`) remains only
-as historical/test data and is not relabeled as Sol or five minutes. Earlier
-Sol timeout evidence remains historical; the newer compact-plan request above
-succeeded without a paid retry loop. `FiveMinuteDemo` is a separately labeled
-authored test/demo plan, never a fallback counted as SDK success.
-Match length **300 seconds** and SDK request timeout **five minutes** are
-different concepts. Remote inference latency is not playback duration/speed.
+Exact startup path/event response: `Resources/recorded_11v11_paths.json`,
+SHA-256 `1144297eb3969f394417e8a78d0840914b4305c2d2339e64d2af781812f9e64b`.
+One subsequent actual Sol request produced the matching 40-cue recording above.
+No further requests, alternate model or fabricated success were used.
+The 72-second GPT-5.4 recording and 300-second 6v6 procedural-plan resources,
+`FiveMinutePlan`, `FiveMinuteDemo` and their tests remain **historical only**.
+They are not used for startup or new-match generation and are never relabeled
+11v11. Headless data validation does not certify native visual realism.
 
-For an explicit, opt-in headless check (one model request, no retries):
+Explicit opt-in generation (two bounded Sol stages, no automatic retries):
 
 ```sh
 dotnet run --project tools/PitchLens.Generate -- \
   --live /absolute/path/to/compatible/copilot-runtime /absolute/path/to/scenario.json
 ```
 
-Without `--live` and both paths this tool prints usage and makes no request.
-`--validate /path/to/scenario.json` revalidates existing JSON without AI/network.
+`--author-paths /runtime /output.json` requests only the path/event stage.
+`--commentary /runtime /scenario.json /output.json` requests matching commentary.
+`--validate /path/to/scenario.json` and `--validate-commentary /scenario.json
+/commentary.json` validate stored data without AI/network. No arguments make no request.
 Never use these synthetic outputs as evidence of real player actions.
 
 ## Replay and validation contract
@@ -175,20 +185,28 @@ Player segments must stay at or below **8 m/s**, ball flights at or below
 only scoring shots with explicit same-time shot/goal ordering; no xG, assists,
 clean-sheet, pressure or formation metrics are invented.
 
-Each 30-second phase contains 4-8 meaningful causal actions. Every sliding
-20-second window requires at least six moving outfielders (at least two per
+Each player has a complete explicit path; every phase has observed actions.
+Every sliding 20-second window requires at least six moving outfielders (at least two per
 club, >=8 m each) and two meaningful events. Every minute includes completed
 passes from both clubs. Final action must reach at least 295 seconds; both clubs
-must finish, and there must be multiple genuine interceptions. Every five seconds
-each team's outfielders retain lateral width and at least 25 m separation;
-keepers stay at x6/x99 in their own goal area. These sustained spatial/activity
-checks replace the inadequate old aggregate-distance-only gates.
+must finish, and there must be multiple genuine interceptions. Every second,
+each club retains >=30 m lateral width and >=22 m depth; crowding, overlaps,
+sampled acceleration and repeated synchronized translations are bounded.
+Illustrative initial defender/midfield/forward lines respect attack direction;
+keepers are identified by explicit IDs and stay in their own goal areas.
+Each club needs >=7 participating outfield actors, >=3 controlled carries,
+>=4 players with >=3 m/s bursts and >=2 with >=4 m/s bursts (segments >=2 s).
+At least six outfielders per club need purposeful direction changes.
+These checks prevent the observed all-walking/corner-pileup failures without
+forcing every player to sprint continuously.
 
 Ball motion/possession are deterministically derived from validated player paths
 and events, not accepted as an unrelated model-supplied track. Possession is null
 during flights and goal-to-kickoff resets. The attacking goal is x=105 for Arsenal,
 x=0 for City. Kickoff must be at centre by the opposing team after at least three
-seconds. The ball follows its owner outside flights/resets.
+seconds. The ball follows its owner outside flights/resets. Completed-pass
+receiver positions are checked against ball/second-last-opponent at release,
+with 1.5 m tolerance; this is an obvious-offside guard, not a full referee engine.
 
 One authoritative native monotonic clock supports play/pause/restart and forward/backward seeks.
 Statistics filter resolved events through the current playhead, avoiding future
@@ -214,7 +232,7 @@ Each canvas shirt also has a transparent native HTML button named with its
 player, club and number. Tab/Enter/Space and accessibility activation use the
 same player-popup route. Targets are ordinary buttons with explicit "Open
 player details" labels and `aria-controls`, not macOS popup-menu buttons.
-JS moves these twelve persistent targets with the
+JS moves these 22 persistent targets with the
 same cached transform and last-drawn positions as the visible shirts; there
 are no per-frame Blazor updates or second set of visible players. Focus has a
 visible ring and returns to the activating shirt button when the popup closes.
@@ -269,7 +287,7 @@ removing that trigger passes, and the corrected renderer passes with it present.
 Headless checks exercise actual shirt drawing and pointer-to-player-popup
 dispatch at 1x/2x, resize and the reported 66.8-second playhead. They do not
 certify the native WebView's visual popup behavior.
-The player-button regression checks all twelve labels, canvas/button centre
+The player-button regression checks all 22 labels, canvas/button centre
 alignment, activation, focus return, node reuse and replacement/disposal cleanup.
 Teardown cancels animation/timers, disconnects observers, removes handlers and
 releases JS/.NET references.
@@ -369,7 +387,7 @@ after backward seeks, readable light/dark layout, and keyboard-accessible
 roster, disclosures, mode buttons and transport. Check all 300 seconds and
 **Replay match** at fulltime. Click a visible shirt once (including a keeper at
 the far end), verify that exact player's popup, then close/Escape/backdrop and
-focus return. Observe the score/goal callout at 49, 120, 194 and 226 seconds;
+focus return. Observe the score/goal callout at 86 and 176 seconds;
 pause, seek backward and restart must preserve factual timing without duplicates.
 Open Match story and seek an observed event. Try each speed while playing and
 paused, seek in both directions, and restart: rate stays selected without a
@@ -387,7 +405,7 @@ launches form part of this feature's automated verification.
 
 ## Roster and visual provenance
 
-Roster facts checked 2026-10-18:
+Expanded roster facts checked 2026-10-19:
 
 - Arsenal 2026/27 shirt numbers: [official squad article](https://www.arsenal.com/news/arsenal-confirm-202627-squad-numbers-aPsbc3S4LJdQ).
 - Manchester City names/numbers: [official men's player list](https://www.mancity.com/players/mens).
@@ -399,6 +417,13 @@ Arsenal: David Raya (1), William Saliba (2), Martin Odegaard (8), Declan Rice
 Rúben Dias (3), Phil Foden (47), Rayan Cherki (10), Erling Haaland (9),
 Jérémy Doku (11). Names retain the verified source spellings/diacritics. This
 bounded roster is not a live transfer/squad feed or an exhaustive squad.
+
+The 11v11 selection adds Arsenal's Jurrien Timber (12), Gabriel (6), Riccardo
+Calafiori (33), Martin Zubimendi (36), Gabriel Martinelli (11); City's Rico
+Lewis (82), Marc Guéhi (6), Rayan Aït-Nouri (21), Elliot Anderson (5), Mateo
+Kovačić (8). Those ten names/numbers were verified from the official club
+sources above, not model-generated. Roles describe an illustrative 4-3-3,
+not a claim about a real starting XI or coaching system.
 
 The user selected **01 Matchday** from the five original
 [HTML review mockups](design/mocks/index.html). Those review artifacts remain

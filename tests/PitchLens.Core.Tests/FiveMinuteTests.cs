@@ -95,9 +95,9 @@ public sealed class FiveMinuteTests
         clock.Seconds += 40;
         controller.Toggle();
         var paused = controller.Sample(true)!;
-        Assert.Equal(40, paused.Snapshot.Time);
+        Assert.Equal(120, paused.Snapshot.Time);
         clock.Seconds += 100;
-        Assert.Equal(40, controller.Sample(true)!.Snapshot.Time);
+        Assert.Equal(120, controller.Sample(true)!.Snapshot.Time);
         controller.Seek(194);
         Assert.Equal(194, controller.Sample(true)!.Snapshot.Time);
     }
@@ -139,6 +139,7 @@ public sealed class FiveMinuteTests
         {
             var clock = new TestClock();
             using var controller = new ReplayPresentation(match, clock);
+            controller.SetRate(1);
             controller.Select("arsenal-saka");
             controller.Play();
             for (var step = 0; step <= 300 * frequency; step++)
