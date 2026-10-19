@@ -73,5 +73,30 @@ public sealed class PresentationTests
         Assert.False(surface.Playing);
         Assert.Throws<ObjectDisposedException>(() => surface.Sample());
     }
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Selecting_players_preserves_playback_and_keeps_live_stats_at_bounded_cadence(bool playing)
+    {
+        var clock = new Clock();
+        using var surface = new ReplayPresentation(AuthoredMatchRecording.Create(), clock);
+        if (playing) surface.Play();
+        surface.Select("arsenal-saka");
+        surface.Select("arsenal-saka");
+        surface.Select("manchester-city-haaland");
+        for (var i = 0; i <= 600; i++)
+        {
+            clock.Seconds = i / 60d;
+            var frame = surface.Sample();
+            if (frame is not null)
+            {
+                Assert.Equal(playing, frame.Playing);
+                Assert.Equal("manchester-city-haaland", frame.SelectedId);
+                Assert.Equal(Replay.At(surface.Match, frame.Snapshot.Time).Players, frame.Snapshot.Players);
+            }
+        }
+        Assert.Equal(playing ? 30 : 0, surface.Position);
+        Assert.InRange(surface.SnapshotComputations, 1, 41);
+    }
     private sealed class Clock : IMonotonicClock { public double Seconds { get; set; } }
 }

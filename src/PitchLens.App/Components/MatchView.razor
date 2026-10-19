@@ -58,7 +58,7 @@
             <div class="request-status" role="status">Creation cancelled. Previous match kept.</div>
         }
 
-        <dialog id="player-dialog" class="player-dialog" aria-labelledby="player-title">
+        <dialog id="player-dialog" class="player-dialog" aria-modal="false" aria-labelledby="player-title">
             <header class="dialog-head"><div><span class="eyebrow">Player lens</span><span class="caption">Synthetic facts at @snapshot.Time.ToString("00.0")s</span></div><button class="close" data-close-popup aria-label="Close player popup">Close</button></header>
             <div class="dialog-body">
                 <div class="player-identity"><img src="@Crest(player.TeamId)" alt="@Club(match, player.TeamId)" /><div><h2 id="player-title">@player.Name</h2><p>@Club(match, player.TeamId) · #@player.Number</p></div></div>
@@ -69,10 +69,10 @@
                     <div><dt>Goals</dt><dd>@stats.Goals</dd></div>
                 </dl>
                 <details><summary>More player facts</summary><p>Shots: @stats.Shots · Max speed: @stats.MaxSpeed.ToString("F2") m/s</p></details>
-                <p class="caption">Replay paused for the player lens. Real roster name; invented match actions.</p>
+                <p class="caption">Live player facts. Real roster name; invented match actions.</p>
             </div>
         </dialog>
-        <dialog id="roster-dialog" aria-labelledby="roster-title">
+        <dialog id="roster-dialog" aria-modal="false" aria-labelledby="roster-title">
             <header class="dialog-head"><div><h2 id="roster-title">Choose a player</h2><span class="caption">2026/27 roster names · Synthetic match</span></div><button class="close" data-close-popup>Close</button></header>
             <div class="dialog-body roster-list" id="roster">
                 @foreach (var person in match.Players)
@@ -116,7 +116,7 @@
                     <p>All 22 explicit player trajectories and events were authored by Sol. The viewer only interpolates those knots; ball motion follows validated possession and events. No procedural support-path or formation solver. Illustrative 11v11 selection, not an actual starting XI.</p>
                 }
                 <div class="actions"><button class="button" @onclick="() => Seek(-5)">−5 seconds</button><button class="button" @onclick="() => Seek(5)">+5 seconds</button></div>
-                <p>Space plays or pauses; Left/Right seek one second outside form controls and popups. Replay stays paused after closing a popup.</p>
+                <p>Space plays or pauses; Left/Right seek one second outside form controls. Player lens and roster preserve playback. Story, settings and creation pause replay.</p>
                 <details><summary>Advanced generation setup</summary><p>New requests use @CopilotScenarioSource.Model. Normal Copilot login and model access are required.</p><label for="cli">Compatible runtime override</label><input id="cli" placeholder="Bundled runtime (leave blank)" @bind="Session.CliOverride" disabled="@Session.Generating" /></details>
             </div>
         </dialog>
@@ -136,7 +136,7 @@
     private long loadedRevision;
     private PopupRequest? pendingPopup;
     private bool captionsEnabled = true;
-    private sealed record PopupRequest(string Id, bool Adjacent, bool AtPointer);
+    private sealed record PopupRequest(string Id);
     private static string Crest(string id) => id == "arsenal" ? "images/arsenal_crest.png" : "images/manchester_city_crest.png";
     private static string Club(Match match, string id) => match.Teams.Single(t => t.Id == id).Name;
     protected override void OnInitialized()
@@ -163,7 +163,7 @@
             if (!disposed && module is not null && pendingPopup is { } popup)
             {
                 pendingPopup = null;
-                await module.InvokeVoidAsync("openPopup", popup.Id, popup.Adjacent, popup.AtPointer);
+                await module.InvokeVoidAsync("openPopup", popup.Id, frame?.SelectedId);
             }
         }
         catch (JSException e) { if (!disposed) { error = $"Match interface failed: {e.Message}"; Session.Command("pause"); StateHasChanged(); } }
@@ -203,10 +203,10 @@
         catch (JSDisconnectedException) { lifetime.Cancel(); }
         catch (JSException e) { error = $"Pitch interop failed: {e.Message}"; Session.Command("pause"); StateHasChanged(); }
     }
-    private void Open(string id, bool adjacent = false, bool atPointer = false)
+    private void Open(string id)
     {
-        Session.Command("pause");
-        pendingPopup = new(id, adjacent, atPointer);
+        if (id is not ("player-dialog" or "roster-dialog")) Session.Command("pause");
+        pendingPopup = new(id);
         StateHasChanged();
     }
     private void Command(string command) => Session.Command(command);
@@ -231,11 +231,12 @@
             Session.Command("seek", value);
         else error = "Invalid replay time.";
     }
-    private void Select(string id, bool fromPitch = false)
+    private void Select(string id)
     {
-        Session.Command("pause");
         Session.Command("select", id: id);
-        Open("player-dialog", true, fromPitch);
+        view = Session.Sample(true);
+        frame = view?.Frame;
+        Open("player-dialog");
     }
     private void Mode(bool analyst) => Session.Command("mode", analyst ? 1 : 0);
     private async Task ReplayEvent(double time)
@@ -249,7 +250,7 @@
         if (!disposed && Session.RequestState == GenerationState.Succeeded && module is not null)
             await module.InvokeVoidAsync("closePopup", "generation-dialog");
     }
-    [JSInvokable] public Task SelectFromPitch(string id) => InvokeAsync(() => Select(id, true));
+    [JSInvokable] public Task SelectFromPitch(string id) => InvokeAsync(() => Select(id));
     [JSInvokable] public Task PageHidden(double time, long revision) => InvokeAsync(() => Session.Freeze(time, revision));
     [JSInvokable] public Task KeyboardCommand(string command) => InvokeAsync(() =>
     {

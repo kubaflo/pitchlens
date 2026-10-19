@@ -2,59 +2,116 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { PopupHost, popupPosition } from "../../src/PitchLens.App/wwwroot/js/popups.mjs";
 
-test("adjacent popups flip and clamp within desktop and small viewport bounds", () => {
+function harness() {
+    const windowHandlers = new Map(), documentHandlers = new Map(), tasks = [], observers = [];
+    const win = {
+        innerWidth: 1280, innerHeight: 800,
+        addEventListener: (key, fn) => windowHandlers.set(key, fn), removeEventListener: key => windowHandlers.delete(key),
+        ResizeObserver: class {
+            constructor(callback) { this.callback = callback; observers.push(this); }
+            observe(target) { this.target = target; this.disconnected = false; } disconnect() { this.disconnected = true; }
+        }
+    };
+    const opener = { isConnected: true, focused: 0, focus() { this.focused++; doc.activeElement = this; }, closest: () => null };
+    const makeDialog = id => ({
+        id, tagName: "DIALOG", open: false, attributes: {}, height: 460, handlers: new Map(), modal: 0, nonmodal: 0,
+        style: { setProperty(key, value) { this[key] = value; }, getPropertyValue(key) { return this[key] ?? ""; } },
+        setAttribute(key, value) { this.attributes[key] = value; },
+        addEventListener(key, fn) { this.handlers.set(key, fn); }, removeEventListener(key) { this.handlers.delete(key); },
+        showModal() { this.open = true; this.modal++; }, show() { this.open = true; this.nonmodal++; },
+        close() { this.open = false; tasks.push(() => this.handlers.get("close")?.()); },
+        contains(target) { return target === this || target.parent === this; },
+        getBoundingClientRect() {
+            const height = Math.min(this.height, parseFloat(this.style["--player-lens-height"] ?? "460"));
+            return { left: 100, top: 100, right: 476, bottom: 100 + height, width: 376, height };
+        }
+    });
+    const player = makeDialog("player-dialog"), roster = makeDialog("roster-dialog"), story = makeDialog("story-dialog");
+    const all = [player, roster, story];
+    const doc = {
+        activeElement: opener, getElementById: id => all.find(d => d.id === id),
+        querySelector: () => all.find(d => d.open), querySelectorAll: () => all.filter(d => d.open),
+        addEventListener: (key, fn) => documentHandlers.set(key, fn), removeEventListener: key => documentHandlers.delete(key)
+    };
+    const flush = () => { while (tasks.length) tasks.shift()(); };
+    return { win, doc, opener, player, roster, story, observers, documentHandlers, windowHandlers, flush };
+}
+
+test("lens placement flips/clamps, prefers pitch space and avoids the selected shirt when possible", () => {
     for (const viewport of [{ width: 1280, height: 800 }, { width: 1024, height: 768 }, { width: 390, height: 700 }]) {
-        const size = { width: Math.min(376, viewport.width - 32), height: Math.min(460, viewport.height - 32) };
-        for (const point of [{ x: 10, y: 10 }, { x: viewport.width - 5, y: viewport.height - 5 }]) {
-            const position = popupPosition(point, size, viewport);
-            assert.ok(position.left >= 16 && position.top >= 16);
-            assert.ok(position.left + size.width <= viewport.width - 16);
-            assert.ok(position.top + size.height <= viewport.height - 16);
+        const size = { width: Math.min(376, viewport.width - 32), height: Math.min(300, viewport.height - 32) };
+        for (const point of [{ x: 10, y: 10 }, { x: viewport.width - 5, y: viewport.height - 5 }, { x: viewport.width / 2, y: 80 }]) {
+            const p = popupPosition(point, size, viewport);
+            assert.ok(p.left >= 16 && p.top >= 16);
+            assert.ok(p.left + size.width <= viewport.width - 16);
+            assert.ok(p.top + size.height <= viewport.height - 16);
+            assert.ok(!(point.x > p.left && point.x < p.left + size.width && point.y > p.top && point.y < p.top + size.height));
         }
     }
+    const bounds = { left: 40, right: 1240, top: 250, bottom: 720, height: 470 };
+    const p = popupPosition({ x: 1200, y: 650 }, { width: 376, height: 400 }, { width: 1280, height: 800 }, bounds, 40);
+    assert.ok(p.left + 376 < 1200);
+    assert.ok(p.top >= bounds.top && p.top + 400 <= bounds.bottom);
 });
 
-test("native modal transitions preserve root focus return, backdrop close and teardown", () => {
-    const windowHandlers = new Map(), documentHandlers = new Map();
-    const win = { innerWidth: 1280, innerHeight: 800,
-        addEventListener: (key, value) => windowHandlers.set(key, value), removeEventListener: key => windowHandlers.delete(key) };
-    let focused = 0;
-    const opener = { isConnected: true, focus: () => focused++, closest: () => null };
-    const makeDialog = id => ({
-        id, tagName: "DIALOG", open: false, style: {}, handlers: new Map(),
-        addEventListener(key, value) { this.handlers.set(key, value); },
-        removeEventListener(key) { this.handlers.delete(key); },
-        showModal() { this.open = true; },
-        close() { this.open = false; this.handlers.get("close")?.(); },
-        getBoundingClientRect: () => ({ left: 100, top: 100, right: 476, bottom: 560, width: 376, height: 460 })
-    });
-    const roster = makeDialog("roster"), player = makeDialog("player"), all = [roster, player];
-    const doc = {
-        activeElement: opener,
-        getElementById: id => all.find(d => d.id === id),
-        querySelector: () => all.find(d => d.open),
-        querySelectorAll: () => all.filter(d => d.open),
-        addEventListener: (key, value) => documentHandlers.set(key, value),
-        removeEventListener: key => documentHandlers.delete(key)
-    };
-    const host = new PopupHost(doc, win);
-    host.open("roster");
-    assert.equal(roster.open, true);
-    doc.activeElement = { closest: () => roster };
-    host.open("player", { x: 1200, y: 740 });
-    assert.equal(roster.open, false);
-    assert.equal(player.open, true);
-    assert.equal(player.style.left, "800px");
-    const beforeClose = focused;
-    player.handlers.get("click")({ target: player, clientX: 800, clientY: 740 });
-    assert.equal(player.open, false);
-    assert.equal(focused, beforeClose + 1);
-    doc.activeElement = opener;
-    host.open("player");
+test("story remains modal with native backdrop close and focus return", () => {
+    const h = harness(), host = new PopupHost(h.doc, h.win);
+    host.open("story-dialog");
+    assert.equal(h.story.modal, 1);
+    assert.equal(h.story.attributes["aria-modal"], "true");
+    h.story.handlers.get("click")({ target: h.story, clientX: 800, clientY: 740 });
+    h.flush();
+    assert.equal(h.story.open, false);
+    assert.equal(h.opener.focused, 1);
     host.dispose();
-    assert.equal(player.open, false);
-    assert.equal(windowHandlers.size, 0);
-    assert.equal(documentHandlers.size, 0);
-    assert.equal(player.handlers.size, 0);
+    assert.equal(h.windowHandlers.size, 0); assert.equal(h.documentHandlers.size, 0);
     assert.throws(() => host.open("missing"), /missing/);
+});
+
+test("roster and player are nonmodal; follow, switching, Escape/outside and asynchronous focus restoration are safe", () => {
+    const h = harness(), host = new PopupHost(h.doc, h.win);
+    host.open("roster-dialog");
+    assert.equal(h.roster.nonmodal, 1); assert.equal(h.roster.modal, 0);
+    h.doc.activeElement = { parent: h.roster, closest: () => h.roster };
+    host.open("player-dialog"); h.flush();
+    assert.equal(h.roster.open, false); assert.equal(h.player.nonmodal, 1);
+    assert.equal(h.player.attributes["aria-modal"], "false");
+    const bounds = { left: 40, top: 200, right: 1240, bottom: 720, width: 1200, height: 520 };
+    host.follow({ x: 200, y: 400 }, bounds, 40);
+    const first = h.player.style.transform;
+    host.follow({ x: 1000, y: 600 }, bounds, 40);
+    assert.notEqual(h.player.style.transform, first);
+    h.player.height = 330; h.observers[0].callback();
+    assert.equal(host.size.height, 330);
+    host.hidePlayer(true); assert.equal(h.player.style.visibility, "hidden");
+    host.hidePlayer(false); assert.equal(h.player.style.visibility, "");
+    host.open("roster-dialog"); h.observers[0].callback(); h.flush();
+    assert.equal(h.roster.style.transform, undefined, "roster never inherits a previous player's tracking transform");
+    host.open("player-dialog"); h.flush();
+
+    const second = { isConnected: true, focused: 0, focus() { this.focused++; h.doc.activeElement = this; }, closest: () => null };
+    h.doc.activeElement = second;
+    const opens = h.player.nonmodal;
+    host.open("player-dialog"); // Already-selected/second shirt does not add another card or modal.
+    assert.equal(h.player.nonmodal, opens);
+    let prevented = false;
+    h.documentHandlers.get("keydown")({ key: "Escape", preventDefault() { prevented = true; } }); h.flush();
+    assert.equal(prevented, true); assert.equal(second.focused, 1);
+
+    host.open("player-dialog");
+    const transport = { closest: () => null };
+    h.doc.activeElement = transport;
+    h.documentHandlers.get("click")({ target: transport }); h.flush();
+    assert.equal(h.player.open, false); assert.equal(h.doc.activeElement, transport);
+    assert.equal(second.focused, 1, "asynchronous outside close must not steal focus");
+
+    h.doc.activeElement = second; host.open("player-dialog");
+    host.close("player-dialog", false); host.open("player-dialog"); h.flush();
+    assert.equal(host.floating, h.player, "delayed old close event must not clear a reopened lens");
+    host.open("story-dialog"); h.flush();
+    assert.equal(h.player.open, false); assert.equal(h.story.modal, 1);
+    host.dispose(); h.flush();
+    assert.ok(h.observers.every(o => o.disconnected));
+    assert.equal(h.player.handlers.size, 0);
+    assert.equal(h.documentHandlers.size, 0); assert.equal(h.windowHandlers.size, 0);
 });

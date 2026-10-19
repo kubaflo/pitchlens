@@ -1,14 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-const { initialize, loadScenario, setClock, diagnostics, dispose, openPopup, setCaptionsEnabled } =
+const { initialize, loadScenario, setClock, diagnostics, dispose, openPopup, closePopup, setCaptionsEnabled } =
     await import(process.env.PITCH_TEST_RENDERER || new URL("../../src/PitchLens.App/wwwroot/js/pitch.mjs", import.meta.url));
 import { at, fit } from "../../src/PitchLens.App/wwwroot/js/replay.mjs";
 
 test("production renderer aligns22 accessible player buttons with shirts and dispatches click→popup at changing1x/2x", () => {
-    const keys = ["window", "document", "ResizeObserver", "requestAnimationFrame", "cancelAnimationFrame"];
+    const keys = ["window", "document", "ResizeObserver", "requestAnimationFrame", "cancelAnimationFrame", "performance"];
     const originals = Object.fromEntries(keys.map(k => [k, globalThis[k]]));
     const rect = { left: 40, top: 187, width: 1144, height: 595 };
-    const native = [], callbacks = new Map();
+    const native = [], callbacks = new Map(), documentHandlers = new Map(), observers = [];
+    let wall = 0, nextFrame = null, canvasReads = 0, cardReads = 0;
     const caption = { hidden: true, textContent: "", set innerHTML(value) { throw new Error("Model text must not be parsed as HTML"); } };
     let observation;
     class Context {
@@ -49,29 +50,42 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
     const canvas = {
         width: 300, height: 150, isConnected: true, focus() {}, closest: () => null,
         parentElement: { getBoundingClientRect: () => ({ ...rect }) },
-        getBoundingClientRect: () => ({ ...rect }), getContext: () => context,
+        getBoundingClientRect: () => { canvasReads++; return { ...rect }; }, getContext: () => context,
         addEventListener: (name, fn) => callbacks.set(name, fn), removeEventListener: name => callbacks.delete(name)
     };
-    const dialog = {
-        id: "player-dialog", tagName: "DIALOG", open: false, style: {}, handlers: new Map(),
+    const makeDialog = id => ({
+        id, tagName: "DIALOG", open: false, attributes: {}, style: {
+            setProperty(name, value) { this[name] = value; }, getPropertyValue(name) { return this[name] ?? ""; }
+        }, handlers: new Map(), modalOpens: 0, nonmodalOpens: 0,
+        setAttribute(name, value) { this.attributes[name] = value; },
         addEventListener(name, fn) { this.handlers.set(name, fn); }, removeEventListener(name) { this.handlers.delete(name); },
-        showModal() { this.open = true; }, close() { this.open = false; this.handlers.get("close")?.(); },
-        getBoundingClientRect: () => ({ left: 100, top: 100, width: 376, height: 460 })
-    };
+        showModal() { this.open = true; this.modalOpens++; }, show() { this.open = true; this.nonmodalOpens++; },
+        close() { this.open = false; this.handlers.get("close")?.(); },
+        contains(target) { return target === this; },
+        getBoundingClientRect() {
+            cardReads++;
+            return { left: 100, top: 100, width: 376, height: Math.min(460, parseFloat(this.style["--player-lens-height"] ?? "460")) };
+        }
+    });
+    const dialog = makeDialog("player-dialog"), roster = makeDialog("roster-dialog"), story = makeDialog("story-dialog");
+    const dialogs = [dialog, roster, story];
     globalThis.window = { devicePixelRatio: 2, innerWidth: 1280, innerHeight: 900, addEventListener() {}, removeEventListener() {} };
     globalThis.document = {
         hidden: false, activeElement: canvas,
-        getElementById: id => id === dialog.id ? dialog : id === "pitch-players" ? layer : id === "commentary-caption" ? caption : null,
-        querySelector: () => dialog.open ? dialog : null,
-        querySelectorAll: () => dialog.open ? [dialog] : [],
-        addEventListener() {}, removeEventListener() {},
+        getElementById: id => dialogs.find(d => d.id === id) ?? (id === "pitch-players" ? layer : id === "commentary-caption" ? caption : null),
+        querySelector: selector => dialogs.find(d => d.open && (!selector.includes("aria-modal") || d.attributes["aria-modal"] === "true")),
+        querySelectorAll: () => dialogs.filter(d => d.open),
+        addEventListener: (name, fn) => documentHandlers.set(name, fn), removeEventListener: name => documentHandlers.delete(name),
         createElement: tag => tag === "button" ? new Button() : ({ width: 0, height: 0, getContext: () => background })
     };
     globalThis.ResizeObserver = class {
-        constructor(callback) { observation = callback; } observe() {} disconnect() {}
+        constructor(callback) { this.callback = callback; this.disconnected = false; observers.push(this); }
+        observe(target) { this.target = target; this.disconnected = false; if (target === canvas.parentElement) observation = this.callback; }
+        disconnect() { this.disconnected = true; }
     };
-    globalThis.requestAnimationFrame = () => 1;
-    globalThis.cancelAnimationFrame = () => {};
+    globalThis.performance = { now: () => wall };
+    globalThis.requestAnimationFrame = callback => { nextFrame = callback; return 1; };
+    globalThis.cancelAnimationFrame = () => { nextFrame = null; };
     const clip = {
         revision: 1, duration: 300, goals: [], captions: [{ id: "goal", start: 49, end: 53, text: "Goal! Erling Haaland scores!" }],
         players: [
@@ -106,7 +120,7 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
     try {
         initialize(canvas, { invokeMethodAsync(method, ...args) {
             native.push([method, ...args]);
-            if (method === "SelectFromPitch") openPopup("player-dialog", true, true);
+            if (method === "SelectFromPitch") openPopup("player-dialog", args[0]);
             return Promise.resolve();
         } });
         loadScenario(JSON.stringify(clip));
@@ -137,6 +151,7 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
                     button.click();
                     assert.deepEqual(native.at(-1), ["SelectFromPitch", player.id]);
                     assert.equal(dialog.open, true);
+                    assert.equal(dialog.modalOpens, 0);
                     dialog.close();
                     assert.equal(document.activeElement, button);
                 }
@@ -151,6 +166,70 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
             rect.width = density === 2 ? 800 : 1144; rect.height = density === 2 ? 440 : 595;
         }
         assert.deepEqual(layer.children, originalButtons); // Clock updates move existing nodes, never rebuild them.
+        const position = () => {
+            const [, left, top] = dialog.style.transform.match(/translate\(([-\d.e]+)px, ([-\d.e]+)px\)/);
+            return { left: Number(left), top: Number(top) };
+        };
+        for (const rate of [1, 3, 5]) {
+            wall = 0;
+            setClock(JSON.stringify({ revision: 1, sequence: ++sequence, time: 30, playing: true, rate, selectedId: "arsenal-saka" }));
+            layer.children.find(b => b.dataset.playerId === "arsenal-saka").click();
+            const start = position(), beforeReads = [canvasReads, cardReads], beforeNotifications = native.length;
+            for (let frame = 1; frame <= 120; frame++) {
+                wall = frame * 1000 / 60;
+                assert.ok(nextFrame, "opening a lens must not cancel ongoing playback");
+                nextFrame();
+            }
+            assert.ok(Math.abs(diagnostics().time - (30 + rate * 2)) < 1e-8);
+            assert.notDeepEqual(position(), start, "card follows the moving selected shirt");
+            assert.deepEqual([canvasReads, cardReads], beforeReads, "following performs no per-frame layout reads");
+            assert.equal(native.length, beforeNotifications, "following has no per-frame native callbacks");
+            layer.children.find(b => b.dataset.playerId === "arsenal-raya").click();
+            assert.equal(dialog.open, true);
+            const keeperCard = position();
+            layer.children.find(b => b.dataset.playerId === "arsenal-raya").click();
+            assert.deepEqual(position(), keeperCard);
+            const preScrollTime = diagnostics().time;
+            rect.left += 13; rect.top += 7;
+            documentHandlers.get("scroll")();
+            assert.equal(diagnostics().time, preScrollTime);
+            assert.notDeepEqual(position(), keeperCard, "scroll/layout geometry updates viewport anchoring");
+            let prevented = false;
+            documentHandlers.get("keydown")({ key: "Escape", preventDefault() { prevented = true; } });
+            assert.equal(prevented, true); assert.equal(dialog.open, false);
+            assert.ok(nextFrame, "closing a lens must leave playback running");
+            openPopup("roster-dialog");
+            assert.equal(roster.open, true); assert.equal(roster.modalOpens, 0);
+            assert.ok(nextFrame, "roster flow must also preserve playback");
+            openPopup("player-dialog", "manchester-city-donnarumma");
+            assert.equal(roster.open, false);
+            assert.ok(position().left < rect.left + rect.width - 100, "far-edge player flips the card inward");
+            const replayControl = { closest: selector => selector.includes(".transport") ? replayControl : null };
+            documentHandlers.get("click")({ target: replayControl });
+            assert.equal(dialog.open, true, "replay transport remains usable without dismissing the lens");
+            const transport = { closest: () => null };
+            document.activeElement = transport;
+            documentHandlers.get("click")({ target: transport });
+            assert.equal(dialog.open, false);
+            assert.equal(document.activeElement, transport, "outside close must not steal transport focus");
+        }
+        setClock(JSON.stringify({ revision: 1, sequence: ++sequence, time: 30, playing: false, rate: 3 }));
+        openPopup("player-dialog", "arsenal-saka");
+        assert.equal(nextFrame, null, "opening while paused must not autoplay");
+        const pausedTime = diagnostics().time;
+        wall += 10000;
+        closePopup("player-dialog");
+        assert.equal(diagnostics().time, pausedTime);
+        assert.equal(nextFrame, null);
+        openPopup("player-dialog", "arsenal-saka");
+        setClock(JSON.stringify({ revision: 1, sequence: ++sequence, time: 240, playing: false, rate: 5 }));
+        const seekCard = position();
+        setClock(JSON.stringify({ revision: 1, sequence: ++sequence, time: 0, playing: false, rate: 5 }));
+        assert.notDeepEqual(position(), seekCard);
+        openPopup("story-dialog");
+        assert.equal(dialog.open, false);
+        assert.equal(story.modalOpens, 1, "story stays modal");
+        closePopup("story-dialog");
         setClock(JSON.stringify({ revision: 1, sequence: ++sequence, time: 49, playing: false, rate: 5 }));
         assert.equal(caption.hidden, false);
         assert.equal(caption.textContent, clip.captions[0].text);
@@ -159,7 +238,9 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         assert.equal(caption.textContent, "");
         setCaptionsEnabled(true);
         assert.equal(caption.hidden, false);
+        openPopup("player-dialog", "arsenal-saka");
         loadScenario(JSON.stringify({ ...clip, revision: 2, captions: [] }));
+        assert.equal(dialog.open, false, "replacement clears the old scene's lens");
         assert.equal(caption.hidden, true);
         assert.equal(caption.textContent, "");
         assert.equal(layer.children.length, 22);
@@ -177,6 +258,8 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         assert.equal(layer.children.length, 0);
         assert.ok(replacementButtons.every(b => b.handlers.size === 0));
         assert.equal(callbacks.size, 0);
+        assert.equal(documentHandlers.size, 0);
+        assert.ok(observers.every(o => o.disconnected));
     } finally {
         dispose();
         for (const [key, value] of Object.entries(originals))

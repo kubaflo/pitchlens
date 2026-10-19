@@ -69,7 +69,8 @@ dialog::backdrop { background: #20002680; backdrop-filter: blur(3px); }
 .dialog-head .caption { display: block; margin-top: 8px; }
 .dialog-body { padding: 24px; display: grid; gap: 24px; }
 .close { border: 0; background: #f0e8f5; color: var(--purple); border-radius: 8px; padding: 8px 14px; min-height: 44px; font-size: 16px; }
-.player-dialog { position: fixed; margin: 0; left: 50vw; top: 20vh; width: min(376px, calc(100vw - 32px)); }
+.player-dialog { position: fixed; margin: 0; left: 0; top: 0; width: min(376px, calc(100vw - 32px)); max-height: var(--player-lens-height, calc(100dvh - 32px)); z-index: 30; }
+#roster-dialog { position: fixed; margin: 0; left: 50%; top: 16px; transform: translateX(-50%); z-index: 30; }
 .player-identity { display: flex; align-items: center; gap: 16px; }
 .player-identity img { width: 64px; height: 64px; flex: 0 0 64px; object-fit: contain; }
 .player-identity h2 { font-size: 28px; }

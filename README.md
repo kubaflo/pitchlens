@@ -226,8 +226,14 @@ markers retain readable shirt numbers rather than large logos. Crests are
 packaged local images with aspect-fit sizing and a white backing for contrast
 in both themes; they require no runtime image download.
 
-Clicking a shirt pauses replay and opens an adjacent player dialog with four
-key statistics; **Players** is the keyboard-accessible roster alternative.
+Clicking a shirt opens one **nonmodal player lens** with four key statistics.
+It follows that player's last-drawn position without changing play/pause state:
+playing continues, paused stays paused. **Players** is a nonmodal, keyboard-
+accessible roster with the same behavior, including switching/already-selected
+players. Stats remain sampled at the existing <=4 Hz native cadence; JS alone
+tracks the card using the shared cached transform and canvas geometry.
+Card size is observed on layout/content changes, not measured per animation
+frame. Placement flips/clamps to pitch/viewport space without a modal backdrop.
 Each canvas shirt also has a transparent native HTML button named with its
 player, club and number. Tab/Enter/Space and accessibility activation use the
 same player-popup route. Targets are ordinary buttons with explicit "Open
@@ -235,19 +241,22 @@ player details" labels and `aria-controls`, not macOS popup-menu buttons.
 JS moves these 22 persistent targets with the
 same cached transform and last-drawn positions as the visible shirts; there
 are no per-frame Blazor updates or second set of visible players. Focus has a
-visible ring and returns to the activating shirt button when the popup closes.
+visible ring; explicit Close/Escape returns focus to the opener. Outside clicks
+dismiss without stealing focus. Replay transport and player-selection controls
+remain usable without dismissing the lens or swallowing their actions.
+Seeks/rate changes keep the card aligned; scene replacement closes the old lens.
 **Match story** opens a modal with only current-playhead evidence, Casual/Analyst
 modes and working replay links. **Settings** holds source/model provenance and
 advanced runtime configuration. Native dialogs provide Escape, close/backdrop
-behavior and focus return; adjacent placement flips/clamps to the viewport.
-Closing a popup leaves replay paused.
+behavior and focus return. Story, settings and creation deliberately close the
+player flow and pause replay; closing those modals does not automatically resume.
 
 **New match** opens the real Copilot SDK generation dialog. Its explicit Create
 action makes the actual Sol request: no scripted Preview/Use-preview path from
 the design mocks is shipped. Progress, errors and cancellation are available
 inside the dialog; the brand bar keeps creation/cancel access when it is closed.
 Playback controls stay pinned. Space toggles playback and Left/Right seek one
-second outside form controls and popups. Restart remains available at full time.
+second outside form controls and modal dialogs. Restart remains available at full time.
 Window deactivation pauses playback; returning does not automatically resume it.
 
 ## Hybrid rendering and performance
@@ -386,8 +395,10 @@ playback/seeks/selection, initial accuracy with no attempts, no future notes
 after backward seeks, readable light/dark layout, and keyboard-accessible
 roster, disclosures, mode buttons and transport. Check all 300 seconds and
 **Replay match** at fulltime. Click a visible shirt once (including a keeper at
-the far end), verify that exact player's popup, then close/Escape/backdrop and
-focus return. Observe the score/goal callout at 86 and 176 seconds;
+the far end), verify that exact player's following lens while playback continues,
+switch players, then test Close/Escape/outside and focus return. Repeat while
+paused: no action may autoplay. Resize/seek/change speed with the lens open.
+Observe the score/goal callout at 86 and 176 seconds;
 pause, seek backward and restart must preserve factual timing without duplicates.
 Open Match story and seek an observed event. Try each speed while playing and
 paused, seek in both directions, and restart: rate stays selected without a

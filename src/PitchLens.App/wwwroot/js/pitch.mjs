@@ -4,7 +4,7 @@ import { viewportMap, applyField, fieldToViewport, pointerInDrawnViewport } from
 
 let engine, canvas, viewport, context, background, observer, reference, frameId = null;
 let pointerHandler, visibilityHandler, keyboardHandler, rangeDown, rangeUp, range, width = 0, height = 0, dragging = false;
-let popups = null, lastPointer = null;
+let popups = null, lensPlayerId = null, canvasBox = null, geometryHandler = null;
 let map = null;
 let playerLayer = null;
 const playerTargets = new Map();
@@ -31,16 +31,15 @@ export function initialize(element, dotnet) {
     observer = new ResizeObserver(resize); observer.observe(viewport);
     window.addEventListener("resize", resize);
     pointerHandler = event => {
-        lastPointer = { x: event.clientX, y: event.clientY };
         const box = canvas.getBoundingClientRect();
         const point = map && pointerInDrawnViewport(map, box, event.clientX, event.clientY);
         if (point) engine?.select(point.x, point.y, map.width, map.height, now());
     };
     canvas.addEventListener("pointerdown", pointerHandler);
-    visibilityHandler = () => { if (document.hidden) { playerLayer.hidden = true; engine?.hide(now()); stop(); } else draw(); };
+    visibilityHandler = () => { if (document.hidden) { playerLayer.hidden = true; popups?.hidePlayer(true); engine?.hide(now()); stop(); } else { cacheGeometry(); draw(); } };
     document.addEventListener("visibilitychange", visibilityHandler);
     keyboardHandler = event => {
-        if (document.querySelector?.("dialog[open]")) return;
+        if (document.querySelector?.("dialog[open][aria-modal='true']")) return;
         const command = keyboardAction(event);
         if (command) { event.preventDefault(); engine?.keyboard(command); }
     };
@@ -50,19 +49,27 @@ export function initialize(element, dotnet) {
     rangeUp = () => { dragging = false; };
     range?.addEventListener("pointerdown", rangeDown);
     window.addEventListener("pointerup", rangeUp);
+    geometryHandler = () => { if (canvas) { cacheGeometry(); draw(); } };
+    document.addEventListener("scroll", geometryHandler, true);
     resize();
     document.fonts?.ready.then(() => { if (canvas) draw(); });
 }
 function stop() { if (frameId !== null) cancelAnimationFrame(frameId); frameId = null; }
+function cacheGeometry() {
+    const box = canvas.getBoundingClientRect();
+    canvasBox = { left: box.left, top: box.top, width: box.width, height: box.height,
+        right: box.left + box.width, bottom: box.top + box.height };
+}
 function resize() {
     if (!canvas || !viewport) return;
     const box = viewport.getBoundingClientRect();
     width = box.width; height = box.height;
-    if (width <= 0 || height <= 0) { playerLayer.hidden = true; stop(); return; }
+    if (width <= 0 || height <= 0) { playerLayer.hidden = true; popups?.hidePlayer(true); canvasBox = null; stop(); return; }
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
     background.width = canvas.width; background.height = canvas.height;
     map = viewportMap(width, height, canvas.width, canvas.height);
+    cacheGeometry();
     playerLayer.style.setProperty("--player-size", `${Math.max(24, 4 * map.field.scale)}px`);
     const c = background.getContext("2d");
     c.setTransform(1, 0, 0, 1, 0, 0);
@@ -88,6 +95,8 @@ function draw() {
     stop();
     if (!engine?.scenario || !canvas || !width || !height || document.hidden) return;
     const time = engine.frame(now());
+    const following = popups?.floating?.id === "player-dialog";
+    let lensPoint = null;
     const c = context; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, canvas.width, canvas.height); c.drawImage(background, 0, 0);
     applyField(c, map);
     const selected = engine.scenario.players.find(p => p.id === engine.selectedId);
@@ -99,6 +108,7 @@ function draw() {
     }
     for (const p of engine.drawPlayers) {
         const point = at(p.frames, time);
+        if (following && p.id === lensPlayerId) lensPoint = point;
         if (p.id === engine.selectedId) { c.lineWidth = .6; circle(c, point.x, point.y, 2.8, null, "#fff"); }
         circle(c, point.x + .15, point.y + .3, 2.2, "#23382b", null);
         c.lineWidth = .18; circle(c, point.x, point.y, 2, p.teamId === "arsenal" ? "#00ff87" : "#ff83b8", "#f4f4ef");
@@ -112,6 +122,13 @@ function draw() {
     }
     const ball = at(engine.scenario.ball, time); c.lineWidth = .2; circle(c, ball.x, ball.y, .85, "#fff", "#000");
     updateTransport(time);
+    if (lensPoint && canvasBox) {
+        const local = fieldToViewport(map, lensPoint);
+        const scaleX = canvasBox.width / map.width, scaleY = canvasBox.height / map.height;
+        popups.hidePlayer(false);
+        popups.follow({ x: canvasBox.left + local.x * scaleX, y: canvasBox.top + local.y * scaleY },
+            canvasBox, Math.max(12, 2.8 * map.field.scale * Math.max(scaleX, scaleY)) + 12);
+    }
     playerLayer.hidden = false;
     if (engine.clock.playing && time < engine.clock.duration) frameId = requestAnimationFrame(draw);
 }
@@ -133,8 +150,6 @@ function buildPlayerTargets() {
         button.style.zIndex = String(engine.drawPlayers.findIndex(player => player.id === p.id) + 1);
         const activate = () => {
             if (engine?.scenario?.revision !== revision) return;
-            const box = button.getBoundingClientRect();
-            lastPointer = { x: box.left + box.width / 2, y: box.top + box.height / 2 };
             button.focus({ preventScroll: true });
             engine.selectPlayer(p.id);
         };
@@ -144,7 +159,10 @@ function buildPlayerTargets() {
     }
 }
 export function loadScenario(json) {
-    if (engine?.load(JSON.parse(json), now())) { buildPlayerTargets(); draw(); }
+    if (engine?.load(JSON.parse(json), now())) {
+        popups?.close("player-dialog", false); popups?.close("roster-dialog", false); lensPlayerId = null;
+        buildPlayerTargets(); draw();
+    }
 }
 function updateTransport(time) {
     const output = document.getElementById("replay-clock");
@@ -181,21 +199,24 @@ export function setClock(json) {
     }
 }
 export function diagnostics() { return engine ? { ...engine.diagnostics, viewport: map, time: engine.lastDrawTime } : null; }
-export function openPopup(id, adjacent = false, atPointer = false) {
+export function openPopup(id, selectedId = engine?.selectedId) {
     popups ??= new PopupHost(document, window);
-    const box = canvas.getBoundingClientRect();
-    const point = adjacent ? atPointer && lastPointer ? lastPointer
-        : { x: box.left + box.width * .7, y: box.top + Math.min(80, box.height * .2) } : null;
-    popups.open(id, point);
+    if (id === "player-dialog" && !engine?.scenario?.players.some(p => p.id === selectedId)) throw new Error("Selected player is missing.");
+    if (id === "roster-dialog") document.getElementById("players-button")?.focus({ preventScroll: true });
+    lensPlayerId = id === "player-dialog" ? selectedId : null;
+    cacheGeometry();
+    popups.open(id);
+    draw();
 }
 export function closePopup(id) { popups?.close(id); }
 export function dispose() {
-    popups?.dispose(); popups = null; lastPointer = null;
+    popups?.dispose(); popups = null; lensPlayerId = null; canvasBox = null;
     stop(); observer?.disconnect();
     window.removeEventListener("resize", resize);
     if (canvas && pointerHandler) canvas.removeEventListener("pointerdown", pointerHandler);
     if (visibilityHandler) document.removeEventListener("visibilitychange", visibilityHandler);
     if (keyboardHandler) window.removeEventListener("keydown", keyboardHandler);
+    if (geometryHandler) document.removeEventListener("scroll", geometryHandler, true);
     if (range && rangeDown) range.removeEventListener("pointerdown", rangeDown);
     if (rangeUp) window.removeEventListener("pointerup", rangeUp);
     const caption = document.getElementById("commentary-caption");
@@ -205,5 +226,6 @@ export function dispose() {
     engine = canvas = viewport = context = background = observer = reference = range = null;
     map = null;
     playerLayer = null;
+    geometryHandler = null;
     pointerHandler = visibilityHandler = keyboardHandler = rangeDown = rangeUp = null;
 }
