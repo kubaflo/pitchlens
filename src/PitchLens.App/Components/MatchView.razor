@@ -100,7 +100,7 @@
             <header class="dialog-head"><div><span class="eyebrow">Copilot SDK</span><h2 id="generation-title">Create a new match.</h2><span class="caption">A real generation request, not a scripted preview.</span></div><button class="close" data-close-popup>Close</button></header>
             <div class="dialog-body">
                 <p>Arsenal vs Manchester City · Five minutes (300 seconds) · Synthetic 11v11. All 22 player paths and events authored by AI.</p>
-                <p>Only GPT-6.1 Sol (@CopilotScenarioSource.Model), using normal local Copilot login. Two bounded stages: match paths/events, then grounded subtitles. Up to ten minutes; may consume usage. No model fallback.</p>
+                <p>Only GPT-6.1 Sol (@CopilotScenarioSource.Model), using normal local Copilot login. Paths/events, at most one AI path correction for a rejected team shape, then grounded subtitles: at most three model responses, bounded to fifteen minutes. May consume usage. No model fallback.</p>
                 <div class="actions"><button class="button purple" @onclick="Generate" disabled="@(Session.Generating || Session.CheckingConnection)">@(Session.Generating ? "Creating…" : "Create match with Sol 6.1")</button>@if (Session.Generating) { <button class="button" @onclick="Session.Cancel">Cancel creation</button> }</div>
                 <p id="generation-status" role="@(Session.RequestState == GenerationState.Failed ? "alert" : "status")">@Session.Status</p>
                 <p class="caption">Closing this popup does not cancel creation. Cancel is also available in the main brand bar. Invalid output or cancellation keeps the last valid match.</p>

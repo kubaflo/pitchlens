@@ -47,6 +47,7 @@ public static partial class CopilotDiagnostics
             "models" => "model availability preflight",
             "session" => "session creation",
             "response" => "model response",
+            "archive" => "model response preservation",
             "cleanup" => "runtime cleanup",
             _ => "connection setup"
         };
@@ -61,6 +62,7 @@ public static partial class CopilotDiagnostics
     private static string? Classify(string message)
     {
         var text = message.ToLowerInvariant();
+        if (text.Contains("timed out") || text.Contains("timeout")) return "model/runtime timeout";
         if (text.Contains("sandbox")) return "sandbox restriction";
         if (text.Contains("permission denied") || text.Contains("operation not permitted") || text.Contains("eacces") || text.Contains("eperm"))
             return "permission denied";

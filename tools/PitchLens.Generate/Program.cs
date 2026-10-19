@@ -2,6 +2,19 @@ using PitchLens.Core;
 using PitchLens.Generation;
 using GitHub.Copilot;
 
+string? fullWorkingDirectory = null;
+string? preservedPathsFile = null;
+if (args is ["--live-at", var fullRuntimePath, var fullDirectory, var fullOutput])
+{
+    fullWorkingDirectory = fullDirectory;
+    args = ["--live", fullRuntimePath, fullOutput];
+}
+if (args is ["--resume-live", var resumeRuntime, var resumeDirectory, var resumePaths, var resumeOutput])
+{
+    fullWorkingDirectory = resumeDirectory;
+    preservedPathsFile = resumePaths;
+    args = ["--live", resumeRuntime, resumeOutput];
+}
 if (args is [var connectionOperation, var connectionRuntime, var connectionDirectory] &&
     connectionOperation is "--check-connection" or "--check-session")
 {
@@ -113,7 +126,9 @@ if (args is ["--validate", var artifact])
 }
 if (args is not ["--live", var cli, var output] || !Path.IsPathFullyQualified(output))
 {
-    Console.WriteLine("Two bounded SDK stages, no automatic retries: --live /absolute/path/to/copilot /absolute/output/scenario.json");
+    Console.WriteLine("Paths + at most one targeted AI correction + captions (15min total): --live /absolute/path/to/copilot /absolute/output/scenario.json");
+    Console.WriteLine("Use a native workdir: --live-at /runtime /workdir /output.json");
+    Console.WriteLine("Resume a saved semantic failure without another initial request: --resume-live /runtime /workdir /paths.json /output.json");
     Console.WriteLine("One explicit-path stage only: --author-paths /path/to/runtime /absolute/output/scenario.json");
     Console.WriteLine("Validate existing JSON without AI/network: --validate /path/to/scenario.json");
     Console.WriteLine("Check SDK model availability without generation: --check-model /path/to/runtime exact-model-id");
@@ -121,20 +136,37 @@ if (args is not ["--live", var cli, var output] || !Path.IsPathFullyQualified(ou
     Console.WriteLine("One paid commentary request: --commentary /path/to/runtime /path/to/plan.json /absolute/output/commentary.json");
     return 2;
 }
-using var cancellation = new CancellationTokenSource(TimeSpan.FromMinutes(10));
+using var cancellation = new CancellationTokenSource(TimeSpan.FromMinutes(15));
 Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
 var progress = new Progress<string>(message => Console.WriteLine(message));
-var source = new CopilotScenarioSource(cli, Path.Combine(Path.GetDirectoryName(output)!, "copilot-work"));
+var source = new CopilotScenarioSource(cli, fullWorkingDirectory ?? Path.Combine(Path.GetDirectoryName(output)!, "copilot-work"),
+    Path.Combine(Path.GetDirectoryName(output)!, "raw-responses"));
 try
 {
-    var json = await source.GenerateAsync(progress, cancellation.Token);
+    var captured = new FullRequestCapture(source, preservedPathsFile is null ? null : await File.ReadAllTextAsync(preservedPathsFile));
+    var service = new GenerationService(captured, AuthoredMatchRecording.Create(), ScenarioOrigin.RecordedSdkExample, AuthoredMatchRecording.Model);
+    await service.GenerateAsync(progress, cancellation.Token);
+    if (service.State != GenerationState.Succeeded)
+    {
+        Console.Error.WriteLine($"FULL SDK PIPELINE FAILED | state={service.State} | {service.Status}");
+        return 1;
+    }
+    var json = captured.Response ?? throw new InvalidOperationException("Successful service did not return its generated JSON.");
     await File.WriteAllTextAsync(output + ".unvalidated.json", json, cancellation.Token);
-    var match = AuthoredMatchPlan.Parse(json);
+    var match = service.Current;
     await File.WriteAllTextAsync(output, json, cancellation.Token);
     var snapshot = Replay.At(match, match.Duration);
     Console.WriteLine($"LIVE SDK VERIFIED | model={CopilotScenarioSource.Model} | duration={match.Duration} | players={match.Players.Count} | events={match.Events.Count}");
     Console.WriteLine($"Totals: passes={snapshot.Players.Sum(p => p.Passes)}, carries={match.Events.Count(e => e.Kind == EventKind.Carry)}, shots={snapshot.Players.Sum(p => p.Shots)}, goals={snapshot.Players.Sum(p => p.Goals)}");
     Console.WriteLine($"Max player speed={snapshot.Players.Max(p => p.MaxSpeed):F3} m/s. Synthetic events only. Saved validated JSON to {output}");
+    Console.WriteLine($"SERVICE VERIFIED | state={service.State} | origin={service.Origin} | model={service.CurrentModel} | cues={match.Commentary!.Cues.Count}");
+    foreach (var time in new[] { 0d, 30, 85, 150, 225, 299, 300, 0, 176 })
+    {
+        var replay = Replay.At(match, time);
+        if (replay.Events.Any(e => e.Time > time) || StoryReplay.At(match, time).Any(b => b.Time > time))
+            throw new InvalidOperationException("Generated replay leaked future evidence.");
+        foreach (var player in match.Players) _ = player.Path.At(time);
+    }
     PrintStory(match);
     return 0;
 }
@@ -169,5 +201,6 @@ static void PrintStory(Match match)
             var motion = player.Path.Measure(match.Duration);
             Console.WriteLine($"  {player.Name}: {motion.Distance:F1}m, {motion.MaxSpeed:F2}m/s, {player.Path.Frames.Count} frames");
         }
+
     }
 }

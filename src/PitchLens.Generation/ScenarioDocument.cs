@@ -42,7 +42,7 @@ public sealed record EventDocument(
 [JsonSerializable(typeof(RosterPlayer[]))]
 public partial class ScenarioJsonContext : JsonSerializerContext;
 
-public sealed class ScenarioValidationException(string message, Exception? inner = null) : Exception(message, inner);
+public class ScenarioValidationException(string message, Exception? inner = null) : Exception(message, inner);
 
 public static class ScenarioParser
 {

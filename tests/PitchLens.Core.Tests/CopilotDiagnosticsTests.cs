@@ -29,6 +29,7 @@ public sealed class CopilotDiagnosticsTests
     [InlineData("broken pipe https://private.example?token=private", "broken runtime pipe")]
     [InlineData("Sandbox restriction: /private/path", "sandbox restriction")]
     [InlineData("Connection reset by peer. private", "runtime transport closed")]
+    [InlineData("Model response timed out. private", "model/runtime timeout")]
     public void Known_runtime_failure_categories_are_actionable_without_copying_stderr(string message, string expected)
     {
         var result = CopilotDiagnostics.Describe("response", new IOException(message));

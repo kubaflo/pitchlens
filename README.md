@@ -17,7 +17,7 @@ or either club; submission remains deferred.
 
 ## Generate a match with Copilot
 
-Open **New match**, then choose **Create match with Sol 6.1**. This runs **two bounded stages** through
+Open **New match**, then choose **Create match with Sol 6.1**. This runs **two stages plus at most one bounded AI path correction** through
 `GitHub.Copilot.SDK` **1.0.22**, explicitly selecting **GPT-6.1 Sol (`gpt-6.1-sol`)** with medium reasoning.
 There is no Auto, Anthropic/Claude, alternate-provider or model fallback path.
 Normal Copilot authentication and model entitlement are required. Generation
@@ -41,9 +41,22 @@ before atomic replacement. Invalid paths are rejected, never auto-corrected;
 missing/invalid cues keep the previous valid match. Historical 6v6 trajectories
 and captions are not attached to a new 11v11 game.
 
+If an otherwise valid candidate violates the unchanged team width/depth gate,
+the same Sol model gets the rejected safe geometry and exact measured failures
+for **one** targeted correction. It returns all 22 explicit trajectories;
+the event sequence, roster IDs, 300-second duration, initial owner and phase
+metadata cannot be edited. The viewer does not nudge coordinates or weaken
+thresholds. The complete parser/causality/onside/physics/shape validation runs
+again, and commentary is requested only after it passes. Invalid correction,
+transport/auth failure, cancellation or timeout never starts another correction.
+
 The UI shows connecting/authentication/model/generation/validation progress and
-a Cancel action. Generation runs off the UI thread, is limited to ten minutes
-overall (each model response wait is bounded to 270 seconds), and never automatically retries.
+a Cancel action. Generation runs off the UI thread, is limited to fifteen minutes
+overall (each model response wait is bounded to 270 seconds). A valid first
+candidate uses two responses; the optional AI refinement makes three maximum.
+There are no blind retries or alternate models. Progress explicitly identifies
+the AI-refining stage. These limits do not guarantee every model output will
+validate or every request will finish; failure retains the prior match.
 Malformed data, authentication, entitlement, compatibility, timeout and transport
 errors are visible. Failure/cancellation **keeps the previous valid match**, with
 no success-shaped demo fallback. A successful generation replaces the match
@@ -188,7 +201,28 @@ The 72-second GPT-5.4 recording and 300-second 6v6 procedural-plan resources,
 They are not used for startup or new-match generation and are never relabeled
 11v11. Headless data validation does not certify native visual realism.
 
-Explicit opt-in generation (two bounded Sol stages, no automatic retries):
+### Full fresh-generation regression
+
+A subsequent actual full SDK request produced **812 knots / 74 events** but
+failed the unchanged 22 m depth gate: Arsenal at 144-153 seconds and City at
+251-253 seconds (minimum depth 20 m). Runtime preflight alone would not catch
+this semantic failure. Its exact synthetic response is retained as a test fixture.
+One actual Sol correction changed only **Gabriel and Rúben Dias** trajectories;
+all 74 events and other scenario metadata stayed identical. Full validation then
+passed and an actual matching Sol commentary request produced **42 cues**.
+The full `GenerationService` completed **Succeeded / FreshSdkGeneration**, with
+22 players, 300 seconds, 51 passes, 17 carries, two shots/goals/kickoffs and
+seek-safe replay snapshots. No fallback or second correction was used.
+
+Original rejected response SHA-256:
+`f12755275c855e64923c2641ca6d1ac121415db35fed95a24291020662d91370`.
+Final validated scenario/captions SHA-256:
+`016c4829f3b6476a1b4bbb88efbca78b77e11c640a3532a352c66f855643ebed`.
+This is actual end-to-end SDK/service evidence, not a claim that the new repair
+branch has been exercised through the packaged Catalyst UI. It does not replace
+the startup recording or the user's current match.
+
+Explicit opt-in generation (two or at most three bounded Sol responses):
 
 ```sh
 dotnet run --project tools/PitchLens.Generate -- \
@@ -199,6 +233,13 @@ dotnet run --project tools/PitchLens.Generate -- \
 `--commentary /runtime /scenario.json /output.json` requests matching commentary.
 `--validate /path/to/scenario.json` and `--validate-commentary /scenario.json
 /commentary.json` validate stored data without AI/network. No arguments make no request.
+The live tool uses the actual `GenerationService` pipeline and preserves bounded
+raw synthetic stages under the explicit output directory's `raw-responses/`
+before validation, with owner-only file access. `--live-at /runtime /workdir
+/output.json` uses a specific native-equivalent workdir; `--resume-live /runtime
+/workdir /rejected-paths.json /output.json` tests one correction without buying
+another initial scenario. These are opt-in diagnostic artifacts, not raw prompt,
+auth or permanent app-data logs; ordinary app generation does not auto-archive.
 Never use these synthetic outputs as evidence of real player actions.
 
 ## Replay and validation contract

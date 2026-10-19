@@ -8,25 +8,28 @@ namespace PitchLens.Generation;
 
 // SDK 1.0.22 marks permission decisions and response schemas experimental.
 #pragma warning disable GHCP001
-public sealed class CopilotScenarioSource(string cliPath, string workingDirectory) : IScenarioSource
+public sealed class CopilotScenarioSource(string cliPath, string workingDirectory, string? responseArchiveDirectory = null) : IScenarioSource
 {
+    private readonly GenerationResponseArchive? archive = responseArchiveDirectory is null ? null : new(responseArchiveDirectory);
     public const string Model = "gpt-6.1-sol";
     public static string Prompt => AuthoredMatchPrompt.Text;
     public Task<string> GeneratePlanAsync(IProgress<string>? progress, CancellationToken cancellationToken) =>
-        RequestAsync(Prompt, AuthoredMatchPrompt.Schema, progress, cancellationToken);
-    public async Task<string> GenerateAsync(IProgress<string>? progress, CancellationToken cancellationToken)
+        RequestAsync(Prompt, AuthoredMatchPrompt.Schema, "paths", progress, cancellationToken);
+    public Task<string> GenerateAsync(IProgress<string>? progress, CancellationToken cancellationToken) =>
+        PipelineAsync(token => GeneratePlanAsync(progress, token), progress, cancellationToken);
+    public async Task<string> RefinePreservedAsync(string rawPaths, IProgress<string>? progress, CancellationToken token)
     {
-        var json = await GeneratePlanAsync(progress, cancellationToken).ConfigureAwait(false);
-        progress?.Report("Validating all 22 AI-authored paths and events…");
-        var match = AuthoredMatchPlan.Parse(json, requireCommentary: false);
-        progress?.Report("Generating AI commentator subtitles for the validated match…");
-        var commentary = await GenerateCommentaryAsync(match, progress, cancellationToken).ConfigureAwait(false);
-        var narrated = CommentaryPrompt.Attach(commentary, match);
-        var document = AuthoredMatchPlan.Document(json) with { Commentary = narrated.Commentary!.Cues.ToArray() };
-        return JsonSerializer.Serialize(document, AuthoredJsonContext.Default.AuthoredMatchDocument);
+        if (archive is not null) await archive.SaveAsync("paths", rawPaths).ConfigureAwait(false);
+        return await PipelineAsync(_ => Task.FromResult(rawPaths), progress, token).ConfigureAwait(false);
     }
+    private Task<string> PipelineAsync(Func<CancellationToken, Task<string>> paths, IProgress<string>? progress, CancellationToken token) =>
+        AuthoredGenerationPipeline.RunAsync(paths,
+            (document, failure, cancellation) => RequestAsync(AuthoredPathRefinement.Prompt(document, failure),
+                AuthoredPathRefinement.Schema, "correction", progress, cancellation),
+            (match, cancellation) => GenerateCommentaryAsync(match, progress, cancellation),
+            progress, token, archive);
     public Task<string> GenerateCommentaryAsync(Match match, IProgress<string>? progress, CancellationToken cancellationToken) =>
-        RequestAsync(CommentaryPrompt.For(match), CommentaryPrompt.Schema, progress, cancellationToken);
+        RequestAsync(CommentaryPrompt.For(match), CommentaryPrompt.Schema, "commentary", progress, cancellationToken);
     private CopilotClient CreateClient()
     {
         if (!Path.IsPathFullyQualified(cliPath) || !File.Exists(cliPath))
@@ -82,7 +85,7 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
         Console.Error.WriteLine(diagnostic.Trace);
         return new(diagnostic.Message, error, diagnostic.Trace);
     }
-    private async Task<string> RequestAsync(string prompt, string responseSchema, IProgress<string>? progress, CancellationToken cancellationToken)
+    private async Task<string> RequestAsync(string prompt, string responseSchema, string responseStage, IProgress<string>? progress, CancellationToken cancellationToken)
     {
         var stage = "setup";
         try
@@ -90,7 +93,9 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
             var client = CreateClient();
             await using var owner = new BoundedClient(client);
             await ConnectAsync(client, progress, value => stage = value, cancellationToken).ConfigureAwait(false);
-            progress?.Report($"Generating synthetic match content with {Model}…");
+            progress?.Report(responseStage == "correction"
+                ? $"AI refining rejected paths with {Model} (one correction maximum; events unchanged)…"
+                : $"Generating synthetic match content with {Model}…");
             stage = "session";
             var session = await client.CreateSessionAsync(CreateSessionConfig(), cancellationToken).ConfigureAwait(false);
             try
@@ -102,10 +107,16 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
                     Prompt = prompt,
                     ResponseSchema = schema.RootElement.Clone()
                 }, TimeSpan.FromMinutes(4.5), cancellationToken).ConfigureAwait(false);
-                return response?.Data.Content ?? throw new CopilotGenerationException("Copilot returned no match plan.");
+                var content = response?.Data.Content ?? throw new CopilotGenerationException("Copilot returned no match plan.");
+                if (archive is not null)
+                {
+                    stage = "archive";
+                    await archive.SaveAsync(responseStage, content).ConfigureAwait(false);
+                }
+                return content;
             }
             catch (Exception e) when (e is IOException or InvalidOperationException or Win32Exception or TimeoutException or RemoteRpcException or UnauthorizedAccessException or AggregateException)
-            { throw Report("response", e); }
+            { throw Report(stage, e); }
             finally
             {
                 stage = "cleanup";

@@ -2,6 +2,14 @@ using PitchLens.Core;
 
 namespace PitchLens.Generation;
 
+public sealed record AuthoredShapeIssue(string TeamId, double Time, double Width, double Depth);
+public sealed class AuthoredPathValidationException(IReadOnlyList<AuthoredShapeIssue> issues)
+    : ScenarioValidationException($"AI path shape failed for {issues[0].TeamId} at {issues[0].Time:0.#}s: " +
+        $"width {issues[0].Width:0.###}m (minimum 30), depth {issues[0].Depth:0.###}m (minimum 22).")
+{
+    public IReadOnlyList<AuthoredShapeIssue> Issues { get; } = issues;
+}
+
 public static class AuthoredPathQuality
 {
     private static void Require(bool valid, string message) { if (!valid) throw new ScenarioValidationException(message); }
@@ -39,6 +47,7 @@ public static class AuthoredPathQuality
                 .Select(e => e.ActorId).Distinct().Count() >= 7, "New outfield players must participate, not decorate the old6v6 match.");
         }
         int synchronized = 0;
+        var shapeIssues = new List<AuthoredShapeIssue>();
         for (double t = 0; t <= 300; t++)
         {
             var points = match.Players.Select(p => p.Path.At(t)).ToArray();
@@ -49,8 +58,9 @@ public static class AuthoredPathQuality
             {
                 var outfield = match.Players.Where(p => p.TeamId == team.Id && !RegulationRoster.IsKeeper(p.Id)).ToArray();
                 var shape = outfield.Select(p => p.Path.At(t)).ToArray();
-                Require(shape.Max(p => p.Y) - shape.Min(p => p.Y) >= 30 && shape.Max(p => p.X) - shape.Min(p => p.X) >= 22,
-                    $"11v11 width/depth collapses at {t}s.");
+                var width = shape.Max(p => p.Y) - shape.Min(p => p.Y);
+                var depth = shape.Max(p => p.X) - shape.Min(p => p.X);
+                if (width < 30 || depth < 22) shapeIssues.Add(new(team.Id, t, width, depth));
                 if (t > 0 && t % 5 == 0)
                 {
                     var vectors = outfield.Select(p => new Position(p.Path.At(t).X - p.Path.At(t - 5).X, p.Path.At(t).Y - p.Path.At(t - 5).Y)).ToArray();
@@ -59,5 +69,6 @@ public static class AuthoredPathQuality
             }
         }
         Require(synchronized < 8, "Repeated synchronized path translation is not authored individual football movement.");
+        if (shapeIssues.Count > 0) throw new AuthoredPathValidationException(shapeIssues);
     }
 }
