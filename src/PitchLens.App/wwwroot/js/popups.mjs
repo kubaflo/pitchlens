@@ -84,7 +84,8 @@ export class PopupHost {
                 if (this.floating === dialog) { this.observer?.disconnect(); this.floating = null; this.anchor = null; }
                 if (this.doc.querySelector("dialog[open]") || !restoreFocus) return;
                 const opener = this.openers.get(dialog);
-                if (opener?.isConnected) opener.focus({ preventScroll: true });
+                const target = opener?.isConnected && !opener.hidden ? opener : this.doc.getElementById("pitch");
+                target?.focus({ preventScroll: true });
             };
             const backdrop = event => {
                 if (isPlayerFlow(dialog.id) || event.target !== dialog) return;

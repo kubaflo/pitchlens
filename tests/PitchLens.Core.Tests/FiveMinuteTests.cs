@@ -82,6 +82,7 @@ public sealed class FiveMinuteTests
     {
         var clock = new TestClock();
         using var controller = new ReplayPresentation(FiveMinuteRecording.Create(), clock);
+        controller.SetHighlights(false);
         controller.Toggle();
         clock.Seconds = 301;
         var end = controller.Sample(true)!;

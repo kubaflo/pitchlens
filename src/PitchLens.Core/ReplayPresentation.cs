@@ -1,7 +1,8 @@
 namespace PitchLens.Core;
 
 public sealed record PresentationFrame(long Revision, long Sequence, Match Match, Snapshot Snapshot, bool Playing,
-    string SelectedId, ExplanationMode Mode, IReadOnlyList<Explanation> Explanations, IReadOnlyList<StoryMoment> Story, double Rate);
+    string SelectedId, ExplanationMode Mode, IReadOnlyList<Explanation> Explanations, IReadOnlyList<StoryMoment> Story, double Rate,
+    double EffectiveRate, bool HighlightsEnabled, bool HighlightActive);
 
 public sealed class ReplayPresentation : IDisposable
 {
@@ -26,12 +27,13 @@ public sealed class ReplayPresentation : IDisposable
     public bool Playing => playback.IsPlaying;
     public double Position => playback.Position;
     public double Rate => playback.Rate;
+    public bool HighlightsEnabled => playback.HighlightsEnabled;
 
     public ReplayPresentation(Match match, IMonotonicClock clock)
     {
         Match = match;
         this.clock = clock;
-        playback = new(match.Duration, clock);
+        playback = CreatePlayback(match);
         SelectedId = match.Players[0].Id;
     }
 
@@ -65,7 +67,8 @@ public sealed class ReplayPresentation : IDisposable
             StoryComputations++;
             storyCount = beats;
         }
-        return new(Revision, ++sequence, Match, snapshot, playback.IsPlaying, SelectedId, Mode, explanations, story, playback.Rate);
+        return new(Revision, ++sequence, Match, snapshot, playback.IsPlaying, SelectedId, Mode, explanations, story, playback.Rate,
+            playback.EffectiveRate, playback.HighlightsEnabled, playback.HighlightActive);
     }
 
     public void Play() { ObjectDisposedException.ThrowIf(disposed, this); playback.Play(); }
@@ -73,6 +76,15 @@ public sealed class ReplayPresentation : IDisposable
     public void Seek(double time) { ObjectDisposedException.ThrowIf(disposed, this); playback.Seek(time); }
     public void Restart() { ObjectDisposedException.ThrowIf(disposed, this); playback.Restart(); }
     public void SetRate(double rate) { ObjectDisposedException.ThrowIf(disposed, this); playback.SetRate(rate); }
+    public void SetHighlights(bool enabled) { ObjectDisposedException.ThrowIf(disposed, this); playback.SetHighlights(enabled); }
+    public void WatchGoal(string id)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        var goal = Match.Events.Single(e => e.Id == id && e.Kind == EventKind.Goal);
+        if (goal.Time > playback.Position) throw new InvalidOperationException("Only observed goals can be watched.");
+        var highlight = GoalHighlights.For(Match).Single(h => h.EventId == id);
+        playback.SetHighlights(true); playback.Seek(highlight.BuildUpStart); playback.Play();
+    }
     public void Toggle()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
@@ -98,8 +110,10 @@ public sealed class ReplayPresentation : IDisposable
         playback.Pause();
         Match = match;
         var rate = playback.Rate;
-        playback = new(match.Duration, clock);
+        var highlights = playback.HighlightsEnabled;
+        playback = CreatePlayback(match);
         playback.SetRate(rate);
+        playback.SetHighlights(highlights);
         if (!match.Players.Any(p => p.Id == SelectedId)) SelectedId = match.Players[0].Id;
         Revision++;
         eventCount = storyCount = -1;
@@ -112,4 +126,6 @@ public sealed class ReplayPresentation : IDisposable
         playback.Pause();
         disposed = true;
     }
+    private Playback CreatePlayback(Match match) => new(match.Duration, clock,
+        GoalHighlights.For(match).Select(h => new PlaybackRateWindow(h.BuildUpStart, h.End)));
 }

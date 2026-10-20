@@ -73,23 +73,39 @@ scenario labeled **Fresh SDK / gpt-6.1-sol**; its actions remain synthetic.
 Restart resets playback, not the scenario. Reopening starts the bundled example;
 subsequent generated scenarios are not automatically persisted.
 
-The pitch shows a concise latest observed action. Goals now get a large
-club-coloured **GOAL!** plate, crest/scorer/score reveal, scorer spotlight and
-short deterministic net-side burst for eight seconds of **playback time**.
-These freeze on pause and reset correctly on seeks/restart; score still changes
-at the exact goal event, never from an animation callback or wall-clock timer.
+The pitch shows a concise latest observed action. Goal presentation focuses on
+the football rather than a large poster: visible posts/net depth outside each
+touchline, an actual shot-flight streak, contact/ripple at the authored goal
+point, scorer spotlight and a short in-place sprite reaction. A compact
+scorebug stays visible; a narrow club/scorer lower third replaces the oversized
+GOAL plate. All player centres remain the model's explicit positions.
 
-During the dead-ball interval, **Goal replays** (on by default) shows a labelled
-replay of the actual AI-authored goal move, then cuts directly back to the live
-kickoff. It replaces the uninteresting goal-to-centre ball drift without
-inventing player motion, changing match time or adding another goal. The clock,
-score, facts and commentary remain at authoritative match time; only the
-explicitly labelled replay camera samples earlier, already-observed knots.
-Shirt buttons/hit tests/following lenses use those actual displayed positions.
-Settings can disable the extra camera; reduced-motion preferences also suppress
-it and the decorative motion. No automatic time jump, playback pause or new
-model request occurs for a goal. The fixture heading replaces generic marketing
-copy, and subtitles use a stronger 22 px broadcast treatment.
+**Goal highlights** (on by default) moves from the wide tactical overview to an
+original contextual 2D camera fitting the actual pass/carry/shooter/goal region.
+It includes ten seconds of authored buildup, the finish, a two-second reaction,
+then a labelled replay and cut to kickoff. The one-second authored shots are
+now readable **one-wall-second** flights at selected 1x/3x/5x, rather than the
+previous 0.333/0.2-second flashes. The native monotonic clock temporarily uses
+**effective 1x** over the highlight, while keeping the selected **base rate**
+visible and restoring it exactly at kickoff. Typed packets and JS projection
+integrate the same window boundaries, including between native updates.
+
+Clock, score, facts and commentary remain at authoritative match time; only
+the explicitly labelled replay camera samples earlier, observed knots. No time
+jump, duplicate goal, invented player route or JS-only independent clock is used.
+The shared camera/backing transform also drives buttons, inverse hit mapping
+and following lenses; off-camera buttons/lenses are hidden rather than escaping
+the pitch slot. Observed-goal timeline buttons explicitly watch the actual
+buildup; unseen goals are not exposed. Settings can disable highlights;
+reduced motion keeps the tactical camera and suppresses ripple/extra motion.
+No new AI request is needed for a goal.
+
+These are original 2D adaptations of contextual match cameras and
+finish-appropriate highlights discussed in the official
+[Football Manager match-day article](https://www.footballmanager.com/the-dugout/maximising-your-match-days-fm26),
+not copied game code, artwork, fonts, skins, Unity rendering or mocap. PitchLens
+is not affiliated with Football Manager. It remains a 2D viewer, not a 3D
+match engine or newly generated celebration simulation.
 Match notes show completed phases, evidence event IDs and trajectory-derived
 movement. A beat is revealed only after its full time range has elapsed, so
 backward seeks remove future event/movement claims. Explanatory sentences are
@@ -127,10 +143,15 @@ monotonic clock without moving the playhead; JS projects from that anchor with
 the same rate, exactly once. Pause, seek, goals and subtitles share replay time.
 At 5x only the current cue is shown, with no queued-caption backlog. CC does
 not reset playback. Restart and scenario replacement retain the selected rate
-and CC preference; reopening defaults to **3x / CC on**. Match duration stays 300
-replay seconds (100 wall seconds at uninterrupted 3x), and player statistics are not
+and CC/highlight preference; reopening defaults to **base 3x / CC on / highlights on**.
+Match duration stays 300 replay seconds, and player statistics are not
 multiplied by presentation speed. Native timer snapshots remain at most 4 Hz
 in wall time at every rate; cues cross interop once per scene.
+For the recorded 76-96s and 166-186s highlight windows, total continuous wall
+duration is about **126.667s at base3x** or **92s at base5x**, with a readable
+1x shot, two-wall-second reaction and about eight seconds of actual replay at
+each goal. With highlights off, plain 3x/5x returns to 100s/60s. Pausing,
+seeking, changing base rate and replacement re-anchor without jumps.
 
 ### Authentication and the compatible runtime
 
@@ -488,8 +509,10 @@ roster, disclosures, mode buttons and transport. Check all 300 seconds and
 the far end), verify that exact player's following lens while playback continues,
 switch players, then test Close/Escape/outside and focus return. Repeat while
 paused: no action may autoplay. Resize/seek/change speed with the lens open.
-Observe the goal impact and labelled replay at 86 and 176 seconds, followed by
-the cut to the authored kickoff. Test Goal replays off and reduced motion;
+Observe goal buildup from 76/166s, the actual finishes at 86/176s, net reaction
+and labelled replay followed by kickoff. Check selected base3x/5x versus
+effective1x, restoration at 96/186s, timeline goal watching and camera-aligned
+shirt/lens selection. Test Goal highlights off and reduced motion;
 pause, seek backward and restart must preserve factual timing without duplicates.
 Open Match story and seek an observed event. Try each speed while playing and
 paused, seek in both directions, and restart: rate stays selected without a

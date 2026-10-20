@@ -54,6 +54,7 @@ public sealed class RateAndCommentaryTests
         {
             var clock = new Clock();
             using var surface = new ReplayPresentation(FiveMinuteRecording.Create(), clock);
+            surface.SetHighlights(false);
             surface.SetRate(rate);
             surface.Play();
             for (int i = 0; i <= 10 * frequency; i++)

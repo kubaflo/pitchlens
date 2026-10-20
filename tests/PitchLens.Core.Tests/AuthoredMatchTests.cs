@@ -52,7 +52,7 @@ public sealed class AuthoredMatchTests
             if (match.OwnerAt(time) is { } owner)
                 Assert.True(match.Player(owner).Path.At(time).DistanceTo(match.Ball.At(time)) < 1e-8);
         }
-        clock.Seconds = 100;
+        clock.Seconds = 200;
         Assert.Equal(300, surface.Sample(true)!.Snapshot.Time);
         surface.Toggle();
         Assert.Equal(0, surface.Position);

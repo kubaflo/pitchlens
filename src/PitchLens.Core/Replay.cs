@@ -17,16 +17,28 @@ public sealed class Playback
 {
     private readonly IMonotonicClock clock;
     private readonly double duration;
+    private readonly IReadOnlyList<PlaybackRateWindow> rateWindows;
     private double position, anchor;
     public bool IsPlaying { get; private set; }
     public double Rate { get; private set; } = 3;
+    public bool HighlightsEnabled { get; private set; } = true;
+    public bool HighlightActive { get { var time = Position; return HighlightsEnabled && rateWindows.Any(w => w.Start <= time && time < w.End); } }
+    public double EffectiveRate => HighlightActive ? 1 : Rate;
     public static bool IsSupportedRate(double rate) => rate is 1 or 2 or 3 or 5;
 
-    public Playback(double duration, IMonotonicClock clock)
+    public Playback(double duration, IMonotonicClock clock, IEnumerable<PlaybackRateWindow>? windows = null)
     {
         if (!double.IsFinite(duration) || duration <= 0) throw new ArgumentOutOfRangeException(nameof(duration));
         this.duration = duration;
         this.clock = clock;
+        var ordered = (windows ?? []).OrderBy(w => w.Start).ToArray();
+        if (ordered.Any(w => !double.IsFinite(w.Start) || !double.IsFinite(w.End) || w.Start < 0 || w.End <= w.Start || w.End > duration))
+            throw new ArgumentException("Invalid highlight rate window.", nameof(windows));
+        var merged = new List<PlaybackRateWindow>();
+        foreach (var window in ordered)
+            if (merged.Count > 0 && window.Start <= merged[^1].End) merged[^1] = merged[^1] with { End = Math.Max(merged[^1].End, window.End) };
+            else merged.Add(window);
+        rateWindows = merged;
     }
 
     public double Position
@@ -35,7 +47,7 @@ public sealed class Playback
         {
             if (IsPlaying)
             {
-                var current = Math.Min(duration, position + Math.Max(0, clock.Seconds - anchor) * Rate);
+                var current = Advance(position, Math.Max(0, clock.Seconds - anchor));
                 if (current < duration) return current;
                 position = duration;
                 IsPlaying = false;
@@ -77,6 +89,26 @@ public sealed class Playback
         position = Position;
         anchor = clock.Seconds;
         Rate = rate;
+    }
+    public void SetHighlights(bool enabled)
+    {
+        position = Position;
+        anchor = clock.Seconds;
+        HighlightsEnabled = enabled;
+    }
+    private double Advance(double from, double wallSeconds)
+    {
+        if (!HighlightsEnabled || rateWindows.Count == 0) return Math.Min(duration, from + wallSeconds * Rate);
+        while (from < duration && wallSeconds > 0)
+        {
+            var active = rateWindows.FirstOrDefault(w => w.Start <= from && from < w.End);
+            var boundary = active?.End ?? rateWindows.FirstOrDefault(w => w.Start > from)?.Start ?? duration;
+            var rate = active is null ? Rate : 1;
+            var required = (boundary - from) / rate;
+            if (wallSeconds <= required) return Math.Min(duration, from + wallSeconds * rate);
+            from = boundary; wallSeconds -= required;
+        }
+        return from;
     }
 }
 

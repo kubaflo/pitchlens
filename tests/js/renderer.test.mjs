@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-const { initialize, loadScenario, setClock, diagnostics, dispose, openPopup, closePopup, setCaptionsEnabled, setGoalReplaysEnabled } =
+const { initialize, loadScenario, setClock, diagnostics, dispose, openPopup, closePopup, setCaptionsEnabled } =
     await import(process.env.PITCH_TEST_RENDERER || new URL("../../src/PitchLens.App/wwwroot/js/pitch.mjs", import.meta.url));
-import { at, fit } from "../../src/PitchLens.App/wwwroot/js/replay.mjs";
+import { at } from "../../src/PitchLens.App/wwwroot/js/replay.mjs";
+import { fitView, ARENA } from "../../src/PitchLens.App/wwwroot/js/viewport.mjs";
 
 test("production renderer aligns22 accessible player buttons with shirts and dispatches click→popup at changing1x/2x", () => {
     const keys = ["window", "document", "ResizeObserver", "requestAnimationFrame", "cancelAnimationFrame", "performance"];
@@ -19,14 +20,14 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
     const motion = { matches: false, addEventListener: (name, fn) => motionHandlers.set(name, fn), removeEventListener: name => motionHandlers.delete(name) };
     let observation;
     class Context {
-        matrix = [1, 0, 0, 1, 0, 0]; labels = []; field = null;
+        matrix = [1, 0, 0, 1, 0, 0]; labels = []; field = null; fills = [];
         setTransform(...m) { this.matrix = m; }
         translate(x, y) {
             const m = this.matrix;
             m[4] += m[0] * x + m[2] * y; m[5] += m[1] * x + m[3] * y;
         }
         scale(x, y) { const m = this.matrix; m[0] *= x; m[1] *= x; m[2] *= y; m[3] *= y; }
-        fillRect() {} clearRect() { this.labels = []; } drawImage() {}
+        fillRect(x, y, width, height) { this.fills.push({ x, y, width, height }); } clearRect() { this.labels = []; } drawImage() {}
         strokeRect(x, y, w, h) { if (w === 105 && h === 68) this.field = [...this.matrix]; }
         beginPath() {} moveTo() {} lineTo() {} stroke() {} arc() {} fill() {}
         fillText(text, x, y) {
@@ -130,6 +131,8 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
             return Promise.resolve();
         } });
         loadScenario(JSON.stringify(clip));
+        assert.ok(background.fills.some(r => r.x === -3 && r.width === 3 && r.height === 7.32), "left goal net has visible depth outside touchline");
+        assert.ok(background.fills.some(r => r.x === 105 && r.width === 3 && r.height === 7.32), "right goal net has visible depth outside touchline");
         assert.equal(layer.children.length, 22);
         const originalButtons = [...layer.children];
         const drawnOrder = [...clip.players].sort((a, b) => a.id < b.id ? 1 : -1);
@@ -140,7 +143,7 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
             if (!process.env.PITCH_TEST_STABLE_DPR) window.devicePixelRatio = density === 2 ? 1 : 2;
             for (const time of [0, 66.8, 120, 180, 240, 300]) {
                 setClock(JSON.stringify({ revision: 1, sequence: ++sequence, time, playing: false, selectedId: "arsenal-saka" }));
-                const transform = fit(rect.width, rect.height), raster = canvas.width / rect.width;
+                const transform = fitView(rect.width, rect.height, ARENA), raster = canvas.width / rect.width;
                 for (const player of clip.players) {
                     const position = at(player.frames, time);
                     const drawn = context.labels[drawnOrder.findIndex(p => p.id === player.id)];
@@ -259,38 +262,50 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         const replacementButtons = [...layer.children];
         loadScenario(JSON.stringify(clip)); // Stale scene must not replace the current controls.
         assert.deepEqual(layer.children, replacementButtons);
-        const goalClip = { ...clip, revision: 3, goals: [{
+        const goalClip = { ...clip, revision: 3, focusWindows: [{ start: 39, end: 59 }],
+            ball: [{ time: 0, x: 20, y: 12 }, { time: 39, x: 75, y: 46 }, { time: 47, x: 87, y: 54 },
+                { time: 49, x: 105, y: 34 }, { time: 59, x: 52.5, y: 34 }, { time: 300, x: 30, y: 18 }], goals: [{
             id: "g", time: 49, shotStart: 47, restartTime: 59, scorer: "Bukayo Saka", scorerId: "arsenal-saka",
             teamId: "arsenal", teamName: "Arsenal"
         }], players: clip.players.map(p => p.id === "arsenal-saka" ? { ...p,
             frames: [{ time: 0, x: 20, y: 12 }, { time: 49, x: 90, y: 56 }, { time: 300, x: 30, y: 18 }] } : p) };
         observation();
         loadScenario(JSON.stringify(goalClip));
-        setClock(JSON.stringify({ revision: 3, sequence: ++sequence, time: 49, playing: false, rate: 3 }));
+        for (const rate of [1, 3, 5]) {
+            setClock(JSON.stringify({ revision: 3, sequence: ++sequence, time: 48, playing: true, rate, highlightsEnabled: true }));
+            const startWall = wall;
+            wall = startWall + 1000;
+            assert.ok(nextFrame); nextFrame();
+            assert.equal(diagnostics().time, 49, "one-second actual shot is visible for one wall second at every base rate");
+            assert.equal(goalNodes["goal-title"].textContent, "Bukayo Saka");
+        }
+        setClock(JSON.stringify({ revision: 3, sequence: ++sequence, time: 49, playing: false, rate: 3, highlightsEnabled: true }));
         assert.equal(goalNodes["goal-banner"].hidden, false);
         assert.equal(goalNodes["goal-title"].textContent, "Bukayo Saka");
         assert.equal(goalNodes["goal-team"].textContent, "Arsenal");
         assert.equal(goalNodes["goal-score"].textContent, "1 : 0");
         assert.equal(goalNodes["goal-crest"].attributes.src, "images/arsenal_crest.png");
-        setClock(JSON.stringify({ revision: 3, sequence: ++sequence, time: 52, playing: false, rate: 3 }));
+        setClock(JSON.stringify({ revision: 3, sequence: ++sequence, time: 52, playing: false, rate: 3, highlightsEnabled: true }));
         assert.equal(diagnostics().time, 52, "clock remains authoritative while camera shows goal footage");
         assert.ok(diagnostics().renderTime < 49);
+        assert.equal(layer.children.find(b => b.dataset.playerId === "arsenal-raya").hidden, true, "off-camera targets cannot spill over transport");
         assert.equal(goalNodes["goal-replay-tag"].hidden, false);
         const filmed = at(goalClip.players.find(p => p.id === "arsenal-saka").frames, diagnostics().renderTime);
-        const transform = fit(rect.width, rect.height);
+        const transform = diagnostics().viewport.field;
         callbacks.get("pointerdown")({ clientX: rect.left + transform.left + filmed.x * transform.scale,
             clientY: rect.top + transform.top + filmed.y * transform.scale });
         assert.deepEqual(native.at(-1), ["SelectFromPitch", "arsenal-saka"], "replay clicks hit the displayed footage, not later live positions");
         assert.equal(dialog.open, true);
-        setGoalReplaysEnabled(false);
+        setClock(JSON.stringify({ revision: 3, sequence: ++sequence, time: 52, playing: false, rate: 3, highlightsEnabled: false }));
         assert.equal(diagnostics().renderTime, 52);
+        assert.equal(layer.children.find(b => b.dataset.playerId === "arsenal-raya").hidden, false);
         assert.equal(diagnostics().time, 52);
-        setGoalReplaysEnabled(true);
+        setClock(JSON.stringify({ revision: 3, sequence: ++sequence, time: 52, playing: false, rate: 3, highlightsEnabled: true }));
         assert.ok(diagnostics().renderTime < 49);
         motion.matches = true; motionHandlers.get("change")();
         assert.equal(diagnostics().renderTime, 52, "system reduced-motion preference suppresses extra camera jumps");
         motion.matches = false; motionHandlers.get("change")();
-        setClock(JSON.stringify({ revision: 3, sequence: ++sequence, time: 59, playing: true, rate: 5 }));
+        setClock(JSON.stringify({ revision: 3, sequence: ++sequence, time: 59, playing: true, rate: 5, highlightsEnabled: true }));
         assert.equal(diagnostics().renderTime, 59);
         assert.equal(goalNodes["goal-replay-tag"].hidden, true);
         assert.equal(goalNodes["match-score"].textContent, "1 : 0");

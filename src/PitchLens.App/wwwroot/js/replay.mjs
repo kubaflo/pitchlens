@@ -51,11 +51,32 @@ export function captionAt(cues, time, enabled = true) {
     while (low < high) { const mid = (low + high) >>> 1; if (cues[mid].start <= time) low = mid + 1; else high = mid; }
     return low > 0 && time < cues[low - 1].end ? cues[low - 1] : null;
 }
+export function advancePlayback(position, wallSeconds, duration, rate, windows = [], enabled = false) {
+    if (!enabled || !windows.length) return Math.min(duration, position + wallSeconds * rate);
+    while (position < duration && wallSeconds > 0) {
+        const active = windows.find(w => w.start <= position && position < w.end);
+        const boundary = active?.end ?? windows.find(w => w.start > position)?.start ?? duration;
+        const effective = active ? 1 : rate, required = (boundary - position) / effective;
+        if (wallSeconds <= required) return Math.min(duration, position + wallSeconds * effective);
+        position = boundary; wallSeconds -= required;
+    }
+    return position;
+}
 export class ProjectionClock {
     revision = 0; sequence = -1; position = 0; anchor = 0; playing = false; duration = 0; rate = 3;
-    reset(revision, duration, now) {
+    windows = []; highlightsEnabled = false;
+    reset(revision, duration, now, windows = []) {
         this.revision = revision; this.duration = duration; this.sequence = -1;
         this.position = 0; this.anchor = now; this.playing = false; this.rate = 3;
+        this.windows = [];
+        for (const window of [...windows].sort((a, b) => a.start - b.start)) {
+            if (!Number.isFinite(window.start) || !Number.isFinite(window.end) || window.start < 0 || window.end <= window.start || window.end > duration)
+                throw new RangeError("Invalid highlight rate window.");
+            const previous = this.windows.at(-1);
+            if (previous && window.start <= previous.end) previous.end = Math.max(previous.end, window.end);
+            else this.windows.push({ ...window });
+        }
+        this.highlightsEnabled = false;
     }
     apply(packet, now) {
         if (packet.revision !== this.revision || packet.sequence <= this.sequence) return false;
@@ -64,10 +85,16 @@ export class ProjectionClock {
         if (![1, 2, 3, 5].includes(rate)) throw new RangeError("Invalid replay rate.");
         this.sequence = packet.sequence; this.position = packet.time;
         this.anchor = now; this.playing = packet.playing; this.rate = rate;
+        this.highlightsEnabled = packet.highlightsEnabled ?? false;
         return true;
     }
     time(now) {
-        return Math.min(this.duration, Math.max(0, this.position + (this.playing ? Math.max(0, now - this.anchor) / 1000 * this.rate : 0)));
+        return this.playing ? advancePlayback(this.position, Math.max(0, now - this.anchor) / 1000,
+            this.duration, this.rate, this.windows, this.highlightsEnabled) : this.position;
+    }
+    effectiveRate(now) {
+        const time = this.time(now);
+        return this.highlightsEnabled && this.windows.some(w => w.start <= time && time < w.end) ? 1 : this.rate;
     }
     freeze(now) {
         this.position = this.time(now); this.anchor = now; this.playing = false;
@@ -85,7 +112,7 @@ export class ReplayEngine {
         this.scenario = scenario;
         this.lastDrawTime = 0;
         this.drawPlayers = [...scenario.players].sort((a, b) => a.id < b.id ? 1 : -1);
-        this.clock.reset(scenario.revision, scenario.duration, now);
+        this.clock.reset(scenario.revision, scenario.duration, now, scenario.focusWindows ?? []);
         this.diagnostics.scenarioLoads++; return true;
     }
     update(packet, now) {
@@ -100,9 +127,9 @@ export class ReplayEngine {
     }
     caption(time = this.lastDrawTime) { return this.disposed ? null : captionAt(this.scenario?.captions, time, this.captionsEnabled); }
     setCaptionsEnabled(enabled) { if (!this.disposed) this.captionsEnabled = enabled; }
-    select(x, y, width, height, now) {
+    select(x, y, width, height, now, transform = null) {
         if (this.disposed || !this.scenario) return;
-        const id = hit(this.scenario.players, this.lastDrawTime, fit(width, height), x, y);
+        const id = hit(this.scenario.players, this.lastDrawTime, transform ?? fit(width, height), x, y);
         if (id) this.selectPlayer(id);
     }
     selectPlayer(id) {

@@ -1,14 +1,14 @@
 import { ReplayEngine, at, keyboardAction } from "./replay.mjs";
-import { broadcastFrame, goalParticles } from "./broadcast.mjs";
+import { broadcastFrame, prepareBroadcast, netPoints } from "./broadcast.mjs";
 import { PopupHost } from "./popups.mjs";
-import { viewportMap, applyField, fieldToViewport, pointerInDrawnViewport } from "./viewport.mjs";
+import { ARENA, viewportMap, backgroundTransform, applyField, fieldToViewport, pointerInDrawnViewport } from "./viewport.mjs";
 
 let engine, canvas, viewport, context, background, observer, reference, frameId = null;
 let pointerHandler, visibilityHandler, keyboardHandler, rangeDown, rangeUp, range, width = 0, height = 0, dragging = false;
 let popups = null, lensPlayerId = null, canvasBox = null, geometryHandler = null;
-let map = null;
+let map = null, wideMap = null, markerSize = null;
 let playerLayer = null;
-let goalReplaysEnabled = true, reducedMotion = false, motionQuery = null, motionHandler = null, lastClockTime = 0;
+let reducedMotion = false, motionQuery = null, motionHandler = null, lastClockTime = 0;
 const playerTargets = new Map();
 const now = () => performance.now();
 
@@ -39,7 +39,7 @@ export function initialize(element, dotnet) {
     pointerHandler = event => {
         const box = canvas.getBoundingClientRect();
         const point = map && pointerInDrawnViewport(map, box, event.clientX, event.clientY);
-        if (point) engine?.select(point.x, point.y, map.width, map.height, now());
+        if (point) engine?.select(point.x, point.y, map.width, map.height, now(), map.field);
     };
     canvas.addEventListener("pointerdown", pointerHandler);
     visibilityHandler = () => { if (document.hidden) { playerLayer.hidden = true; popups?.hidePlayer(true); engine?.hide(now()); stop(); } else { cacheGeometry(); draw(); } };
@@ -74,7 +74,9 @@ function resize() {
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
     background.width = canvas.width; background.height = canvas.height;
-    map = viewportMap(width, height, canvas.width, canvas.height);
+    wideMap = viewportMap(width, height, canvas.width, canvas.height, ARENA);
+    map = wideMap;
+    markerSize = null;
     cacheGeometry();
     playerLayer.style.setProperty("--player-size", `${Math.max(24, 4 * map.field.scale)}px`);
     const c = background.getContext("2d");
@@ -90,7 +92,21 @@ function resize() {
     c.strokeRect(0, 13.84, 16.5, 40.32); c.strokeRect(88.5, 13.84, 16.5, 40.32);
     c.strokeRect(0, 24.84, 5.5, 18.32); c.strokeRect(99.5, 24.84, 5.5, 18.32);
     c.lineWidth = .65; c.beginPath(); c.moveTo(0, 30.34); c.lineTo(0, 37.66); c.moveTo(105, 30.34); c.lineTo(105, 37.66); c.stroke();
+    drawNet(c, false); drawNet(c, true);
     draw();
+}
+function drawNet(c, right, elapsed = null, goalY = 34) {
+    const mesh = netPoints(right, elapsed, goalY, reducedMotion);
+    if (elapsed === null) { c.fillStyle = "#18382c"; c.fillRect(right ? 105 : -3, 30.34, 3, 7.32); }
+    c.lineWidth = .12; c.strokeStyle = elapsed === null ? "#b5cec1" : "#fff";
+    for (const row of mesh) {
+        c.beginPath(); row.forEach((p, i) => i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y)); c.stroke();
+    }
+    for (let column = 0; column < 5; column++) {
+        c.beginPath(); mesh.forEach((row, i) => i ? c.lineTo(row[column].x, row[column].y) : c.moveTo(row[column].x, row[column].y)); c.stroke();
+    }
+    c.lineWidth = .4; c.strokeStyle = "#f4f8ee";
+    c.beginPath(); c.moveTo(right ? 105 : 0, 30.34); c.lineTo(right ? 105 : 0, 37.66); c.stroke();
 }
 function circle(c, x, y, radius, fill, stroke) {
     c.beginPath(); c.arc(x, y, radius, 0, Math.PI * 2);
@@ -102,16 +118,17 @@ function draw() {
     if (!engine?.scenario || !canvas || !width || !height || document.hidden) return;
     const clockTime = engine.frame(now());
     lastClockTime = clockTime;
-    const broadcast = broadcastFrame(engine.scenario, clockTime, goalReplaysEnabled && !reducedMotion);
+    const broadcast = broadcastFrame(engine.scenario, clockTime, engine.clock.highlightsEnabled && !reducedMotion);
     const time = broadcast.time;
     engine.lastDrawTime = time; // Hit testing and following lenses use the actual replay camera, not a future live position.
     const following = popups?.floating?.id === "player-dialog";
     let lensPoint = null;
-    const c = context; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, canvas.width, canvas.height); c.drawImage(background, 0, 0);
+    map = viewportMap(width, height, canvas.width, canvas.height, broadcast.view);
+    const size = `${Math.max(24, 4 * map.field.scale)}px`;
+    if (markerSize !== size) { playerLayer.style.setProperty("--player-size", size); markerSize = size; }
+    const c = context; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, canvas.width, canvas.height);
+    c.setTransform(...backgroundTransform(wideMap, map)); c.drawImage(background, 0, 0);
     applyField(c, map);
-    if (broadcast.goal && broadcast.impact > 0 && !reducedMotion) {
-        c.globalAlpha = broadcast.impact * .22; c.fillStyle = "#37003c"; c.fillRect(0, 0, 105, 68); c.globalAlpha = 1;
-    }
     const selected = engine.scenario.players.find(p => p.id === engine.selectedId);
     if (selected) {
         c.beginPath();
@@ -124,39 +141,49 @@ function draw() {
         if (following && p.id === lensPlayerId) lensPoint = point;
         if (p.id === broadcast.goal?.scorerId) {
             c.lineWidth = .45;
-            circle(c, point.x, point.y, 3.2 + (reducedMotion ? 0 : broadcast.impact * 3), null, "#05f0ff");
+            circle(c, point.x, point.y, 3, null, "#05f0ff");
         }
         if (p.id === engine.selectedId) { c.lineWidth = .6; circle(c, point.x, point.y, 2.8, null, "#fff"); }
         circle(c, point.x + .15, point.y + .3, 2.2, "#23382b", null);
         c.lineWidth = .18; circle(c, point.x, point.y, 2, p.teamId === "arsenal" ? "#00ff87" : "#ff83b8", "#f4f4ef");
         c.fillStyle = "#37003c"; c.font = "700 2.5px Barlow, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
         c.fillText(String(p.number), point.x, point.y);
+        if (p.id === broadcast.goal?.scorerId && broadcast.phase === "reaction") {
+            c.strokeStyle = "#f4f8ee"; c.lineWidth = .35;
+            c.beginPath(); c.moveTo(point.x - 1, point.y - .5); c.lineTo(point.x - 2, point.y - 2);
+            c.moveTo(point.x + 1, point.y - .5); c.lineTo(point.x + 2, point.y - 2); c.stroke();
+            c.font = `600 ${Math.max(1.6, 16 / map.field.scale)}px Barlow, sans-serif`;
+            c.fillStyle = "#fff"; c.fillText(broadcast.goal.scorer, point.x, point.y + 3.8);
+        }
         const target = playerTargets.get(p.id);
         if (target) {
             const centre = fieldToViewport(map, point);
             target.button.style.transform = `translate(${centre.x}px, ${centre.y}px) translate(-50%, -50%)`;
+            target.button.hidden = centre.x < 0 || centre.x > width || centre.y < 0 || centre.y > height;
         }
     }
-    if (!broadcast.deadBall || broadcast.replay || broadcast.phase === "impact") {
-        if (broadcast.replay) for (let i = 3; i > 0; i--) {
-            const trail = at(engine.scenario.ball, Math.max(0, time - i * .16));
-            c.globalAlpha = (4 - i) * .12; circle(c, trail.x, trail.y, .7, "#05f0ff", null);
-        }
-        c.globalAlpha = 1;
+    const shot = (engine.scenario.goals ?? []).find(g => g.shotStart <= time && time <= g.time);
+    if (shot) {
+        const from = at(engine.scenario.ball, Math.max(shot.shotStart, time - .45)), to = at(engine.scenario.ball, time);
+        c.strokeStyle = "#fff"; c.lineWidth = .25; c.beginPath(); c.moveTo(from.x, from.y); c.lineTo(to.x, to.y); c.stroke();
+    }
+    if (broadcast.contact) {
+        const goal = broadcast.contact.goal, age = broadcast.contact.age, right = goal.teamId === "arsenal";
+        drawNet(c, right, age, goal.goalY ?? 34);
+        const settle = reducedMotion ? 1.5 : 1.8 * (1 - Math.exp(-age * 5));
+        circle(c, (goal.goalX ?? (right ? 105 : 0)) + (right ? settle : -settle), goal.goalY ?? 34, .65, "#fff", "#14281c");
+    } else if (!broadcast.deadBall || broadcast.replay) {
         const ball = at(engine.scenario.ball, time); c.lineWidth = .2; circle(c, ball.x, ball.y, .85, "#fff", "#000");
-    }
-    for (const particle of goalParticles(broadcast.goal, broadcast.elapsed, reducedMotion)) {
-        c.globalAlpha = particle.alpha;
-        circle(c, particle.x, particle.y, particle.radius, broadcast.goal.teamId === "arsenal" ? "#00ff87" : "#05f0ff", null);
     }
     c.globalAlpha = 1;
     updateTransport(clockTime, broadcast);
     if (lensPoint && canvasBox) {
         const local = fieldToViewport(map, lensPoint);
         const scaleX = canvasBox.width / map.width, scaleY = canvasBox.height / map.height;
-        popups.hidePlayer(false);
-        popups.follow({ x: canvasBox.left + local.x * scaleX, y: canvasBox.top + local.y * scaleY },
-            canvasBox, Math.max(12, 2.8 * map.field.scale * Math.max(scaleX, scaleY)) + 12);
+        const visible = local.x >= 0 && local.x <= width && local.y >= 0 && local.y <= height;
+        popups.hidePlayer(!visible);
+        if (visible) popups.follow({ x: canvasBox.left + local.x * scaleX, y: canvasBox.top + local.y * scaleY },
+                canvasBox, Math.max(12, 2.8 * map.field.scale * Math.max(scaleX, scaleY)) + 12);
     }
     playerLayer.hidden = false;
     if (engine.clock.playing && clockTime < engine.clock.duration) frameId = requestAnimationFrame(draw);
@@ -189,12 +216,13 @@ function buildPlayerTargets() {
 }
 export function loadScenario(json) {
     if (engine?.load(JSON.parse(json), now())) {
+        prepareBroadcast(engine.scenario);
         lastClockTime = 0;
         popups?.close("player-dialog", false); popups?.close("roster-dialog", false); lensPlayerId = null;
         buildPlayerTargets(); updateTransport(0); draw();
     }
 }
-function updateTransport(time, broadcast = broadcastFrame(engine.scenario, time, goalReplaysEnabled && !reducedMotion)) {
+function updateTransport(time, broadcast = broadcastFrame(engine.scenario, time, engine.clock.highlightsEnabled && !reducedMotion)) {
     const output = document.getElementById("replay-clock");
     if (output) output.textContent = `${time.toFixed(1).padStart(4, "0")} / ${engine.scenario.duration.toFixed(1)} s`;
     if (range && !dragging) range.value = String(time);
@@ -209,6 +237,15 @@ function updateTransport(time, broadcast = broadcastFrame(engine.scenario, time,
     const score = document.getElementById("match-score");
     const value = `${broadcast.score.arsenal} : ${broadcast.score["manchester-city"]}`;
     if (score && score.textContent !== value) score.textContent = value;
+    const bugScore = document.getElementById("pitch-bug-score"), bugClock = document.getElementById("pitch-bug-clock");
+    if (bugScore && bugScore.textContent !== value) bugScore.textContent = value;
+    if (bugClock) bugClock.textContent = `${Math.floor(time / 60)}:${String(Math.floor(time % 60)).padStart(2, "0")}`;
+    const pace = document.getElementById("effective-speed");
+    if (pace) {
+        const active = engine.clock.highlightsEnabled && engine.clock.windows.some(w => w.start <= time && time < w.end);
+        const label = active ? `Highlight ${engine.clock.effectiveRate(now())}x · base ${engine.clock.rate}x` : `${engine.clock.rate}x`;
+        if (pace.textContent !== label) pace.textContent = label;
+    }
     const banner = document.getElementById("goal-banner");
     if (banner) {
         banner.hidden = !broadcast.goal;
@@ -220,7 +257,6 @@ function updateTransport(time, broadcast = broadcastFrame(engine.scenario, time,
             if (detail.textContent !== facts) detail.textContent = facts;
             if (banner.getAttribute("data-team") !== broadcast.goal.teamId) banner.setAttribute("data-team", broadcast.goal.teamId);
             if (banner.getAttribute("data-phase") !== broadcast.phase) banner.setAttribute("data-phase", broadcast.phase);
-            banner.style.setProperty("--goal-reveal", String(reducedMotion ? 1 : broadcast.reveal));
             banner.style.setProperty("--goal-fade", String(broadcast.fade));
             const crest = document.getElementById("goal-crest"), team = document.getElementById("goal-team"), goalScore = document.getElementById("goal-score");
             const image = `images/${broadcast.goal.teamId === "arsenal" ? "arsenal" : "manchester_city"}_crest.png`;
@@ -233,7 +269,6 @@ function updateTransport(time, broadcast = broadcastFrame(engine.scenario, time,
     if (replayTag) replayTag.hidden = !broadcast.replay;
 }
 export function setCaptionsEnabled(enabled) { engine?.setCaptionsEnabled(enabled); draw(); }
-export function setGoalReplaysEnabled(enabled) { goalReplaysEnabled = enabled; draw(); }
 export function setClock(json) {
     if (engine?.update(JSON.parse(json), now())) {
         updateTransport(engine.clock.time(now()));
@@ -270,9 +305,9 @@ export function dispose() {
     engine?.dispose();
     clearPlayerTargets();
     engine = canvas = viewport = context = background = observer = reference = range = null;
-    map = null;
+    map = wideMap = null; markerSize = null;
     playerLayer = null;
-    motionQuery = motionHandler = null; reducedMotion = false; goalReplaysEnabled = true; lastClockTime = 0;
+    motionQuery = motionHandler = null; reducedMotion = false; lastClockTime = 0;
     geometryHandler = null;
     pointerHandler = visibilityHandler = keyboardHandler = rangeDown = rangeUp = null;
 }
