@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-const { initialize, loadScenario, setClock, diagnostics, dispose, openPopup, closePopup, setCaptionsEnabled } =
+const { initialize, loadScenario, setClock, diagnostics, dispose, openPopup, closePopup, setCaptionsEnabled, setEvidence } =
     await import(process.env.PITCH_TEST_RENDERER || new URL("../../src/PitchLens.App/wwwroot/js/pitch.mjs", import.meta.url));
 import { at } from "../../src/PitchLens.App/wwwroot/js/replay.mjs";
 import { fitView, ARENA } from "../../src/PitchLens.App/wwwroot/js/viewport.mjs";
@@ -12,7 +12,7 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
     const native = [], callbacks = new Map(), documentHandlers = new Map(), observers = [];
     let wall = 0, nextFrame = null, canvasReads = 0, cardReads = 0;
     const caption = { hidden: true, textContent: "", setAttribute() {}, set innerHTML(value) { throw new Error("Model text must not be parsed as HTML"); } };
-    const goalNodes = Object.fromEntries(["goal-banner", "goal-title", "goal-detail", "goal-team", "goal-score", "goal-crest", "goal-replay-tag", "match-score"].map(id => [id, {
+    const goalNodes = Object.fromEntries(["goal-banner", "goal-title", "goal-detail", "goal-team", "goal-score", "goal-crest", "goal-replay-tag", "match-score", "evidence-view-tag"].map(id => [id, {
         hidden: true, textContent: "", attributes: {}, style: { setProperty(name, value) { this[name] = value; } },
         setAttribute(name, value) { this.attributes[name] = value; }, getAttribute(name) { return this.attributes[name]; }
     }]));
@@ -223,6 +223,20 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
             assert.equal(document.activeElement, transport, "outside close must not steal transport focus");
         }
         setClock(JSON.stringify({ revision: 1, sequence: ++sequence, time: 30, playing: false, rate: 3 }));
+        const evidenceFact = { id: "observed-pass", start: 28, time: 30,
+            ball: [28, 30].map(time => ({ time, ...at(clip.ball, time) })) };
+        const evidenceNotifications = native.length;
+        setEvidence(1, JSON.stringify(evidenceFact));
+        assert.equal(goalNodes["evidence-view-tag"].hidden, false);
+        assert.match(goalNodes["evidence-view-tag"].textContent, /PINNED EVIDENCE.*30.0s.*Paused historical/);
+        assert.equal(native.length, evidenceNotifications, "pin drawing makes no SDK/native request");
+        assert.equal(diagnostics().time, diagnostics().renderTime, "evidence never substitutes a different footage time");
+        for (const player of clip.players) {
+            const button = layer.children.find(b => b.dataset.playerId === player.id), box = button.getBoundingClientRect();
+            const world = at(player.frames, 30), field = diagnostics().viewport.field;
+            assert.ok(Math.abs(box.left + box.width / 2 - rect.left - field.left - world.x * field.scale) < 1e-8);
+        }
+        assert.throws(() => setEvidence(2, JSON.stringify(evidenceFact)), /paused match/);
         openPopup("player-dialog", "arsenal-saka");
         assert.equal(nextFrame, null, "opening while paused must not autoplay");
         const pausedTime = diagnostics().time;
@@ -232,6 +246,7 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         assert.equal(nextFrame, null);
         openPopup("player-dialog", "arsenal-saka");
         setClock(JSON.stringify({ revision: 1, sequence: ++sequence, time: 240, playing: false, rate: 5 }));
+        assert.equal(goalNodes["evidence-view-tag"].hidden, true, "seeking removes pinned historical overlay");
         const seekCard = position();
         setClock(JSON.stringify({ revision: 1, sequence: ++sequence, time: 0, playing: false, rate: 5 }));
         assert.notDeepEqual(position(), seekCard);

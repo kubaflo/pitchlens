@@ -2,6 +2,23 @@ using PitchLens.Core;
 using PitchLens.Generation;
 using GitHub.Copilot;
 
+if (args is ["--explain-live", var explainRuntime, var explainDirectory, var explainWitness])
+{
+    var match = AuthoredMatchRecording.Create();
+    var goal = match.Events.First(e => e.Kind == EventKind.Goal);
+    var evidence = MomentEvidence.Capture(match, 1, goal.Time, goal.Id);
+    var momentSource = new CopilotMomentSource(explainRuntime, explainDirectory, explainWitness);
+    using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(270));
+    try
+    {
+        var raw = await momentSource.ExplainAsync(evidence, deadline.Token);
+        var answer = evidence.Validate(raw);
+        Console.WriteLine($"LIVE EXPLANATION VALIDATED | model={CopilotScenarioSource.Model} | cutoff={evidence.Cutoff} | hash={evidence.Hash} | tools={momentSource.ToolCalls} | fan={answer.Fan.Length} | analyst={answer.Analyst.Length}");
+        return 0;
+    }
+    catch (Exception e) when (e is ScenarioValidationException or CopilotGenerationException or OperationCanceledException or IOException)
+    { Console.Error.WriteLine($"LIVE EXPLANATION NOT VERIFIED: {e.Message} | tools={momentSource.ToolCalls}"); return 1; }
+}
 string? fullWorkingDirectory = null;
 string? preservedPathsFile = null;
 if (args is ["--live-at", var fullRuntimePath, var fullDirectory, var fullOutput])

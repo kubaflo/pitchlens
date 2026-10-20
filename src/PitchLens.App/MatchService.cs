@@ -10,6 +10,8 @@ public sealed class MatchService : IDisposable
     private readonly object gate = new();
     private readonly ReplayPresentation presentation = new(AuthoredMatchRecording.Create(), new MonotonicClock());
     private readonly GenerationService generation;
+    public MomentExplanationService Explainer { get; }
+    public MomentEvidence? ExplanationSnapshot { get; private set; }
     private CancellationTokenSource? cancellation;
     private CancellationTokenSource? connectionCancellation;
     private bool disposed;
@@ -29,6 +31,8 @@ public sealed class MatchService : IDisposable
     public MatchService()
     {
         generation = new(new NativeSource(this), presentation.Match, ScenarioOrigin.RecordedSdkExample, AuthoredMatchRecording.Model);
+        Explainer = new(new NativeMomentSource(this));
+        Explainer.ChangeScene(presentation.Revision);
         presentation.Select("arsenal-odegaard");
     }
 
@@ -82,6 +86,38 @@ public sealed class MatchService : IDisposable
         Changed?.Invoke();
     }
     public void Cancel() { lock (gate) cancellation?.Cancel(); }
+    public void CaptureMoment(string? eventId = null)
+    {
+        lock (gate)
+        {
+            if (disposed || Explainer.Busy) return;
+            presentation.Pause();
+            ExplanationSnapshot = MomentEvidence.Capture(presentation.Match, presentation.Revision, presentation.Position, eventId);
+        }
+        Changed?.Invoke();
+    }
+    public async Task ExplainAsync()
+    {
+        MomentEvidence captured;
+        lock (gate)
+        {
+            if (disposed || Generating || CheckingConnection || Explainer.Busy) return;
+            captured = ExplanationSnapshot ?? throw new InvalidOperationException("Capture an observed moment first.");
+        }
+        var pending = Explainer.GenerateAsync(captured, CancellationToken.None);
+        Changed?.Invoke();
+        try { await pending.ConfigureAwait(false); }
+        finally { if (!disposed) Changed?.Invoke(); }
+    }
+    public void LoadRecordedMoment()
+    {
+        lock (gate)
+        {
+            if (disposed) return;
+            Explainer.UseRecorded(MomentRecording.Load(presentation.Match, presentation.Revision, presentation.Position));
+        }
+        Changed?.Invoke();
+    }
     public async Task CheckConnectionAsync()
     {
         using var token = new CancellationTokenSource(TimeSpan.FromSeconds(45));
@@ -115,7 +151,7 @@ public sealed class MatchService : IDisposable
         var token = new CancellationTokenSource();
         lock (gate)
         {
-            if (disposed || cancellation is not null || CheckingConnection) { token.Dispose(); return; }
+            if (disposed || cancellation is not null || CheckingConnection || Explainer.Busy) { token.Dispose(); return; }
             cancellation = token;
         }
         Command("pause");
@@ -138,6 +174,8 @@ public sealed class MatchService : IDisposable
                 if (generation.State == GenerationState.Succeeded)
                 {
                     presentation.Replace(generation.Current);
+                    Explainer.ChangeScene(presentation.Revision);
+                    ExplanationSnapshot = null;
                     CurrentModel = generation.CurrentModel;
                     Fresh = true;
                     Origin = generation.Origin;
@@ -172,8 +210,22 @@ public sealed class MatchService : IDisposable
             if (disposed) return;
             cancellation?.Cancel();
             connectionCancellation?.Cancel();
+            Explainer.Cancel();
             presentation.Dispose();
             disposed = true;
+        }
+    }
+    private sealed class NativeMomentSource(MatchService owner) : IMomentSource
+    {
+        private CopilotMomentSource? source;
+        public int ToolCalls => source?.ToolCalls ?? 0;
+        public Task<string> ExplainAsync(MomentEvidence evidence, CancellationToken token)
+        {
+            var executable = string.IsNullOrWhiteSpace(owner.CliOverride)
+                ? Path.Combine(Foundation.NSBundle.MainBundle.ResourcePath ?? throw new CopilotGenerationException("App resources missing."),
+                    "CopilotRuntime", "prebuilds", "darwin-arm64", "copilot-runtime") : owner.CliOverride.Trim();
+            source = new(executable, FileSystem.AppDataDirectory);
+            return Task.Run(() => source.ExplainAsync(evidence, token), token);
         }
     }
     private sealed class NativeSource(MatchService owner) : IScenarioSource

@@ -15,6 +15,95 @@ starting XIs, match results, athlete performance or a season dataset. We chose
 could not be clarified. PitchLens is independent and unaffiliated with the league
 or either club; submission remains deferred.
 
+## Explain this moment
+
+Play to an event, then open **Explain this moment**. Opening pauses and captures
+the current match revision and timestamp; it does **not** call a model. Choose an
+observed event from the recent window, then explicitly press **Ask Sol about this
+moment**. This may consume Copilot usage. One SDK request to **gpt-6.1-sol**
+returns both **Fan** and **Analyst** interpretations; changing modes is local.
+There are no background/per-frame calls, automatic retries or alternate models.
+
+This is a small read-only agent loop, not a scripted explanation presented as AI.
+The model first reads `observed_match` (captured event index, clipped player paths,
+local player totals), then resolves selected evidence through `observed_event`
+(recorded participants, outcome and ball coordinates). Only these two tools are
+available. A permission allowlist and pre-tool hook reject everything else;
+shell, files, external network tools, agents, skills and ambient configuration
+are not enabled. Six tool invocations maximum; a seventh attempt cancels the
+request. Tool turns can consume usage as part of the single request.
+Match-generation sessions remain tools-disabled and unchanged.
+
+The immutable, SHA-256-identified capsule contains at most twelve completed events
+ending at the selected moment, player-path segments clipped at the captured
+cutoff, and locally calculated totals through that cutoff. It contains no
+future event IDs or future trajectory knots. Distances include partial segments;
+pass accuracy is unavailable before attempts. The response must match the exact
+snapshot hash and reference only captured evidence. Bounded plain-text
+interpretations cannot contain numerical claims; numbers are displayed directly
+from local measured facts, not AI arithmetic. No xG, inferred pressure,
+formation metrics, predictions or fabricated trajectories are supplied.
+**Reference/schema validation does not prove every prose statement true**:
+interpretation is explicitly labelled AI and may still be wrong.
+
+Click a cited event to resolve its exact recorded time, pause the authoritative
+clock there and show its original ball path in yellow with **PINNED EVIDENCE /
+Paused historical view**. This uses the same tactical camera, forward/inverse
+transform, player buttons and following lens geometry as the replay. It does not
+pretend old coordinates are live. Playing, seeking elsewhere or replacing the
+scene removes the overlay. Score and captions still follow the actual playhead.
+Results remain labelled with their captured cutoff, not advertised as live facts.
+Seeking before that cutoff hides the saved prose until the playhead reaches it
+again; retention does not reveal future insights after a backward seek.
+
+The response budget is 270 seconds, followed by bounded SDK session/runtime
+cleanup. Cancellation, authentication/transport failure and invalid responses
+retain the previous valid explanation. Scene replacement cancels pending work
+and clears old results; late replies cannot enter the new match. Errors are
+visible, with no scripted success fallback. Normal product requests do not log
+raw responses or credentials.
+
+### No-auth recorded explanation
+
+After observing the startup goal at **86s**, open the panel and choose
+**View recorded goal analysis / No AI call**. This loads an actual validated
+Sol response from **2026-10-20**, labelled **Recorded SDK / Not fresh**. The
+single integration request used five read-only tool invocations and returned two
+Fan statements and three Analyst statements. It is bound to snapshot
+`5ec74bf7d05569c2784b139de0a8c8bbc35f134a3cd801fa0724dae0ee1e13e1`
+and events `e25`-`e28`; it is unavailable before that goal or for another scene.
+The synthetic witness was captured before validation in session-only artifacts;
+only the validated, explicitly labelled answer is bundled.
+
+Headless opt-in integration harness (makes one paid/usage-consuming request):
+
+```sh
+dotnet run --project tools/PitchLens.Generate -c Release -- \
+  --explain-live /absolute/bundled/copilot-runtime /isolated/workdir /session/witness
+```
+
+This writes only synthetic facts/response to the explicitly supplied witness
+directory. It does not generate a match or launch the app. Do not rerun merely
+to switch modes or inspect the recording.
+
+### Hackathon alignment, not a submission claim
+
+The [official rules](https://github.com/microsoft/insidethegamehackathon/blob/main/OFFICIAL%20RULES.md)
+were reviewed on **2026-10-20**. Section 4.1's ingest → interpret → explain →
+render → personalize flow is reflected here by the observed capsule, bounded
+tool inspection, two explanation modes and clickable pitch evidence.
+Section 6 weights technology, agentic innovation, impact, UX and category fit
+equally at 20%; this focused slice improves the evidence-to-experience story
+without claiming a score or guaranteed win.
+
+The rules exclude Microsoft employees and specify registration by October 20,
+noon Pacific, submission by October 27, 23:59 Pacific, a public repository,
+a video under two minutes, and free judging access through November 10.
+Eligibility has not been established. This repository remains private; no
+registration, submission, visibility/access change or deployment was performed.
+The prototype and no-auth recorded demo are not a claim of entry readiness.
+Cloud/Foundry, CV, live feeds and a multi-agent system remain deferred.
+
 ## Generate a match with Copilot
 
 Open **New match**, then choose **Create match with Sol 6.1**. This runs **two stages plus at most one bounded AI path correction** through
@@ -99,6 +188,15 @@ the pitch slot. Observed-goal timeline buttons explicitly watch the actual
 buildup; unseen goals are not exposed. Settings can disable highlights;
 reduced motion keeps the tactical camera and suppresses ripple/extra motion.
 No new AI request is needed for a goal.
+
+For a no-paid-call explanation acceptance check, pause/seek the startup recording
+at 86s, open **Explain this moment**, and load **View recorded goal analysis**.
+Confirm **Recorded / Not fresh**, switch Fan/Analyst without any request, then
+click a cited carry/pass/shot. The dialog closes into a labelled paused evidence
+view at that event; player/lens selection must stay aligned. Play or seek to
+clear the overlay. Do not press **Ask Sol** unless a new usage-consuming request
+is intended. Native acceptance of this new panel is separate from headless and
+SDK-component evidence.
 
 These are original 2D adaptations of contextual match cameras and
 finish-appropriate highlights discussed in the official

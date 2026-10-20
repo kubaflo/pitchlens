@@ -30,7 +30,7 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
             progress, token, archive);
     public Task<string> GenerateCommentaryAsync(Match match, IProgress<string>? progress, CancellationToken cancellationToken) =>
         RequestAsync(CommentaryPrompt.For(match), CommentaryPrompt.Schema, "commentary", progress, cancellationToken);
-    private CopilotClient CreateClient()
+    internal CopilotClient CreateClient()
     {
         if (!Path.IsPathFullyQualified(cliPath) || !File.Exists(cliPath))
             throw new CopilotGenerationException("Copilot runtime executable is missing. Rebuild with bundled runtime acquisition enabled, or select a compatible CLI.");
@@ -43,7 +43,7 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
             LogLevel = CopilotLogLevel.Error
         });
     }
-    private static async Task ConnectAsync(CopilotClient client, IProgress<string>? progress, Action<string> stage, CancellationToken token)
+    internal static async Task ConnectAsync(CopilotClient client, IProgress<string>? progress, Action<string> stage, CancellationToken token)
     {
         stage("startup"); progress?.Report("Starting local Copilot CLI…");
         await client.StartAsync(token).ConfigureAwait(false);
@@ -160,7 +160,7 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
             Content = "Generate original synthetic football match plans or evidence-anchored commentary as requested. Only structured JSON. No tools, agents, files or external services. Never claim actual athlete performance or reveal future outcomes in timed commentary."
         }
     };
-    private sealed class BoundedClient(CopilotClient client) : IAsyncDisposable
+    internal sealed class BoundedClient(CopilotClient client) : IAsyncDisposable
     {
         public async ValueTask DisposeAsync()
         {

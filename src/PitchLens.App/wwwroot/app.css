@@ -83,6 +83,12 @@ small, .caption { font-size: 14px; line-height: 1.4; color: var(--muted); }
 .effective-speed { max-width: 150px; font-size: 14px !important; color: var(--muted); min-width: 0 !important; white-space: normal !important; }
 .transport output { min-width: 112px; font-size: 16px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .request-status { padding: 8px 32px; font-size: 16px; flex: none; }
+.moment-dialog { width: min(680px, calc(100vw - 48px)); }
+.moment-dialog select { width: 100%; margin: 8px 0; padding: 8px; font: inherit; color: var(--purple); background: white; border: 1px solid var(--line); border-radius: 4px; }
+.moment-provenance { padding: 10px 12px; background: var(--purple); color: white; border-radius: 4px; font-size: 14px; }
+.moment-claim { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.moment-claim p { font-size: 20px; line-height: 1.45; margin: 0 0 10px; }
+.moment-dialog small { overflow-wrap: anywhere; }
 .error { margin: 8px 32px; padding: 12px; background: #fff; border-left: 5px solid var(--pink); font-size: 16px; }
 dialog { color: var(--purple); background: white; border: 1px solid #d8c7e0; border-radius: 16px; padding: 0; width: min(740px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); box-shadow: 0 24px 100px #18002055; overflow: auto; }
 dialog::backdrop { background: #20002680; backdrop-filter: blur(3px); }

@@ -19,7 +19,7 @@
         </header>
         <div class="page-heading">
             <div><span class="eyebrow">Matchday / Synthetic 11v11</span><h1>Arsenal <span class="fixture-versus">v</span> City</h1></div>
-            <div class="actions"><button id="players-button" class="button" @onclick='() => Open("roster-dialog")'>Players</button><button class="button purple" @onclick='() => Open("story-dialog")'>Match story</button></div>
+            <div class="actions"><button class="button purple" disabled="@(snapshot.Events.Count == 0)" @onclick="OpenMoment">Explain this moment</button><button id="players-button" class="button" @onclick='() => Open("roster-dialog")'>Players</button><button class="button purple" @onclick='() => Open("story-dialog")'>Match story</button></div>
         </div>
         <section class="score-strip" aria-label="Synthetic match score">
             <div class="team"><img src="images/arsenal_crest.png" alt="Arsenal crest" /><strong>Arsenal</strong></div>
@@ -36,6 +36,7 @@
                     <div class="goal-card"><img id="goal-crest" alt="" /><div class="goal-copy"><span class="goal-event-tag">GOAL</span><span id="goal-team" class="goal-team"></span><strong id="goal-title"></strong><span id="goal-detail"></span></div><strong id="goal-score" class="goal-score"></strong></div>
                 </div>
                 <div id="goal-replay-tag" class="goal-replay-tag" hidden aria-live="off"><span></span> GOAL REPLAY <small>Back live at kickoff</small></div>
+                <div id="evidence-view-tag" class="goal-replay-tag" hidden aria-live="off"></div>
                 <div id="commentary-caption" class="commentary-caption" hidden aria-label="AI commentator subtitles" aria-live="off"></div>
             </div>
             <div class="pitch-caption"><span>Click a shirt. Get the player lens.</span><span>@(frame.Explanations.LastOrDefault()?.Text ?? "Play to reveal the story.")</span></div>
@@ -62,6 +63,8 @@
         {
             <div class="request-status" role="status">Creation cancelled. Previous match kept.</div>
         }
+        @if (Session.Explainer.Busy)
+        { <div class="request-status" role="status">Analysing the captured moment. <button class="text-button" @onclick="Session.Explainer.Cancel">Cancel explanation</button></div> }
 
         <dialog id="player-dialog" class="player-dialog" aria-modal="false" aria-labelledby="player-title">
             <header class="dialog-head"><div><span class="eyebrow">Player lens</span><span class="caption">Synthetic facts at @snapshot.Time.ToString("00.0")s</span></div><button class="close" data-close-popup aria-label="Close player popup">Close</button></header>
@@ -74,7 +77,7 @@
                     <div><dt>Goals</dt><dd>@stats.Goals</dd></div>
                 </dl>
                 <details><summary>More player facts</summary><p>Shots: @stats.Shots · Max speed: @stats.MaxSpeed.ToString("F2") m/s</p></details>
-                <p class="caption">Live player facts. Real roster name; invented match actions.</p>
+                <p class="caption">Player facts at the replay time. Real roster name; invented match actions.</p>
             </div>
         </dialog>
         <dialog id="roster-dialog" aria-modal="false" aria-labelledby="roster-title">
@@ -99,6 +102,47 @@
                 {
                     <article class="story-row" @key="(1, explanation.EventId)"><button class="evidence" @onclick="() => ReplayEvent(explanation.Time)">@explanation.Time.ToString("00.0")s</button><div><p>@explanation.Text</p><small>Event @explanation.EventId</small></div></article>
                 }
+            </div>
+        </dialog>
+        <dialog id="moment-dialog" class="moment-dialog" aria-labelledby="moment-title">
+            <header class="dialog-head"><div><span class="eyebrow">Evidence studio / Copilot SDK</span><h2 id="moment-title">Explain this moment</h2></div><button class="close" data-close-popup>Close</button></header>
+            <div class="dialog-body">
+                <p class="caption">Synthetic football. Captured evidence, not live scouting. Opening this panel or switching modes makes no AI request.</p>
+                @if (snapshot.Time >= 86 && MomentRecording.Available(match, frame.Revision))
+                { <button class="button" disabled="@Session.Explainer.Busy" @onclick="Session.LoadRecordedMoment">View recorded goal analysis · 86s · No AI call</button> }
+                @if (Session.ExplanationSnapshot is { } captured)
+                {
+                    <label for="moment-event">Observed moment through @captured.Cutoff.ToString("0.0")s</label>
+                    <select id="moment-event" value="@captured.FocusId" disabled="@Session.Explainer.Busy" @onchange="MomentChanged">
+                        @foreach (var e in snapshot.Events.TakeLast(12).Reverse())
+                        { <option value="@e.Id">@e.Time.ToString("0.0")s · @e.Kind · @match.Player(e.ActorId).Name</option> }
+                    </select>
+                    <p>One explicit <strong>gpt-6.1-sol</strong> request returns both modes. It may consume Copilot usage, including up to six read-only evidence tool calls. Response budget 270 seconds, then bounded SDK cleanup; no automatic retry or fallback.</p>
+                    <div class="actions"><button class="button mint" disabled="@(Session.Explainer.Busy || Session.Generating || Session.CheckingConnection)" @onclick="Session.ExplainAsync">Ask Sol about this moment</button>@if (Session.Explainer.Busy) { <button class="button" @onclick="Session.Explainer.Cancel">Cancel explanation</button> }</div>
+                }
+                <p role="status">@Session.Explainer.Status</p>
+                @if (Session.Explainer.VisibleAt(frame.Revision, snapshot.Time) is { } explained)
+                {
+                    <div class="moment-provenance">@(explained.Fresh ? "Fresh SDK" : "Recorded SDK / Not fresh") · @CopilotScenarioSource.Model · Captured @explained.Evidence.Cutoff.ToString("0.0")s · Revision @explained.Evidence.Revision · @explained.ToolCalls @(explained.Fresh ? "read-only tool calls" : "tool calls in original recording")</div>
+                    <div class="segments"><button class="@(momentAnalyst ? "" : "selected")" aria-pressed="@(!momentAnalyst ? "true" : "false")" @onclick="() => momentAnalyst = false">Fan</button><button class="@(momentAnalyst ? "selected" : "")" aria-pressed="@(momentAnalyst ? "true" : "false")" @onclick="() => momentAnalyst = true">Analyst</button></div>
+                    <p class="caption">AI interpretation, not verified causal truth. References and snapshot identity are checked; prose can still be wrong.</p>
+                    @foreach (var claim in (momentAnalyst ? explained.Answer.Analyst : explained.Answer.Fan))
+                    {
+                        <article class="moment-claim"><p>@claim.Text</p><div class="actions">@foreach (var id in claim.EvidenceIds)
+                            {
+                                var fact = explained.Evidence.Resolve(id);
+                                <button class="evidence" @onclick="() => InspectEvidence(explained.Evidence, id)">@fact.Time.ToString("0.0")s · @fact.Kind · @id</button>
+                            }</div></article>
+                    }
+                    <details><summary>Local measured facts / captured snapshot</summary>
+                        <p class="caption">Totals through @explained.Evidence.Cutoff.ToString("0.0")s. Not calculated by AI. Pass accuracy is unavailable before any attempts.</p>
+                        @foreach (var metric in explained.Evidence.Facts.Players.Where(p => explained.Evidence.Facts.Events.Any(e => e.Actor == p.Name || e.Receiver == p.Name)))
+                        { <p><strong>@metric.Name</strong> · Passes @metric.CompletedPasses/@metric.Passes · Accuracy @(metric.Passes == 0 ? "Unavailable" : ((double)metric.CompletedPasses / metric.Passes).ToString("P0")) · Shots @metric.Shots · Goals @metric.Goals · @metric.DistanceMetres.ToString("F1") m · Max @metric.MaxSpeedMetresPerSecond.ToString("F2") m/s</p> }
+                        <small>Snapshot SHA-256 @explained.Evidence.Hash</small>
+                    </details>
+                }
+                else if (Session.Explainer.Current is { } hiddenExplanation)
+                { <p class="caption">Saved analysis is hidden before its captured cutoff of @hiddenExplanation.Evidence.Cutoff.ToString("0.0")s. Seek forward to that time to view it again.</p> }
             </div>
         </dialog>
         <dialog id="generation-dialog" aria-labelledby="generation-title">
@@ -143,6 +187,7 @@
     private long loadedRevision;
     private PopupRequest? pendingPopup;
     private bool captionsEnabled = true;
+    private bool momentAnalyst;
     private sealed record PopupRequest(string Id);
     private static string Crest(string id) => id == "arsenal" ? "images/arsenal_crest.png" : "images/manchester_city_crest.png";
     private static string Club(Match match, string id) => match.Teams.Single(t => t.Id == id).Name;
@@ -233,6 +278,24 @@
     }
     private void ToggleGoalReplays() => Session.Command("highlights", frame?.HighlightsEnabled == true ? 0 : 1);
     private void WatchGoal(string id) => Session.Command("watch-goal", id: id);
+    private void OpenMoment()
+    {
+        if (!Session.Explainer.Busy) Session.CaptureMoment();
+        Open("moment-dialog");
+    }
+    private void MomentChanged(ChangeEventArgs e) => Session.CaptureMoment(e.Value?.ToString());
+    private async Task InspectEvidence(MomentEvidence captured, string id)
+    {
+        if (frame?.Revision != captured.Revision) { error = "This evidence belongs to an earlier match."; return; }
+        var evidence = captured.Resolve(id);
+        Session.Command("pause"); Session.Command("seek", evidence.Time);
+        await Refresh(true);
+        if (module is not null)
+        {
+            await module.InvokeVoidAsync("closePopup", "moment-dialog");
+            await module.InvokeVoidAsync("setEvidence", captured.Revision, JsonSerializer.Serialize(evidence, MomentJsonContext.Default.MomentEvent));
+        }
+    }
     private void Seek(double offset) => Session.Command("seek-by", offset);
     private void TimelineChanged(ChangeEventArgs e)
     {
@@ -277,6 +340,7 @@
         Session.Changed -= Changed;
         Session.Command("pause");
         Session.Cancel();
+        Session.Explainer.Cancel();
         lifetime.Cancel();
         try
         {

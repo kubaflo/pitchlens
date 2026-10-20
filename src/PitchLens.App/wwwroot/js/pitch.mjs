@@ -1,6 +1,7 @@
 import { ReplayEngine, at, keyboardAction } from "./replay.mjs";
 import { broadcastFrame, prepareBroadcast, netPoints } from "./broadcast.mjs";
 import { PopupHost } from "./popups.mjs";
+import { pinnedEvidence, evidenceVisible, drawEvidence } from "./evidence.mjs";
 import { ARENA, viewportMap, backgroundTransform, applyField, fieldToViewport, pointerInDrawnViewport } from "./viewport.mjs";
 
 let engine, canvas, viewport, context, background, observer, reference, frameId = null;
@@ -8,6 +9,7 @@ let pointerHandler, visibilityHandler, keyboardHandler, rangeDown, rangeUp, rang
 let popups = null, lensPlayerId = null, canvasBox = null, geometryHandler = null;
 let map = null, wideMap = null, markerSize = null;
 let playerLayer = null;
+let evidence = null;
 let reducedMotion = false, motionQuery = null, motionHandler = null, lastClockTime = 0;
 const playerTargets = new Map();
 const now = () => performance.now();
@@ -118,7 +120,9 @@ function draw() {
     if (!engine?.scenario || !canvas || !width || !height || document.hidden) return;
     const clockTime = engine.frame(now());
     lastClockTime = clockTime;
-    const broadcast = broadcastFrame(engine.scenario, clockTime, engine.clock.highlightsEnabled && !reducedMotion);
+    const pinned = evidenceVisible(evidence, engine.clock, clockTime);
+    if (!pinned) evidence = null;
+    const broadcast = broadcastFrame(engine.scenario, clockTime, !pinned && engine.clock.highlightsEnabled && !reducedMotion);
     const time = broadcast.time;
     engine.lastDrawTime = time; // Hit testing and following lenses use the actual replay camera, not a future live position.
     const following = popups?.floating?.id === "player-dialog";
@@ -129,6 +133,12 @@ function draw() {
     const c = context; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, canvas.width, canvas.height);
     c.setTransform(...backgroundTransform(wideMap, map)); c.drawImage(background, 0, 0);
     applyField(c, map);
+    if (pinned) drawEvidence(c, evidence.fact);
+    const evidenceTag = document.getElementById("evidence-view-tag");
+    if (evidenceTag) {
+        evidenceTag.hidden = !pinned;
+        evidenceTag.textContent = pinned ? `PINNED EVIDENCE · ${evidence.fact.id} · ${evidence.fact.time.toFixed(1)}s · Paused historical view` : "";
+    }
     const selected = engine.scenario.players.find(p => p.id === engine.selectedId);
     if (selected) {
         c.beginPath();
@@ -216,6 +226,7 @@ function buildPlayerTargets() {
 }
 export function loadScenario(json) {
     if (engine?.load(JSON.parse(json), now())) {
+        evidence = null;
         prepareBroadcast(engine.scenario);
         lastClockTime = 0;
         popups?.close("player-dialog", false); popups?.close("roster-dialog", false); lensPlayerId = null;
@@ -286,7 +297,14 @@ export function openPopup(id, selectedId = engine?.selectedId) {
     draw();
 }
 export function closePopup(id) { popups?.close(id); }
+export function setEvidence(revision, json) {
+    evidence = pinnedEvidence(revision, json, engine.clock);
+    draw();
+}
 export function dispose() {
+    evidence = null;
+    const evidenceTag = document.getElementById("evidence-view-tag");
+    if (evidenceTag) { evidenceTag.hidden = true; evidenceTag.textContent = ""; }
     popups?.dispose(); popups = null; lensPlayerId = null; canvasBox = null;
     stop(); observer?.disconnect();
     window.removeEventListener("resize", resize);
