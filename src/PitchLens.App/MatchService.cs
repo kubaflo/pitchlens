@@ -19,6 +19,13 @@ public sealed partial class MatchService : IDisposable
     private CancellationTokenSource? cancellation;
     private CancellationTokenSource? connectionCancellation;
     private bool disposed;
+    private Task? momentRequest;
+    public string? MomentIntentNotice { get; private set; }
+    public bool CanExplainCurrent
+    {
+        get { lock (gate) return !disposed && !Generating && !CheckingConnection &&
+            (Explainer.Busy || presentation.Match.Events.Any(e => e.Time <= presentation.Position)); }
+    }
     public event Action? Changed;
     public bool Active { get; private set; } = true;
     public string CliOverride { get; set; } = "";
@@ -137,6 +144,47 @@ public sealed partial class MatchService : IDisposable
         }
         await Explainer.GenerateAsync(captured, CancellationToken.None).ConfigureAwait(false);
     }
+    public Task ExplainCurrentMomentAsync(bool retry = false)
+    {
+        Task pending;
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            MomentIntentNotice = null;
+            if (Generating || CheckingConnection)
+            {
+                MomentIntentNotice = Generating ? "Match creation is running. Moment analysis is unavailable until it finishes." :
+                    "SDK connection check is running. Moment analysis is unavailable until it finishes.";
+                pending = Task.CompletedTask;
+            }
+            else if (Explainer.Busy)
+            {
+                presentation.Pause();
+                pending = momentRequest ?? Task.CompletedTask;
+            }
+            else if (!presentation.Match.Events.Any(e => e.Time <= presentation.Position))
+            {
+                MomentIntentNotice = "No observed event yet. Play to an event before requesting analysis.";
+                pending = Task.CompletedTask;
+            }
+            else
+            {
+                presentation.Pause();
+                var captured = MomentEvidence.Capture(presentation.Match, presentation.Revision, presentation.Position);
+                ExplanationSnapshot = captured;
+                var failedSameSnapshot = Explainer.LastRequestedHash == captured.Hash &&
+                    Explainer.Activity.Snapshot.Stage is RequestStage.Failed or RequestStage.Cancelled;
+                if (!retry && failedSameSnapshot)
+                    pending = Task.CompletedTask;
+                else if (!retry && Explainer.TryReuseFresh(captured))
+                    pending = Task.CompletedTask;
+                else
+                    pending = momentRequest = Explainer.GenerateAsync(captured, CancellationToken.None);
+            }
+        }
+        NotifyChanged();
+        return pending;
+    }
     public void LoadRecordedMoment()
     {
         lock (gate)
@@ -172,7 +220,7 @@ public sealed partial class MatchService : IDisposable
         catch (CopilotGenerationException e) { lock (gate) ConnectionStatus = $"{e.Message} {e.Diagnostic}"; }
         finally
         {
-            lock (gate) connectionCancellation = null;
+            lock (gate) { connectionCancellation = null; MomentIntentNotice = null; }
             ConnectionActivity.Finish(activityId, ConnectionStatus.StartsWith("Connection verified", StringComparison.Ordinal) ? RequestStage.Complete :
                 token.IsCancellationRequested ? RequestStage.Cancelled : RequestStage.Failed, ConnectionStatus);
             if (!disposed) Changed?.Invoke();
@@ -210,6 +258,8 @@ public sealed partial class MatchService : IDisposable
                     presentation.Replace(generation.Current);
                     Explainer.ChangeScene(presentation.Revision);
                     ExplanationSnapshot = null;
+                    MomentIntentNotice = null;
+                    momentRequest = null;
                     CurrentModel = generation.CurrentModel;
                     Fresh = true;
                     Origin = generation.Origin;
@@ -221,6 +271,7 @@ public sealed partial class MatchService : IDisposable
             lock (gate)
             {
                 cancellation = null;
+                MomentIntentNotice = null;
                 token.Dispose();
             }
             if (!disposed) Changed?.Invoke();

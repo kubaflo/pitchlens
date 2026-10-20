@@ -17,12 +17,26 @@ or either club; submission remains deferred.
 
 ## Explain this moment
 
-Play to an event, then open **Explain this moment**. Opening pauses and captures
-the current match revision and timestamp; it does **not** call a model. Choose an
-observed event from the recent window, then explicitly press **Ask Sol about this
-moment**. This may consume Copilot usage. One SDK request to **gpt-6.1-sol**
-returns both **Fan** and **Analyst** interpretations; changing modes is local.
-There are no background/per-frame calls, automatic retries or alternate models.
+Play to an event, then click **Explain this moment**. That single explicit action
+pauses/captures the current observed match and immediately requests genuine
+**gpt-6.1-sol** analysis, with the dialog's visible thinking/stage/elapsed/Cancel
+feedback shown while waiting. **Uses Copilot usage** is disclosed on the main
+trigger's title and accessible label before the action. There is no second
+confirmation/button, event picker or tutorial. The immutable captured timestamp
+and event summary stay visible; a valid result opens straight into the visual
+studio with both **Fan** and **Analyst** interpretations.
+
+Rapid clicks and reopening an in-flight request share the same request/snapshot.
+An exact matching **Fresh** validated snapshot may be reused, explicitly labelled
+**Cached Sol / Exact snapshot**, with no new usage. A bundled Recorded example
+is never an automatic substitute. An explicit click at a different playhead
+captures a different snapshot and requests once. Opening a failed/cancelled
+attempt at the same snapshot shows its error and an explicit **Retry current
+moment**, not an automatic retry. Earlier results remain labelled as earlier.
+No request starts from rendering, ticks, audience switching or evidence navigation.
+The trigger is disabled before any observed event or during match creation/
+connection checks; native intent guards expose a visible reason if invoked then.
+There are no background/per-frame calls, hidden retries or alternate models.
 
 ### Visible activity and a visual evidence studio
 
@@ -110,15 +124,15 @@ and clears old results; late replies cannot enter the new match. Errors are
 visible, with no scripted success fallback. Normal product requests do not log
 raw responses or credentials.
 
-### No-auth recorded explanation
+### Historical recorded explanation fixture
 
-After observing the startup goal at **86s**, open the panel and choose
-**View recorded goal analysis / No AI call**. This loads an actual validated
-Sol response from **2026-10-20**, labelled **Recorded SDK / Not fresh**. The
+An actual validated Sol response from **2026-10-20** remains a headless
+regression/provenance fixture, explicitly **Recorded SDK / Not fresh**. It is
+not a chooser in the normal one-click flow and is never relabelled as fresh. The
 single integration request used five read-only tool invocations and returned two
 Fan statements and three Analyst statements. It is bound to snapshot
 `5ec74bf7d05569c2784b139de0a8c8bbc35f134a3cd801fa0724dae0ee1e13e1`
-and events `e25`-`e28`; it is unavailable before that goal or for another scene.
+and events `e25`-`e28`; fixture loading requires that observed goal and exact scene.
 The synthetic witness was captured before validation in session-only artifacts;
 only the validated, explicitly labelled answer is bundled.
 
@@ -241,14 +255,13 @@ buildup; unseen goals are not exposed. Settings can disable highlights;
 reduced motion keeps the tactical camera and suppresses ripple/extra motion.
 No new AI request is needed for a goal.
 
-For a no-paid-call explanation acceptance check, pause/seek the startup recording
-at 86s, open **Explain this moment**, and load **View recorded goal analysis**.
-Confirm **Recorded / Not fresh**, switch Fan/Analyst without any request, then
-click a cited carry/pass/shot. The dialog closes into a labelled paused evidence
-view at that event; player/lens selection must stay aligned. Play or seek to
-clear the overlay. Do not press **Ask Sol** unless a new usage-consuming request
-is intended. Native acceptance of this new panel is separate from headless and
-SDK-component evidence.
+**Explain this moment is now a usage-consuming action**, not a no-paid preview.
+Do not click it merely to inspect an empty dialog. Headless delayed-source tests
+exercise the actual Razor click handler without paid calls, including immediate
+activity while paused, exact-one admission, matching visual output, cached/busy
+reopen, explicit retry, scene/unload guards and absence of the old second action.
+Native acceptance remains separate; once an actual Fresh answer exists, local
+audience switching/evidence navigation and exact-snapshot cached reuse add no call.
 
 These are original 2D adaptations of contextual match cameras and
 finish-appropriate highlights discussed in the official
@@ -322,7 +335,7 @@ For no-paid acceptance, seek to 85.9s then 86s and open Match story: the observe
 lead appears only at 86s. At 176s the locally proved equalizer appears.
 Switch Fan/Analyst, select a miniature path and replay its evidence; check the
 pinned clock/positions and seek backward to remove future cards. Do not press
-New match or Ask Sol merely to browse the recorded story. Native visual
+New match or Explain this moment merely to browse the recorded story. Native visual
 acceptance remains separate from headless rendering and the real SDK request.
 
 The transport offers **1x / 2x / 3x / 5x**. Rate changes re-anchor the native

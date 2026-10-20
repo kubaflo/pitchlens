@@ -24,7 +24,7 @@
         </div>
         <div class="page-heading">
             <div><span class="eyebrow">Matchday / Synthetic 11v11</span><h1>Arsenal <span class="fixture-versus">v</span> City</h1></div>
-            <div class="actions"><button class="button purple" disabled="@(snapshot.Events.Count == 0)" @onclick="OpenMoment">Explain this moment</button><button id="players-button" class="button" @onclick='() => Open("roster-dialog")'>Players</button><button class="button purple" @onclick='() => Open("story-dialog")'>Match story</button></div>
+            <div class="actions"><button class="button purple" disabled="@(!Session.CanExplainCurrent)" title="Uses Copilot usage. Requires an observed event; unavailable during match creation or an SDK connection check." aria-label="Explain this moment. Uses Copilot usage." @onclick="OpenMoment">Explain this moment</button><button id="players-button" class="button" @onclick='() => Open("roster-dialog")'>Players</button><button class="button purple" @onclick='() => Open("story-dialog")'>Match story</button></div>
         </div>
         <section class="score-strip" aria-label="Synthetic match score">
             <div class="team"><img src="images/arsenal_crest.png" alt="Arsenal crest" /><strong>Arsenal</strong></div>
@@ -33,6 +33,7 @@
         </section>
         @if (error is not null) { <div class="error" role="alert">@error</div> }
         @if (evidenceNotice is not null) { <div class="request-status" role="status">@evidenceNotice</div> }
+        @if (Session.MomentIntentNotice is { } momentNotice) { <div class="request-status" role="status">@momentNotice</div> }
         <main class="matchday-stage">
             <div class="pitch-slot">
                 <canvas @ref="canvas" id="pitch" tabindex="0" role="img" aria-label="Synthetic football replay. Click a shirt, or use Players for keyboard-accessible selection."></canvas>
@@ -112,31 +113,22 @@
             <header class="dialog-head"><div><span class="eyebrow">PitchLens / Evidence studio</span><h2 id="moment-title">Explain this moment</h2><span class="caption">Synthetic football · AI interpretation, not verified causal truth</span></div><button class="close" data-close-popup>Close</button></header>
             <div class="dialog-body studio-body">
                 <RequestActivityView Activity="Session.Explainer.Activity" Title="Sol · Moment analysis" Budget="270s response budget · Up to 6 read-only tool calls · Bounded cleanup" Cancel="Session.Explainer.Cancel" />
-                <div class="studio-toolbar">
                 @if (Session.ExplanationSnapshot is { } captured)
                 {
-                    <label for="moment-event">Observed through @captured.Cutoff.ToString("0.0")s
-                    <select id="moment-event" value="@captured.FocusId" disabled="@Session.Explainer.Busy" @onchange="MomentChanged">
-                        @foreach (var e in snapshot.Events.TakeLast(12).Reverse())
-                        { <option value="@e.Id">@e.Time.ToString("0.0")s · @e.Kind · @match.Player(e.ActorId).Name</option> }
-                    </select>
-                    </label>
+                    var focus = captured.Resolve(captured.FocusId);
+                    <div class="studio-captured"><strong>Captured @captured.Cutoff.ToString("0.0")s</strong><span>@focus.Kind · @focus.Actor · event @focus.Time.ToString("0.0")s</span></div>
                 }
-                    <div class="studio-ask"><small>Uses Copilot usage · One request, both modes</small><button class="button mint" disabled="@(Session.Explainer.Busy || Session.Generating || Session.CheckingConnection || Session.ExplanationSnapshot is null)" @onclick="Session.ExplainAsync">@(Session.Explainer.Busy ? "Sol is working…" : "Ask Sol")</button></div>
-                </div>
+                @if (Session.MomentIntentNotice is { } intentNotice) { <p role="status">@intentNotice</p> }
                 @if (Session.Explainer.VisibleAt(frame.Revision, snapshot.Time) is { } explained)
                 {
-                    <MomentStudio Result="explained" Pending="Session.Explainer.Busy" Inspect="id => InspectEvidence(explained.Evidence, id)" />
+                    <MomentStudio Result="explained" Pending="Session.Explainer.Busy" Earlier="@(Session.Explainer.Activity.Snapshot.Stage is RequestStage.Failed or RequestStage.Cancelled || explained.Evidence.Hash != Session.ExplanationSnapshot?.Hash)" Inspect="id => InspectEvidence(explained.Evidence, id)" />
                 }
                 else if (Session.Explainer.Current is { } hiddenExplanation)
                 { <p class="caption">Saved analysis is hidden before its captured cutoff of @hiddenExplanation.Evidence.Cutoff.ToString("0.0")s. Seek forward to that time to view it again.</p> }
-                else if (Session.ExplanationSnapshot is { } preview)
-                { <div class="studio-empty"><span class="eyebrow">Your next perspective</span><h3>A move. A map. A grounded explanation.</h3><p>Choose an observed moment and ask Sol. Its Fan and Analyst views link directly to recorded actions.</p><small>No request on opening or switching modes.</small></div> }
-                <div class="studio-footnote"><span class="caption">@Session.Explainer.Status</span>
-                @if (snapshot.Time >= 86 && MomentRecording.Available(match, frame.Revision))
-                { <button class="text-button" disabled="@Session.Explainer.Busy" @onclick="Session.LoadRecordedMoment">Recorded goal analysis · 86s · No AI call</button> }
-                </div>
-                <details class="caption"><summary>Request limits & data handling</summary><p>Exact @CopilotScenarioSource.Model, up to six read-only evidence calls, one response for both modes. Response budget 270 seconds plus bounded SDK cleanup. No retries/fallback. Raw responses are not automatically logged. Invalid output keeps the earlier answer.</p></details>
+                @if (!Session.Explainer.Busy && Session.Explainer.Activity.Snapshot.Stage is RequestStage.Failed or RequestStage.Cancelled)
+                { <button class="button" disabled="@(!Session.CanExplainCurrent)" title="Uses Copilot usage. One explicit retry of the current captured moment." @onclick="RetryMoment">Retry current moment</button> }
+                <span class="caption" role="status">@Session.Explainer.Status</span>
+                <details class="caption"><summary>Request limits & data handling</summary><p>Exact @CopilotScenarioSource.Model, up to six read-only evidence calls, one response for both modes. Response budget 270 seconds plus bounded SDK cleanup. No automatic retries or fallback. Raw responses are not automatically logged. Invalid output keeps the earlier answer.</p></details>
             </div>
         </dialog>
         <dialog id="generation-dialog" aria-labelledby="generation-title">
@@ -274,12 +266,13 @@
     }
     private void ToggleGoalReplays() => Session.Command("highlights", frame?.HighlightsEnabled == true ? 0 : 1);
     private void WatchGoal(string id) => Session.Command("watch-goal", id: id);
-    private void OpenMoment()
+    private async Task OpenMoment()
     {
-        if (!Session.Explainer.Busy) Session.CaptureMoment();
+        if (!Session.CanExplainCurrent) { await Session.ExplainCurrentMomentAsync(); return; }
         Open("moment-dialog");
+        await Session.ExplainCurrentMomentAsync();
     }
-    private void MomentChanged(ChangeEventArgs e) => Session.CaptureMoment(e.Value?.ToString());
+    private Task RetryMoment() => Session.ExplainCurrentMomentAsync(retry: true);
     private async Task InspectEvidence(MomentEvidence captured, string id)
     {
         var evidence = captured.Resolve(id);

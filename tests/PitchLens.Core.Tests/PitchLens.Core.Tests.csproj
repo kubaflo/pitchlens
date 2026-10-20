@@ -16,6 +16,8 @@
   <ItemGroup>
     <Using Include="Xunit" />
     <Compile Include="../../src/PitchLens.App/MatchService.cs" Link="Native/MatchService.cs" />
+    <Compile Include="../../src/PitchLens.App/WebContracts.cs" Link="Native/WebContracts.cs" />
+    <Content Include="../../src/PitchLens.App/Components/MatchView.razor" Link="Components/MatchView.razor" />
     <Content Include="../../src/PitchLens.App/Components/MomentStudio.razor" Link="Components/MomentStudio.razor" />
     <Content Include="../../src/PitchLens.App/Components/EvidenceSequence.razor" Link="Components/EvidenceSequence.razor" />
     <Content Include="../../src/PitchLens.App/Components/NarrativeStory.razor" Link="Components/NarrativeStory.razor" />

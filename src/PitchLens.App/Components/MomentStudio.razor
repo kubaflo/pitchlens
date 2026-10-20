@@ -1,6 +1,6 @@
 @using System.Globalization
 
-<div class="studio-provenance"><span class="source-pill">@(Result.Fresh ? "Fresh Sol" : "Recorded Sol / Not fresh")</span><span>Captured @facts.Cutoff.ToString("0.0")s · Synthetic football</span>@if (Pending) { <strong>Earlier answer — a new request is running</strong> }</div>
+<div class="studio-provenance"><span class="source-pill">@(Result.Fresh ? Result.Cached ? "Cached Sol / Exact snapshot" : "Fresh Sol" : "Recorded Sol / Not fresh")</span><span>Captured @facts.Cutoff.ToString("0.0")s · Synthetic football</span>@if (Pending || Earlier) { <strong>@(Pending ? "Earlier answer — a new request is running" : "Earlier answer — latest request did not replace it")</strong> }</div>
 <div class="studio-grid">
     <section class="studio-main">
         <div class="studio-section-title"><div><span class="eyebrow">Follow the move</span><h3>Evidence, on the pitch.</h3></div><span class="caption">Recorded coordinates · No inferred team direction</span></div>
@@ -51,6 +51,7 @@
 @code {
     [Parameter, EditorRequired] public ExplainedMoment Result { get; set; } = null!;
     [Parameter] public bool Pending { get; set; }
+    [Parameter] public bool Earlier { get; set; }
     [Parameter] public EventCallback<string> Inspect { get; set; }
     private MomentEvidence? cached;
     private MomentFacts facts = null!;

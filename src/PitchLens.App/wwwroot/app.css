@@ -106,11 +106,8 @@ small, .caption { font-size: 14px; line-height: 1.4; color: var(--muted); }
 @media (max-width: 700px) { .narrative-card { grid-template-columns: 1fr; } .narrative-map { max-width: 360px; } }
 .moment-dialog .dialog-head { position: sticky; top: 0; z-index: 2; background: white; padding: 18px 24px; }
 .studio-body { gap: 16px; padding: 20px 24px; }
-.studio-toolbar { display: flex; justify-content: space-between; align-items: end; gap: 24px; }
-.studio-toolbar label { flex: 1; max-width: 500px; margin: 0; }
-.studio-toolbar select { display: block; width: 100%; margin-top: 6px; padding: 8px; font: inherit; color: var(--purple); border: 1px solid var(--line); border-radius: 4px; background: white; }
-.studio-ask { display: flex; align-items: center; gap: 12px; }
-.studio-ask small { max-width: 160px; }
+.studio-captured { display: flex; align-items: baseline; flex-wrap: wrap; gap: 12px; font-size: 15px; }
+.studio-captured span { color: var(--muted); }
 .studio-provenance { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 14px; color: var(--muted); }
 .studio-provenance > strong { color: var(--purple); }
 .source-pill { background: #eee3f5; color: var(--purple); border-radius: 4px; padding: 4px 8px; font-weight: 600; }
@@ -176,9 +173,6 @@ small, .caption { font-size: 14px; line-height: 1.4; color: var(--muted); }
 @keyframes request-orbit { to { transform: rotate(360deg); } }
 @media (max-width: 880px) {
     .studio-grid, .studio-details { grid-template-columns: 1fr; }
-    .studio-toolbar, .studio-ask { align-items: stretch; flex-direction: column; gap: 8px; }
-    .studio-toolbar label { max-width: none; }
-    .studio-ask small { max-width: none; }
     .request-activity { grid-template-columns: 20px minmax(0, 1fr) auto; }
     .request-activity .button { grid-column: 2 / -1; }
     .studio-footnote { align-items: start; flex-direction: column; }

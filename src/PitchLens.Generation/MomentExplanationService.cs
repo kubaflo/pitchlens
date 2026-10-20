@@ -8,7 +8,7 @@ public interface IMomentSource
         ExplainAsync(evidence, token);
 }
 
-public sealed record ExplainedMoment(MomentEvidence Evidence, MomentAnswer Answer, int ToolCalls, bool Fresh = true);
+public sealed record ExplainedMoment(MomentEvidence Evidence, MomentAnswer Answer, int ToolCalls, bool Fresh = true, bool Cached = false);
 
 public sealed class MomentExplanationService(IMomentSource source, TimeSpan? timeout = null)
 {
@@ -19,9 +19,10 @@ public sealed class MomentExplanationService(IMomentSource source, TimeSpan? tim
     private long activityId;
     public RequestActivity Activity { get; } = new();
     public event Action? Changed;
+    public string? LastRequestedHash { get; private set; }
     public ExplainedMoment? Current { get; private set; }
     public bool Busy { get { lock (gate) return running is not null; } }
-    public string Status { get; private set; } = "Choose an observed moment. Opening this panel makes no AI request.";
+    public string Status { get; private set; } = "Explain the current observed moment with Sol.";
     public ExplainedMoment? VisibleAt(long currentRevision, double playhead)
     {
         lock (gate) return Current is { } result && result.Evidence.Revision == currentRevision &&
@@ -35,6 +36,7 @@ public sealed class MomentExplanationService(IMomentSource source, TimeSpan? tim
             revision = nextRevision;
             running?.Cancel();
             Current = null;
+            LastRequestedHash = null;
             Status = "New match. Previous match explanations cleared.";
             Activity.Reset();
         }
@@ -48,6 +50,19 @@ public sealed class MomentExplanationService(IMomentSource source, TimeSpan? tim
             if (running is not null) Activity.Report(activityId, new(RequestStage.Cancelling, "Cancelling request; waiting for bounded cleanup…"));
             running?.Cancel();
         }
+    }
+    public bool TryReuseFresh(MomentEvidence evidence)
+    {
+        lock (gate)
+        {
+            if (running is not null || Current is not { Fresh: true } current || evidence.Revision != revision ||
+                current.Evidence.Hash != evidence.Hash) return false;
+            Current = current with { Cached = true };
+            Status = "Cached from the earlier successful Sol request for this exact snapshot. No new usage.";
+            Activity.Reset();
+        }
+        Changed?.Invoke();
+        return true;
     }
     public void UseRecorded(ExplainedMoment recorded)
     {
@@ -70,6 +85,7 @@ public sealed class MomentExplanationService(IMomentSource source, TimeSpan? tim
             if (running is not null) throw new InvalidOperationException("An explanation is already running.");
             if (evidence.Revision != revision) throw new InvalidOperationException("Captured match is no longer current.");
             running = deadline;
+            LastRequestedHash = evidence.Hash;
             userCancelled = false;
             Status = "Requesting Sol analysis of this captured evidence. One request; up to six read-only tool calls; no retries.";
             activityId = Activity.Begin("Preparing captured evidence…");
