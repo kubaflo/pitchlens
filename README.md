@@ -287,7 +287,10 @@ or proof from the actual Catalyst UI.
 
 **Security/deployment tradeoff:** this independent local app and its owned CLI
 run with the user's ordinary filesystem/process privileges, not App Sandbox
-isolation. Model tools/permissions remain disabled. This is **not Mac App Store
+isolation. Match-generation sessions keep model tools/permissions disabled.
+The on-demand explainer permits only its bounded read-only `observed_match`
+and `observed_event` tools; all other model permissions remain denied.
+This is **not Mac App Store
 packaging**; a sandboxed distribution would require a separately designed
 broker/auth architecture, not simply restoring the template flag. No global
 credentials, OS security settings or signing warnings are changed/bypassed.
