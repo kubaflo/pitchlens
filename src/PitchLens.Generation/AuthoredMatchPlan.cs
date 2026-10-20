@@ -9,7 +9,7 @@ public sealed record AuthoredPlayer([property: JsonRequired] string Id, [propert
 public sealed record AuthoredMatchDocument([property: JsonRequired] double Duration,
     [property: JsonRequired] string Title, [property: JsonRequired] string InitialOwnerId,
     [property: JsonRequired] AuthoredPlayer[] Players, [property: JsonRequired] EventDocument[] Events,
-    [property: JsonRequired] string[] PhaseKinds, CommentaryCue[]? Commentary = null);
+    [property: JsonRequired]     string[] PhaseKinds, CommentaryCue[]? Commentary = null, NarrationDocument? Narration = null);
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow)]
@@ -138,6 +138,8 @@ public static class AuthoredMatchPlan
             var match = new Match(300, skeleton.Teams, players, events, new(times.Select(t => new Keyframe(t, BallAt(t)))),
                 possession, new(document.Title, beats));
             AuthoredPathQuality.Validate(match);
+            Require(document.Narration is null || document.Commentary is null, "Caption-only and coherent narration payloads cannot conflict.");
+            if (document.Narration is not null) return NarrationPrompt.Attach(document.Narration, match);
             Require(!requireCommentary || document.Commentary is not null, "New 11v11 games need their own AI commentary.");
             return document.Commentary is null ? match : match.WithCommentary(document.Commentary, CopilotScenarioSource.Model);
         }

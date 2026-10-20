@@ -13,7 +13,7 @@ public sealed class GenerationTests
     private static string NewPlan()
     {
         var plan = AuthoredMatchPlan.Document(AuthoredMatchRecording.Json());
-        return JsonSerializer.Serialize(plan with { Commentary = AuthoredMatchRecording.Create().Commentary!.Cues.ToArray() }, AuthoredJsonContext.Default.AuthoredMatchDocument);
+        return JsonSerializer.Serialize(plan with { Narration = NarrationFixtures.Package(AuthoredMatchRecording.Create()) }, AuthoredJsonContext.Default.AuthoredMatchDocument);
     }
 
     [Fact]

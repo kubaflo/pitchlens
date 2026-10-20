@@ -74,10 +74,12 @@ public sealed class Match
     public IReadOnlyList<PossessionChange> Possession { get; }
     public MatchStory? Story { get; }
     public CommentaryTrack? Commentary { get; }
+    public NarrativeTrack? Narrative { get; }
 
     public Match(double duration, IEnumerable<Team> teams, IEnumerable<Player> players,
         IEnumerable<MatchEvent> events, Trajectory ball, IEnumerable<PossessionChange> possession, MatchStory? story = null,
-        IEnumerable<CommentaryCue>? commentary = null, string? commentaryModel = null)
+        IEnumerable<CommentaryCue>? commentary = null, string? commentaryModel = null,
+        IEnumerable<NarrativeChapter>? narrative = null, string? narrationFactsHash = null)
     {
         Duration = duration;
         Teams = Array.AsReadOnly(teams.ToArray());
@@ -87,11 +89,15 @@ public sealed class Match
         Possession = Array.AsReadOnly(possession.ToArray());
         Story = story;
         Validate();
-        if (commentary is not null) Commentary = new(this, commentaryModel ?? throw new ArgumentException("Commentary model required."), commentary);
+        if (commentary is not null) Commentary = new(this, commentaryModel ?? throw new ArgumentException("Commentary model required."), commentary, narrationFactsHash);
+        if (narrative is not null) Narrative = new(this, commentaryModel ?? throw new ArgumentException("Narration model required."),
+            narrationFactsHash ?? throw new ArgumentException("Narration facts hash required."), narrative);
     }
 
     public Match WithCommentary(IEnumerable<CommentaryCue> cues, string model) =>
         new(Duration, Teams, Players, Events, Ball, Possession, Story, cues, model);
+    public Match WithNarrative(IEnumerable<CommentaryCue> cues, IEnumerable<NarrativeChapter> chapters, string model, string factsHash) =>
+        new(Duration, Teams, Players, Events, Ball, Possession, Story, cues, model, chapters, factsHash);
 
     public Player Player(string id) => Players.Single(p => p.Id == id);
     public double ClampTime(double time) => double.IsFinite(time)

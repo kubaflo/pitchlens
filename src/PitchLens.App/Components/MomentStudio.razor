@@ -4,32 +4,7 @@
 <div class="studio-grid">
     <section class="studio-main">
         <div class="studio-section-title"><div><span class="eyebrow">Follow the move</span><h3>Evidence, on the pitch.</h3></div><span class="caption">Recorded coordinates · No inferred team direction</span></div>
-        <svg class="sequence-pitch" viewBox="-4 -3 113 74" role="group" aria-label="Observed ball-path sequence. Select an event, then watch it on the main replay.">
-            <rect x="-4" y="-3" width="113" height="74" fill="#173b30" rx="2" />
-            <g fill="none" stroke="#ffffff66" stroke-width=".3">
-                <rect x="0" y="0" width="105" height="68" /><path d="M52.5 0V68" /><circle cx="52.5" cy="34" r="9.15" />
-                <path d="M0 13.84H16.5V54.16H0 M105 13.84H88.5V54.16H105 M0 24.84H5.5V43.16H0 M105 24.84H99.5V43.16H105" />
-                <rect x="-3" y="30.34" width="3" height="7.32" /><rect x="105" y="30.34" width="3" height="7.32" />
-            </g>
-            @foreach (var e in DrawEvents)
-            {
-                var selected = visuals.HighlightedIds.Contains(e.Id);
-                <g class="sequence-event @(selected ? "is-selected" : "") kind-@e.Kind.ToLowerInvariant()" role="button" tabindex="0" aria-label="Select @e.Kind by @e.Actor at @e.Time.ToString("0.0") seconds" @onclick="() => Select(e.Id)" @onkeydown="args => KeySelect(args, e.Id)">
-                    <title>@e.Actor · @e.Kind · @e.Time.ToString("0.0")s · @e.Id</title>
-                    <polyline points="@Points(e)" fill="none" />
-                    @if (e.Ball.Length > 0)
-                    {
-                        var end = e.Ball[^1];
-                        <circle cx="@N(end.X)" cy="@N(end.Y)" r="1.2" />
-                    }
-                </g>
-            }
-        </svg>
-        <div class="sequence-key"><span>Pass —</span><span>Carry - -</span><span>Shot / Goal ●</span></div>
-        <div class="sequence-events" aria-label="Keyboard-accessible sequence selection">
-            @foreach (var e in visuals.Sequence)
-            { <button class="@(visuals.SelectedId == e.Id ? "selected" : "")" aria-pressed="@(visuals.SelectedId == e.Id ? "true" : "false")" @onclick="() => Select(e.Id)">@e.Time.ToString("0.#")s <strong>@e.Kind</strong></button> }
-        </div>
+        <EvidenceSequence Visuals="visuals" Selected="_ => StateHasChanged()" />
         @if (selectedEvent is { } chosen)
         {
             <div class="selected-evidence"><div><strong>@chosen.Actor</strong><span>@chosen.Kind @(chosen.Receiver is null ? "" : $"→ {chosen.Receiver}") · @chosen.Start.ToString("0.#")–@chosen.Time.ToString("0.#")s</span></div><button class="button purple" @onclick="() => Inspect.InvokeAsync(chosen.Id)">Watch this evidence</button></div>
@@ -83,7 +58,6 @@
     private bool analyst;
     private MomentClaim[] Claims => analyst ? Result.Answer.Analyst : Result.Answer.Fan;
     private MomentEvent? selectedEvent => visuals.Selected;
-    private IEnumerable<MomentEvent> DrawEvents => visuals.DrawEvents;
     protected override void OnParametersSet()
     {
         if (ReferenceEquals(cached, Result.Evidence)) return;
@@ -92,7 +66,5 @@
     }
     private void Select(string id) => visuals.Select(id);
     private void SelectBin(DistanceBin bin) => visuals.SelectBin(bin);
-    private void KeySelect(KeyboardEventArgs e, string id) { if (e.Key is "Enter" or " ") Select(id); }
     private static string N(double value) => value.ToString("R", CultureInfo.InvariantCulture);
-    private static string Points(MomentEvent e) => string.Join(" ", e.Ball.Select(p => $"{N(p.X)},{N(p.Y)}"));
 }

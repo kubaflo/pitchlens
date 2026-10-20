@@ -1,0 +1,35 @@
+@using System.Globalization
+
+<svg class="sequence-pitch" viewBox="-4 -3 113 74" role="group" aria-label="Observed ball-path sequence. Select an event, then watch it on the main replay.">
+    <rect x="-4" y="-3" width="113" height="74" fill="#173b30" rx="2" />
+    <g fill="none" stroke="#ffffff66" stroke-width=".3">
+        <rect x="0" y="0" width="105" height="68" /><path d="M52.5 0V68" /><circle cx="52.5" cy="34" r="9.15" />
+        <path d="M0 13.84H16.5V54.16H0 M105 13.84H88.5V54.16H105 M0 24.84H5.5V43.16H0 M105 24.84H99.5V43.16H105" />
+        <rect x="-3" y="30.34" width="3" height="7.32" /><rect x="105" y="30.34" width="3" height="7.32" />
+    </g>
+    @foreach (var e in Visuals.DrawEvents)
+    {
+        <g class="sequence-event @(Visuals.HighlightedIds.Contains(e.Id) ? "is-selected" : "") kind-@e.Kind.ToLowerInvariant()" role="button" tabindex="0" aria-label="Select @e.Kind by @e.Actor at @e.Time.ToString("0.0") seconds" @onclick="() => Select(e.Id)" @onkeydown="args => KeySelect(args, e.Id)">
+            <title>@e.Actor · @e.Kind · @e.Time.ToString("0.0")s · @e.Id</title>
+            <polyline points="@string.Join(" ", e.Ball.Select(p => $"{N(p.X)},{N(p.Y)}"))" fill="none" />
+            @if (e.Ball.Length > 0)
+            { <circle cx="@N(e.Ball[^1].X)" cy="@N(e.Ball[^1].Y)" r="1.2" /> }
+        </g>
+    }
+</svg>
+@if (!Compact)
+{
+    <div class="sequence-key"><span>Pass —</span><span>Carry - -</span><span>Shot / Goal ●</span></div>
+    <div class="sequence-events" aria-label="Keyboard-accessible sequence selection">
+        @foreach (var e in Visuals.Sequence)
+        { <button class="@(Visuals.SelectedId == e.Id ? "selected" : "")" aria-pressed="@(Visuals.SelectedId == e.Id ? "true" : "false")" @onclick="() => Select(e.Id)">@e.Time.ToString("0.#")s <strong>@e.Kind</strong></button> }
+    </div>
+}
+@code {
+    [Parameter, EditorRequired] public MomentVisuals Visuals { get; set; } = null!;
+    [Parameter] public bool Compact { get; set; }
+    [Parameter] public EventCallback<string> Selected { get; set; }
+    private async Task Select(string id) { Visuals.Select(id); await Selected.InvokeAsync(id); }
+    private Task KeySelect(KeyboardEventArgs e, string id) => e.Key is "Enter" or " " ? Select(id) : Task.CompletedTask;
+    private static string N(double value) => value.ToString("R", CultureInfo.InvariantCulture);
+}

@@ -2,6 +2,35 @@ using PitchLens.Core;
 using PitchLens.Generation;
 using GitHub.Copilot;
 
+if (args is ["--narration", var narrationRuntime, var narrationWork, var narrationWitness])
+{
+    var immutableMatch = AuthoredMatchRecording.Create();
+    Directory.CreateDirectory(narrationWitness);
+    async Task SaveNarrationWitness(string name, string text)
+    {
+        var options = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Options = FileOptions.Asynchronous };
+        if (!OperatingSystem.IsWindows()) options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        await using var stream = new FileStream(Path.Combine(narrationWitness, name), options);
+        await using var writer = new StreamWriter(stream);
+        await writer.WriteAsync(text);
+    }
+    await SaveNarrationWitness("request.txt", NarrationPrompt.For(immutableMatch));
+    await SaveNarrationWitness("facts.json", NarrationPrompt.Facts(immutableMatch));
+    await SaveNarrationWitness("schema.json", NarrationPrompt.Schema);
+    using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(270));
+    try
+    {
+        var narrationSource = new CopilotScenarioSource(narrationRuntime, narrationWork, Path.Combine(narrationWitness, "raw-responses"));
+        var raw = await narrationSource.GenerateNarrationAsync(immutableMatch, new Progress<string>(Console.WriteLine), deadline.Token);
+        await SaveNarrationWitness("response.json", raw);
+        var validated = NarrationPrompt.Attach(raw, immutableMatch);
+        await SaveNarrationWitness("validated.json", raw);
+        Console.WriteLine($"LIVE NARRATION VALIDATED | model={CopilotScenarioSource.Model} | factsHash={validated.Narrative!.FactsHash} | cues={validated.Commentary!.Cues.Count} | chapters={validated.Narrative.Chapters.Count} | SDK Send requests=1 | match plan requests=0");
+        return 0;
+    }
+    catch (Exception e) when (e is ScenarioValidationException or CopilotGenerationException or OperationCanceledException or IOException)
+    { Console.Error.WriteLine($"LIVE NARRATION NOT VERIFIED: {e.Message}. No automatic retry or repair."); return 1; }
+}
 if (args is ["--explain-live", var explainRuntime, var explainDirectory, var explainWitness])
 {
     var match = AuthoredMatchRecording.Create();

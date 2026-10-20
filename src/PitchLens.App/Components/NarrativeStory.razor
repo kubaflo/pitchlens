@@ -1,0 +1,59 @@
+<div class="narrative-context"><span class="source-pill">@(Fresh ? "Fresh AI story" : "Recorded AI story / Not fresh")</span><span>Observed through @Cutoff.ToString("0.0")s</span><strong>@ScoreNow</strong></div>
+@if (visible.Count == 0)
+{ <div class="studio-empty"><span class="eyebrow">The story is still unfolding</span><p>Play to reveal the first observed turning point. No future chapters are shown.</p></div> }
+else
+{
+    <div class="story-arc" aria-label="Observed narrative timeline">
+        @foreach (var c in visible)
+        { <button class="@(c.Chapter.Kind == "goal" ? "arc-goal" : "")" @onclick="() => Inspect.InvokeAsync((c.Evidence, c.Chapter.FocusEventId))" aria-label="Replay @c.Chapter.Heading at @c.Chapter.RevealTime seconds"><span>@c.Chapter.RevealTime.ToString("0.#")s</span><strong>@c.Badge</strong></button> }
+    </div>
+    @foreach (var c in visible.AsEnumerable().Reverse())
+    {
+        <article class="narrative-card" @key="c.Chapter.Id">
+            <div class="narrative-copy"><div class="narrative-kicker"><time>@c.Chapter.RevealTime.ToString("0.#")s</time><span>@c.Badge</span><strong>@c.Score</strong></div>
+                <h3>@c.Chapter.Heading</h3><p>@(Mode == ExplanationMode.Analyst ? c.Chapter.Analyst : c.Chapter.Fan)</p>
+                <button class="text-button" @onclick="() => Inspect.InvokeAsync((c.Evidence, c.Visuals.SelectedId))">Replay selected evidence →</button>
+            </div>
+            <div class="narrative-map"><EvidenceSequence Visuals="c.Visuals" Compact="true" /><span>@c.Visuals.Passes.Count pass attempts · @c.Chapter.EventIds.Length cited actions</span></div>
+            <details><summary>Evidence & local measurements</summary>
+                <p class="caption">Only this chapter's cited actions, through @c.Chapter.RevealTime.ToString("0.#")s. Pass travel is recorded ball-path length, not AI arithmetic. Mean @(c.Visuals.MeanPassMetres is double mean ? $"{mean:F1} m" : "unavailable"); @c.Visuals.UnknownDistances unknown distances.</p>
+                <div class="insight-links">@foreach (var id in c.Chapter.EventIds)
+                    { <button class="evidence" @onclick="() => Inspect.InvokeAsync((c.Evidence, id))">@c.Evidence.Resolve(id).Time.ToString("0.#")s · @id</button> }</div>
+            </details>
+        </article>
+    }
+}
+<details class="caption"><summary>AI story provenance & limitations</summary><p>One structured @Match.Narrative?.Model response authored captions and both audiences for matching facts. @Match.Narrative?.FactsHash. Interpretations can be wrong; validation checks identity, references and reveal bounds, not all prose truth. No audio, live match claims, inferred pressure or xG.</p></details>
+
+@code {
+    [Parameter, EditorRequired] public Match Match { get; set; } = null!;
+    [Parameter] public long Revision { get; set; }
+    [Parameter] public double Cutoff { get; set; }
+    [Parameter] public bool Fresh { get; set; }
+    [Parameter, EditorRequired] public IReadOnlyDictionary<string, int> Score { get; set; } = null!;
+    [Parameter] public ExplanationMode Mode { get; set; }
+    [Parameter] public EventCallback<(MomentEvidence Evidence, string EventId)> Inspect { get; set; }
+    private Match? cached;
+    private long cachedRevision;
+    private readonly Dictionary<string, Entry> entries = [];
+    private IReadOnlyList<Entry> visible = [];
+    private string ScoreNow = "";
+    private sealed record Entry(NarrativeChapter Chapter, MomentEvidence Evidence, MomentVisuals Visuals, string Badge, string Score);
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(cached, Match) || cachedRevision != Revision)
+        { cached = Match; cachedRevision = Revision; entries.Clear(); }
+        ScoreNow = $"{Score["arsenal"]} : {Score["manchester-city"]}";
+        var chapters = NarrativeReplay.At(Match, Cutoff);
+        foreach (var chapter in chapters)
+            if (!entries.ContainsKey(chapter.Id))
+            {
+                var evidence = MomentEvidence.Capture(Match, Revision, chapter.RevealTime, chapter.FocusEventId, chapter.EventIds);
+                var facts = evidence.Facts;
+                var score = Replay.At(Match, chapter.RevealTime).Score;
+                entries[chapter.Id] = new(chapter, evidence, new(facts), NarrativeReplay.Consequence(Match, chapter),
+                    $"{score["arsenal"]} : {score["manchester-city"]}");
+            }
+        visible = chapters.Select(c => entries[c.Id]).ToArray();
+    }
+}

@@ -36,6 +36,7 @@ public sealed class GenerationService(IScenarioSource source, Match initial, Sce
             timeout.Token.ThrowIfCancellationRequested();
             progress?.Report("Validating roster, trajectories, possession and event causality…");
             var candidate = AuthoredMatchPlan.Parse(json);
+            if (candidate.Narrative is null) throw new ScenarioValidationException("New matches require a matching AI narration/story package, not historical captions alone.");
             timeout.Token.ThrowIfCancellationRequested();
             Current = candidate;
             Origin = ScenarioOrigin.FreshSdkGeneration;
@@ -51,7 +52,7 @@ public sealed class GenerationService(IScenarioSource source, Match initial, Sce
         catch (OperationCanceledException)
         {
             State = GenerationState.Failed;
-            Status = "Generation timed out after fifteen minutes (paths, optional one AI correction, commentary). Previous match kept.";
+            Status = "Generation timed out after fifteen minutes (paths, optional one AI correction, narration/story). Previous match kept.";
         }
         catch (Exception e) when (e is ScenarioValidationException or CopilotGenerationException or TimeoutException or IOException or InvalidOperationException or UnauthorizedAccessException)
         {

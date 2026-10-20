@@ -32,6 +32,7 @@
             <div class="team away"><strong>Manchester City</strong><img src="images/manchester_city_crest.png" alt="Manchester City crest" /></div>
         </section>
         @if (error is not null) { <div class="error" role="alert">@error</div> }
+        @if (evidenceNotice is not null) { <div class="request-status" role="status">@evidenceNotice</div> }
         <main class="matchday-stage">
             <div class="pitch-slot">
                 <canvas @ref="canvas" id="pitch" tabindex="0" role="img" aria-label="Synthetic football replay. Click a shirt, or use Players for keyboard-accessible selection."></canvas>
@@ -44,7 +45,7 @@
                 <div id="evidence-view-tag" class="goal-replay-tag" hidden aria-live="off"></div>
                 <div id="commentary-caption" class="commentary-caption" hidden aria-label="AI commentator subtitles" aria-live="off"></div>
             </div>
-            <div class="pitch-caption"><span>Click a shirt. Get the player lens.</span><span>@(frame.Explanations.LastOrDefault()?.Text ?? "Play to reveal the story.")</span></div>
+            <div class="pitch-caption"><span>Click a shirt. Get the player lens.</span><span>@(match.Narrative is null ? frame.Explanations.LastOrDefault()?.Text ?? "Play to reveal the story." : frame.Story.LastOrDefault()?.Heading ?? "The story unfolds as you watch.")</span></div>
         </main>
         <footer class="transport">
             <button id="restart" class="button" @onclick='() => Command("restart")'>Restart</button>
@@ -91,18 +92,19 @@
                 }
             </div>
         </dialog>
-        <dialog id="story-dialog" aria-labelledby="story-title">
-            <header class="dialog-head"><div><span class="eyebrow">Match story</span><h2 id="story-title">@match.Story?.Title</h2><span class="caption">Only evidence observed through @snapshot.Time.ToString("00.0")s</span></div><button class="close" data-close-popup>Close</button></header>
+        <dialog id="story-dialog" class="narrative-dialog" aria-labelledby="story-title">
+            <header class="dialog-head"><div><span class="eyebrow">The observed arc</span><h2 id="story-title">Match story</h2><span class="caption">Only evidence observed through @snapshot.Time.ToString("00.0")s</span></div><button class="close" data-close-popup>Close</button></header>
             <div class="dialog-body">
-                <div class="segments" id="mode"><button id="mode-casual" class="@(frame.Mode == ExplanationMode.Casual ? "selected" : "")" aria-pressed="@(frame.Mode == ExplanationMode.Casual ? "true" : "false")" @onclick="() => Mode(false)">Casual</button><button id="mode-analyst" class="@(frame.Mode == ExplanationMode.Analyst ? "selected" : "")" aria-pressed="@(frame.Mode == ExplanationMode.Analyst ? "true" : "false")" @onclick="() => Mode(true)">Analyst</button></div>
-                @if (frame.Explanations.Count == 0) { <p>No events yet. Play to reveal the story.</p> }
-                @foreach (var beat in frame.Story.Reverse())
+                <div class="segments" id="mode"><button id="mode-casual" class="@(frame.Mode == ExplanationMode.Casual ? "selected" : "")" aria-pressed="@(frame.Mode == ExplanationMode.Casual ? "true" : "false")" @onclick="() => Mode(false)">Fan</button><button id="mode-analyst" class="@(frame.Mode == ExplanationMode.Analyst ? "selected" : "")" aria-pressed="@(frame.Mode == ExplanationMode.Analyst ? "true" : "false")" @onclick="() => Mode(true)">Analyst</button></div>
+                @if (match.Narrative is not null)
                 {
-                    <article class="story-row" @key="(0, beat.Id)"><button class="evidence" @onclick="() => ReplayEvent(beat.Time)">@beat.Time.ToString("00.0")s</button><div><h3>@beat.Heading</h3><p>@beat.Detail</p><small>Events @string.Join(", ", beat.EventIds)</small></div></article>
+                    <NarrativeStory Match="match" Revision="frame.Revision" Cutoff="snapshot.Time" Score="snapshot.Score" Mode="frame.Mode" Fresh="view!.Fresh" Inspect="InspectStory" />
                 }
-                @foreach (var explanation in frame.Explanations.Reverse())
+                else
                 {
-                    <article class="story-row" @key="(1, explanation.EventId)"><button class="evidence" @onclick="() => ReplayEvent(explanation.Time)">@explanation.Time.ToString("00.0")s</button><div><p>@explanation.Text</p><small>Event @explanation.EventId</small></div></article>
+                    <p class="caption">Historical scripted facts. No AI story package is attached to this scene.</p>
+                    <details><summary>Observed event facts</summary>@foreach (var explanation in frame.Explanations.Reverse())
+                        { <article class="story-row"><button class="evidence" @onclick="() => ReplayEvent(explanation.Time)">@explanation.Time.ToString("00.0")s</button><p>@explanation.Text</p></article> }</details>
                 }
             </div>
         </dialog>
@@ -153,7 +155,7 @@
             <div class="dialog-body">
                 <RequestActivityView Activity="Session.ConnectionActivity" Title="SDK connection check · No AI request" Budget="45-second check · No generation or model usage" Cancel="Session.CancelConnection" />
                 <section id="scenario-provenance"><h3>@(view!.Origin == ScenarioOrigin.DeterministicDemo ? "Authored five-minute demo" : view.Fresh ? "New SDK-generated match" : "Recorded SDK example")</h3><p>Source model: @(view.Model ?? "None — authored locally"). @(view.Fresh ? "Generated in this session." : "Not a fresh request.")</p><p>All actions are synthetic. Real 2026/27 roster names; no real match result or athlete performance claim.</p></section>
-                <p>@(match.Commentary is { } commentary ? $"AI commentator subtitles: {commentary.Model}, {commentary.Cues.Count} timed cues for this match. {(view.Fresh ? "Generated with this match." : "Recorded generation, not a fresh request.")} Match story facts remain scripted." : "AI commentator subtitles unavailable; match story facts are scripted, not AI commentary.")</p>
+                <p>@(match.Commentary is { } commentary ? $"AI commentator subtitles: {commentary.Model}, {commentary.Cues.Count} timed cues for this match. {(view.Fresh ? "Generated with this match." : "Recorded generation, not a fresh request.")} {(match.Narrative is null ? "Historical story facts are scripted." : $"AI story: {match.Narrative.Chapters.Count} evidence-bound Fan/Analyst chapters from the same response.")}" : "AI narration unavailable; historical event facts are scripted.")</p>
                 @if (match.Players.Count == 22)
                 {
                     <p>All 22 explicit player trajectories and events were authored by Sol. The viewer only interpolates those knots; ball motion follows validated possession and events. No procedural support-path or formation solver. Illustrative 11v11 selection, not an actual starting XI.</p>
@@ -178,6 +180,7 @@
     private Task? ticker;
     private bool disposed;
     private string? error;
+    private string? evidenceNotice;
     private long loadedRevision;
     private PopupRequest? pendingPopup;
     private bool captionsEnabled = true;
@@ -279,15 +282,26 @@
     private void MomentChanged(ChangeEventArgs e) => Session.CaptureMoment(e.Value?.ToString());
     private async Task InspectEvidence(MomentEvidence captured, string id)
     {
-        if (frame?.Revision != captured.Revision) { error = "This evidence belongs to an earlier match."; return; }
         var evidence = captured.Resolve(id);
-        Session.Command("pause"); Session.Command("seek", evidence.Time);
+        try { Session.InspectEvidence(captured, id); evidenceNotice = null; }
+        catch (InvalidOperationException e) { evidenceNotice = e.Message; StateHasChanged(); return; }
         await Refresh(true);
+        if (frame?.Revision != captured.Revision) { evidenceNotice = "Match changed before evidence could be displayed."; StateHasChanged(); return; }
         if (module is not null)
         {
-            await module.InvokeVoidAsync("closePopup", "moment-dialog");
-            await module.InvokeVoidAsync("setEvidence", captured.Revision, JsonSerializer.Serialize(evidence, MomentJsonContext.Default.MomentEvent));
+            try
+            {
+                await module.InvokeVoidAsync("closePopup", "moment-dialog");
+                await module.InvokeVoidAsync("setEvidence", captured.Revision, JsonSerializer.Serialize(evidence, MomentJsonContext.Default.MomentEvent));
+            }
+            catch (JSDisconnectedException) { lifetime.Cancel(); }
+            catch (JSException e) { evidenceNotice = $"Evidence view failed: {e.Message}"; Session.Command("pause"); StateHasChanged(); }
         }
+    }
+    private async Task InspectStory((MomentEvidence Evidence, string EventId) request)
+    {
+        if (module is not null) await module.InvokeVoidAsync("closePopup", "story-dialog");
+        await InspectEvidence(request.Evidence, request.EventId);
     }
     private void Seek(double offset) => Session.Command("seek-by", offset);
     private void TimelineChanged(ChangeEventArgs e)

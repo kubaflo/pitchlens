@@ -23,7 +23,7 @@ test("default projection/reset is3x while explicit rate packets remain authorita
     assert.equal(clock.rate, 3);
 });
 
-test("all41 current broadcast Sol cues follow the same start-inclusive/end-exclusive selection contract as core", () => {
+test("all41 historical broadcast Sol cues follow the same start-inclusive/end-exclusive selection contract as core", () => {
     const recorded = JSON.parse(readFileSync(new URL("../../src/PitchLens.Generation/Resources/recorded_11v11_commentary_broadcast.json", import.meta.url), "utf8")).cues;
     assert.equal(recorded.length, 41);
     for (const time of [0, 300, ...recorded.flatMap(c => [c.start - .001, c.start, c.end - .001, c.end])].reverse()) {

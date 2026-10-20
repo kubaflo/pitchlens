@@ -38,7 +38,7 @@ public sealed class AuthoredRefinementTests
                 Assert.Same(initial, service.Current);
                 Assert.Equal(expected.Players.SelectMany(p => p.Path.Frames), match.Players.SelectMany(p => p.Path.Frames));
                 Assert.Equal(CommentaryPrompt.Hash(expected), CommentaryPrompt.Hash(match));
-                return Task.FromResult(Commentary());
+                return Task.FromResult(NarrationFixtures.Json(match, Commentary()));
             }, null, token));
         service = new(source, initial, ScenarioOrigin.RecordedSdkExample, AuthoredMatchRecording.Model);
         await service.GenerateAsync(null, CancellationToken.None);
@@ -65,7 +65,7 @@ public sealed class AuthoredRefinementTests
         var json = await AuthoredGenerationPipeline.RunAsync(
             _ => Task.FromResult(AuthoredMatchRecording.Json()),
             (_, _, _) => { refinements++; throw new InvalidOperationException("Valid paths must not need correction."); },
-            (_, _) => { captions++; return Task.FromResult(AuthoredMatchRecording.CommentaryJson()); },
+            (match, _) => { captions++; return Task.FromResult(NarrationFixtures.Json(match, AuthoredMatchRecording.CommentaryJson())); },
             null, CancellationToken.None);
         Assert.Equal(0, refinements); Assert.Equal(1, captions);
         Assert.Equal(22, AuthoredMatchPlan.Parse(json).Players.Count);
@@ -79,7 +79,7 @@ public sealed class AuthoredRefinementTests
         var source = new PipelineSource(token => AuthoredGenerationPipeline.RunAsync(
             _ => Task.FromResult(Rejected()),
             (_, _, _) => { refinements++; return Task.FromResult(Correction()); },
-            (_, _) => { captions++; return Task.FromResult(Commentary().Replace("71995829", "bad-hash")); },
+            (match, _) => { captions++; return Task.FromResult(NarrationFixtures.Json(match, Commentary()).Replace(NarrationPrompt.Hash(match), "bad-hash")); },
             null, token));
         var service = new GenerationService(source, initial);
         await service.GenerateAsync(null, CancellationToken.None);

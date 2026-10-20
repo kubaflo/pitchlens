@@ -17,6 +17,8 @@
     <Using Include="Xunit" />
     <Compile Include="../../src/PitchLens.App/MatchService.cs" Link="Native/MatchService.cs" />
     <Content Include="../../src/PitchLens.App/Components/MomentStudio.razor" Link="Components/MomentStudio.razor" />
+    <Content Include="../../src/PitchLens.App/Components/EvidenceSequence.razor" Link="Components/EvidenceSequence.razor" />
+    <Content Include="../../src/PitchLens.App/Components/NarrativeStory.razor" Link="Components/NarrativeStory.razor" />
     <Content Include="../../src/PitchLens.App/Components/RequestActivityView.razor" Link="Components/RequestActivityView.razor" />
     <Content Include="../../src/PitchLens.App/Components/_Imports.razor" Link="Components/_Imports.razor" />
     <Content Update="Fixtures/*.json" CopyToOutputDirectory="PreserveNewest" />

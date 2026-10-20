@@ -11,6 +11,38 @@ namespace PitchLens.Core.Tests;
 public sealed class InsightRenderingTests
 {
     [Fact]
+    public async Task Narrative_cards_render_only_observed_AI_interpretations_and_reuse_actual_evidence_map()
+    {
+        var original = AuthoredMatchRecording.Create();
+        var match = NarrationPrompt.Attach(NarrationFixtures.Package(original), original);
+        using var services = new ServiceCollection().AddLogging().BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(services, services.GetRequiredService<ILoggerFactory>());
+        async Task<string> Render(double time, ExplanationMode mode) => await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            var root = await renderer.RenderComponentAsync<NarrativeStory>(ParameterView.FromDictionary(new Dictionary<string, object?>
+            { ["Match"] = match, ["Revision"] = 1L, ["Cutoff"] = time, ["Score"] = Replay.At(match, time).Score, ["Mode"] = mode }));
+            return root.ToHtmlString();
+        });
+        var before = await Render(85.9, ExplanationMode.Casual);
+        Assert.DoesNotContain("Takes the lead", before);
+        Assert.DoesNotContain("Level again", before);
+        Assert.Contains("Recorded AI story / Not fresh", before);
+        Assert.Contains("viewBox=\"-4 -3 113 74\"", before);
+        var goal = await Render(86, ExplanationMode.Casual);
+        Assert.Contains("Takes the lead", goal);
+        Assert.DoesNotContain("Level again", goal);
+        Assert.Contains("Replay selected evidence", System.Net.WebUtility.HtmlDecode(goal));
+        Assert.Contains("The recorded sequence connects the move.", goal);
+        var analyst = await Render(176, ExplanationMode.Analyst);
+        Assert.Contains("Level again", analyst);
+        Assert.Contains("The observed route suggests", analyst);
+        Assert.DoesNotContain("The recorded sequence connects the move.", analyst);
+        var backward = await Render(0, ExplanationMode.Casual);
+        Assert.DoesNotContain("narrative-card", backward);
+        Assert.DoesNotContain("Takes the lead", backward);
+    }
+
+    [Fact]
     public async Task Real_studio_renders_accessible_original_svg_histogram_and_expandable_safe_prose_without_requests()
     {
         using var services = new ServiceCollection().AddLogging().BuildServiceProvider();

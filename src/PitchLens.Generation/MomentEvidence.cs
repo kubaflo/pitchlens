@@ -41,7 +41,7 @@ public sealed class MomentEvidence
         Hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(Json)));
     }
 
-    public static MomentEvidence Capture(Match match, long revision, double cutoff, string? focusId = null)
+    public static MomentEvidence Capture(Match match, long revision, double cutoff, string? focusId = null, string[]? evidenceIds = null)
     {
         if (!double.IsFinite(cutoff) || cutoff < 0 || cutoff > match.Duration)
             throw new ArgumentOutOfRangeException(nameof(cutoff));
@@ -49,7 +49,12 @@ public sealed class MomentEvidence
         var focus = focusId is null ? observed.LastOrDefault(e => e.Kind != EventKind.Kickoff) ?? observed.LastOrDefault()
             : observed.SingleOrDefault(e => e.Id == focusId);
         if (focus is null) throw new InvalidOperationException("Choose an event already observed in this match.");
-        var events = observed.Where(e => e.Time <= focus.Time).TakeLast(12).Select(e =>
+        if (evidenceIds is not null && (evidenceIds.Length is < 1 or > 12 || !evidenceIds.Contains(focus.Id) ||
+            evidenceIds.Distinct().Count() != evidenceIds.Length || evidenceIds.Any(id => !observed.Any(e => e.Id == id && e.Time <= focus.Time))))
+            throw new InvalidOperationException("Explicit visual evidence must resolve through the captured focus.");
+        var window = evidenceIds is null ? observed.Where(e => e.Time <= focus.Time).TakeLast(12) :
+            observed.Where(e => evidenceIds.Contains(e.Id));
+        var events = window.Select(e =>
         {
             var start = e.StartTime ?? e.Time;
             var points = match.Ball.Frames.Where(f => f.Time > start && f.Time < e.Time)

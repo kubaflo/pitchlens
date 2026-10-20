@@ -97,11 +97,12 @@ public static class AuthoredGenerationPipeline
             match = AuthoredMatchPlan.Build(document, requireCommentary: false); // Full validation, no second correction.
         }
         token.ThrowIfCancellationRequested();
-        progress?.Report("Generating AI commentator subtitles for the fully validated match…");
+        progress?.Report("Creating contextual narration and Fan/Analyst story for the validated match…");
         var commentary = await generateCommentary(match, token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
-        var narrated = CommentaryPrompt.Attach(commentary, match);
-        var result = JsonSerializer.Serialize(document with { Commentary = narrated.Commentary!.Cues.ToArray() },
+        var package = NarrationPrompt.Document(commentary);
+        _ = NarrationPrompt.Attach(package, match);
+        var result = JsonSerializer.Serialize(document with { Commentary = null, Narration = package },
             AuthoredJsonContext.Default.AuthoredMatchDocument);
         if (archive is not null) await archive.SaveAsync("validated", result).ConfigureAwait(false);
         return result;

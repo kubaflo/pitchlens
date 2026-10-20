@@ -10,6 +10,8 @@ public static class StoryReplay
     public static IReadOnlyList<StoryMoment> At(Match match, double time)
     {
         time = match.ClampTime(time);
+        if (match.Narrative is not null)
+            return NarrativeReplay.At(match, time).Select(c => new StoryMoment(c.Id, c.RevealTime, c.Heading, c.Fan, c.EventIds)).ToArray();
         if (match.Story is null) return [];
         return match.Story.Beats.Where(b => b.EndTime <= time).Select(b =>
         {

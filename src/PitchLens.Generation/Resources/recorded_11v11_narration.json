@@ -1,0 +1,499 @@
+{
+  "factsHash": "318b2f66780d03907762d80568c9c5228947446aa5617660e40efa0e381aae72",
+  "cues": [
+    {
+      "id": "cue-opening-link",
+      "eventId": "e1",
+      "start": 3,
+      "end": 5,
+      "playerIds": ["arsenal-zubimendi", "arsenal-rice"],
+      "text": "Find Rice across the middle, and Arsenal have their first connection.",
+      "evidenceIds": ["e1"]
+    },
+    {
+      "id": "cue-rice-carries",
+      "eventId": "e2",
+      "start": 7,
+      "end": 10,
+      "playerIds": ["arsenal-rice"],
+      "text": "Push on with Rice; the ball travels forward at his feet.",
+      "evidenceIds": ["e2"]
+    },
+    {
+      "id": "cue-martinelli-advances",
+      "eventId": "e5",
+      "start": 17,
+      "end": 20,
+      "playerIds": ["arsenal-calafiori", "arsenal-martinelli"],
+      "text": "Carry it up the flank! Martinelli advances from Calafiori's delivery.",
+      "evidenceIds": ["e4", "e5"]
+    },
+    {
+      "id": "cue-switch-to-saka",
+      "eventId": "e7",
+      "start": 23,
+      "end": 26,
+      "playerIds": ["arsenal-martinelli", "arsenal-odegaard", "arsenal-saka"],
+      "text": "Shift across through Odegaard, and Saka receives on the opposite flank.",
+      "evidenceIds": ["e6", "e7"]
+    },
+    {
+      "id": "cue-doku-intercepts",
+      "eventId": "e10",
+      "start": 33,
+      "end": 36,
+      "playerIds": ["arsenal-timber", "manchester-city-doku"],
+      "text": "Cut out by Doku! Timber's ball across the pitch changes hands.",
+      "evidenceIds": ["e10"]
+    },
+    {
+      "id": "cue-doku-infield",
+      "eventId": "e12",
+      "start": 40,
+      "end": 43,
+      "playerIds": ["manchester-city-doku", "manchester-city-kovacic"],
+      "text": "Bring it inside to Kovacic after Doku's advance down the flank.",
+      "evidenceIds": ["e11", "e12"]
+    },
+    {
+      "id": "cue-cherki-central",
+      "eventId": "e15",
+      "start": 50,
+      "end": 53,
+      "playerIds": ["manchester-city-ait-nouri", "manchester-city-cherki"],
+      "text": "Drive through the middle with Cherki after Ait-Nouri brings the ball inward.",
+      "evidenceIds": ["e14", "e15"]
+    },
+    {
+      "id": "cue-saliba-breaks",
+      "eventId": "e17",
+      "start": 56,
+      "end": 59,
+      "playerIds": ["manchester-city-haaland", "arsenal-saliba"],
+      "text": "Intercepted by Saliba! Haaland's next ball stays with Arsenal.",
+      "evidenceIds": ["e17"]
+    },
+    {
+      "id": "cue-gabriel-outlet",
+      "eventId": "e19",
+      "start": 62,
+      "end": 65,
+      "playerIds": ["arsenal-saliba", "arsenal-gabriel", "arsenal-zubimendi"],
+      "text": "Work out through Gabriel; Zubimendi receives the next ball inside.",
+      "evidenceIds": ["e18", "e19"]
+    },
+    {
+      "id": "cue-zubimendi-steps",
+      "eventId": "e20",
+      "start": 66,
+      "end": 69,
+      "playerIds": ["arsenal-zubimendi"],
+      "text": "Step forward with Zubimendi, keeping the ball near the middle.",
+      "evidenceIds": ["e20"]
+    },
+    {
+      "id": "cue-martinelli-across",
+      "eventId": "e23",
+      "start": 75,
+      "end": 78,
+      "playerIds": ["arsenal-rice", "arsenal-martinelli", "arsenal-odegaard"],
+      "text": "Sweep it across! Martinelli redirects Rice's wide delivery toward Odegaard.",
+      "evidenceIds": ["e22", "e23"]
+    },
+    {
+      "id": "cue-saka-forward",
+      "eventId": "e25",
+      "start": 82,
+      "end": 84,
+      "playerIds": ["arsenal-odegaard", "arsenal-saka"],
+      "text": "Take it forward, Saka! Odegaard's wide connection becomes a carry.",
+      "evidenceIds": ["e24", "e25"]
+    },
+    {
+      "id": "cue-gyokeres-goal",
+      "eventId": "e28",
+      "start": 86,
+      "end": 90,
+      "playerIds": ["arsenal-saka", "arsenal-gyokeres"],
+      "text": "Gyokeres scores! Saka's ball inward is followed by the opener.",
+      "evidenceIds": ["e25", "e26", "e27", "e28"]
+    },
+    {
+      "id": "cue-city-restart-wide",
+      "eventId": "e30",
+      "start": 99,
+      "end": 102,
+      "playerIds": ["manchester-city-anderson", "manchester-city-lewis"],
+      "text": "Restart through Anderson, then out toward Lewis on the flank.",
+      "evidenceIds": ["e29", "e30"]
+    },
+    {
+      "id": "cue-foden-response",
+      "eventId": "e32",
+      "start": 106,
+      "end": 109,
+      "playerIds": ["manchester-city-lewis", "manchester-city-foden"],
+      "text": "Advance with Foden! Lewis's ball down the flank becomes forward movement.",
+      "evidenceIds": ["e31", "e32"]
+    },
+    {
+      "id": "cue-anderson-middle",
+      "eventId": "e36",
+      "start": 119,
+      "end": 122,
+      "playerIds": ["manchester-city-guehi", "manchester-city-anderson"],
+      "text": "Carry centrally with Anderson after Guehi returns the ball inside.",
+      "evidenceIds": ["e35", "e36"]
+    },
+    {
+      "id": "cue-rice-interception",
+      "eventId": "e38",
+      "start": 125,
+      "end": 128,
+      "playerIds": ["manchester-city-cherki", "arsenal-rice"],
+      "text": "Rice takes it! Cherki's pass is intercepted in the middle.",
+      "evidenceIds": ["e38"]
+    },
+    {
+      "id": "cue-left-route",
+      "eventId": "e41",
+      "start": 135,
+      "end": 138,
+      "playerIds": ["arsenal-rice", "arsenal-calafiori", "arsenal-martinelli"],
+      "text": "Go wide through Calafiori; Martinelli receives farther up the same flank.",
+      "evidenceIds": ["e40", "e41"]
+    },
+    {
+      "id": "cue-gyokeres-carry",
+      "eventId": "e43",
+      "start": 142,
+      "end": 145,
+      "playerIds": ["arsenal-martinelli", "arsenal-gyokeres"],
+      "text": "Bring it inward, then advance! Gyokeres carries on from Martinelli's pass.",
+      "evidenceIds": ["e42", "e43"]
+    },
+    {
+      "id": "cue-timber-saka-link",
+      "eventId": "e46",
+      "start": 151,
+      "end": 154,
+      "playerIds": ["arsenal-odegaard", "arsenal-timber", "arsenal-saka"],
+      "text": "Return to the flank through Timber, with Saka receiving farther forward.",
+      "evidenceIds": ["e45", "e46"]
+    },
+    {
+      "id": "cue-ait-nouri-takes",
+      "eventId": "e47",
+      "start": 155,
+      "end": 158,
+      "playerIds": ["arsenal-saka", "manchester-city-ait-nouri"],
+      "text": "Ait-Nouri intercepts! Saka's ball across the pitch reaches City instead.",
+      "evidenceIds": ["e47"]
+    },
+    {
+      "id": "cue-anderson-doku",
+      "eventId": "e50",
+      "start": 165,
+      "end": 168,
+      "playerIds": ["manchester-city-ait-nouri", "manchester-city-anderson", "manchester-city-doku"],
+      "text": "Move inside, then wide again; Anderson finds Doku after Ait-Nouri's pass.",
+      "evidenceIds": ["e49", "e50"]
+    },
+    {
+      "id": "cue-doku-cherki",
+      "eventId": "e52",
+      "start": 172,
+      "end": 174,
+      "playerIds": ["manchester-city-doku", "manchester-city-cherki"],
+      "text": "Send it across to Cherki! Doku changes the angle after carrying up the flank.",
+      "evidenceIds": ["e51", "e52"]
+    },
+    {
+      "id": "cue-haaland-goal",
+      "eventId": "e55",
+      "start": 176,
+      "end": 180,
+      "playerIds": ["manchester-city-cherki", "manchester-city-haaland"],
+      "text": "Haaland scores the equalizer! Cherki's inward pass precedes the finish.",
+      "evidenceIds": ["e53", "e54", "e55"]
+    },
+    {
+      "id": "cue-arsenal-reset",
+      "eventId": "e57",
+      "start": 189,
+      "end": 192,
+      "playerIds": ["arsenal-zubimendi", "arsenal-gabriel"],
+      "text": "Start again through Gabriel, with Zubimendi sending the restart backward.",
+      "evidenceIds": ["e56", "e57"]
+    },
+    {
+      "id": "cue-rice-response",
+      "eventId": "e60",
+      "start": 199,
+      "end": 202,
+      "playerIds": ["arsenal-calafiori", "arsenal-rice"],
+      "text": "Turn the route inward through Rice, then carry forward from Calafiori's pass.",
+      "evidenceIds": ["e59", "e60"]
+    },
+    {
+      "id": "cue-saka-other-side",
+      "eventId": "e63",
+      "start": 208,
+      "end": 211,
+      "playerIds": ["arsenal-martinelli", "arsenal-odegaard", "arsenal-saka"],
+      "text": "Cross the pitch through Odegaard; Saka receives out on the other flank.",
+      "evidenceIds": ["e62", "e63"]
+    },
+    {
+      "id": "cue-guehi-intercepts",
+      "eventId": "e65",
+      "start": 215,
+      "end": 218,
+      "playerIds": ["arsenal-saka", "manchester-city-guehi"],
+      "text": "Guehi cuts it out! Saka's inward ball brings another change of possession.",
+      "evidenceIds": ["e65"]
+    },
+    {
+      "id": "cue-lewis-carry",
+      "eventId": "e68",
+      "start": 225,
+      "end": 228,
+      "playerIds": ["manchester-city-dias", "manchester-city-lewis"],
+      "text": "Take it up the flank with Lewis after Dias sends the ball outward.",
+      "evidenceIds": ["e67", "e68"]
+    },
+    {
+      "id": "cue-city-return-middle",
+      "eventId": "e71",
+      "start": 234,
+      "end": 237,
+      "playerIds": ["manchester-city-foden", "manchester-city-kovacic", "manchester-city-cherki"],
+      "text": "Come back inside through Kovacic, then across the middle to Cherki.",
+      "evidenceIds": ["e70", "e71"]
+    },
+    {
+      "id": "cue-cherki-doku-width",
+      "eventId": "e73",
+      "start": 241,
+      "end": 244,
+      "playerIds": ["manchester-city-cherki", "manchester-city-doku"],
+      "text": "Spread it to Doku! Cherki's central carry ends with a ball toward the flank.",
+      "evidenceIds": ["e72", "e73"]
+    },
+    {
+      "id": "cue-timber-intercepts",
+      "eventId": "e74",
+      "start": 245,
+      "end": 248,
+      "playerIds": ["manchester-city-doku", "arsenal-timber"],
+      "text": "Timber intercepts across the pitch! Doku's next pass changes possession.",
+      "evidenceIds": ["e74"]
+    },
+    {
+      "id": "cue-zubimendi-rice",
+      "eventId": "e77",
+      "start": 255,
+      "end": 258,
+      "playerIds": ["arsenal-timber", "arsenal-zubimendi", "arsenal-rice"],
+      "text": "Work inward through Zubimendi, then across to Rice from Timber's outlet.",
+      "evidenceIds": ["e76", "e77"]
+    },
+    {
+      "id": "cue-martinelli-carry-again",
+      "eventId": "e80",
+      "start": 265,
+      "end": 268,
+      "playerIds": ["arsenal-calafiori", "arsenal-martinelli"],
+      "text": "Advance along the flank! Martinelli carries forward after Calafiori finds him.",
+      "evidenceIds": ["e79", "e80"]
+    },
+    {
+      "id": "cue-gyokeres-back-in",
+      "eventId": "e82",
+      "start": 271,
+      "end": 274,
+      "playerIds": ["arsenal-martinelli", "arsenal-gyokeres", "arsenal-odegaard"],
+      "text": "Bring it inside to Gyokeres, then back across toward Odegaard.",
+      "evidenceIds": ["e81", "e82"]
+    },
+    {
+      "id": "cue-anderson-intercepts",
+      "eventId": "e83",
+      "start": 275,
+      "end": 278,
+      "playerIds": ["arsenal-odegaard", "manchester-city-anderson"],
+      "text": "Anderson takes over! Odegaard's pass is intercepted near the middle.",
+      "evidenceIds": ["e83"]
+    },
+    {
+      "id": "cue-city-wide-exit",
+      "eventId": "e85",
+      "start": 281,
+      "end": 284,
+      "playerIds": ["manchester-city-anderson", "manchester-city-ait-nouri", "manchester-city-doku"],
+      "text": "Exit through Ait-Nouri and out to Doku; City move from the middle to the flank.",
+      "evidenceIds": ["e84", "e85"]
+    },
+    {
+      "id": "cue-doku-carries-again",
+      "eventId": "e86",
+      "start": 285,
+      "end": 288,
+      "playerIds": ["manchester-city-doku"],
+      "text": "Keep moving with Doku, carrying forward along the same flank.",
+      "evidenceIds": ["e86"]
+    },
+    {
+      "id": "cue-kovacic-cherki-angle",
+      "eventId": "e88",
+      "start": 291,
+      "end": 293,
+      "playerIds": ["manchester-city-doku", "manchester-city-kovacic", "manchester-city-cherki"],
+      "text": "Angle inward through Kovacic; Cherki receives across from Doku's route.",
+      "evidenceIds": ["e87", "e88"]
+    },
+    {
+      "id": "cue-foden-wide",
+      "eventId": "e89",
+      "start": 294,
+      "end": 298,
+      "playerIds": ["manchester-city-cherki", "manchester-city-foden"],
+      "text": "Find the other flank! Cherki sends the ball outward to Foden.",
+      "evidenceIds": ["e89"]
+    }
+  ],
+  "chapters": [
+    {
+      "id": "chapter-across-the-width",
+      "revealTime": 27,
+      "kind": "buildup",
+      "focusEventId": "e8",
+      "eventIds": ["e6", "e7", "e8"],
+      "playerIds": ["arsenal-martinelli", "arsenal-odegaard", "arsenal-saka"],
+      "heading": "Across, then forward",
+      "fan": "The ball has crossed from Martinelli's flank to Saka's, and now the movement goes forward again.",
+      "analyst": "Martinelli's pass traverses the pitch toward Odegaard. The next pass takes it wider to Saka, whose carry continues along that flank."
+    },
+    {
+      "id": "chapter-doku-change",
+      "revealTime": 33,
+      "kind": "turnover",
+      "focusEventId": "e10",
+      "eventIds": ["e8", "e9", "e10"],
+      "playerIds": ["arsenal-saka", "arsenal-timber", "manchester-city-doku"],
+      "heading": "The switch changes hands",
+      "fan": "Arsenal send the ball back from Saka, but Doku takes possession on Timber's next pass.",
+      "analyst": "Saka's return moves the ball backward along his flank. Timber's subsequent pass crosses much of the pitch and is intercepted by Doku."
+    },
+    {
+      "id": "chapter-width-revisited",
+      "revealTime": 78,
+      "kind": "buildup",
+      "focusEventId": "e24",
+      "eventIds": ["e21", "e22", "e23", "e24"],
+      "playerIds": ["arsenal-zubimendi", "arsenal-rice", "arsenal-martinelli", "arsenal-odegaard", "arsenal-saka"],
+      "heading": "Out wide, across, out wide",
+      "fan": "Arsenal connect both flanks again, with Saka now receiving the move on the opposite side.",
+      "analyst": "Rice finds Martinelli wide before the ball travels across to Odegaard and outward to Saka. The sequence changes width without a carry between these passes."
+    },
+    {
+      "id": "chapter-gyokeres-breakthrough",
+      "revealTime": 86,
+      "kind": "goal",
+      "focusEventId": "e28",
+      "eventIds": ["e24", "e25", "e26", "e27", "e28"],
+      "playerIds": ["arsenal-odegaard", "arsenal-saka", "arsenal-gyokeres"],
+      "heading": "Gyokeres opens the scoring",
+      "fan": "There is the breakthrough: Saka brings the move forward and inward, and Gyokeres scores.",
+      "analyst": "Saka carries along the flank before passing across toward the centre at a similar forward position. Gyokeres then shoots into the goal."
+    },
+    {
+      "id": "chapter-city-restart",
+      "revealTime": 106,
+      "kind": "response",
+      "focusEventId": "e32",
+      "eventIds": ["e29", "e30", "e31", "e32"],
+      "playerIds": ["manchester-city-anderson", "manchester-city-lewis", "manchester-city-foden"],
+      "heading": "A restart takes the flank",
+      "fan": "City's restart has become a forward carry, with Foden taking the movement down the flank.",
+      "analyst": "Anderson sends the restart outward to Lewis. Lewis connects with Foden farther toward City's attacking end, and Foden continues in that direction."
+    },
+    {
+      "id": "chapter-rice-stops-route",
+      "revealTime": 125,
+      "kind": "turnover",
+      "focusEventId": "e38",
+      "eventIds": ["e35", "e36", "e37", "e38"],
+      "playerIds": ["manchester-city-guehi", "manchester-city-anderson", "manchester-city-cherki", "arsenal-rice"],
+      "heading": "Rice breaks the central route",
+      "fan": "City bring the ball through the middle, but Rice takes possession on Cherki's next connection.",
+      "analyst": "Anderson carries centrally and finds Cherki nearby. Cherki's attempted pass shifts across the middle, where Rice intercepts."
+    },
+    {
+      "id": "chapter-haaland-levels",
+      "revealTime": 176,
+      "kind": "goal",
+      "focusEventId": "e55",
+      "eventIds": ["e50", "e51", "e52", "e53", "e54", "e55"],
+      "playerIds": ["manchester-city-anderson", "manchester-city-doku", "manchester-city-cherki", "manchester-city-haaland"],
+      "heading": "Haaland brings City level",
+      "fan": "The equalizer arrives through Haaland after City's move travels from Doku's flank back into the middle.",
+      "analyst": "Doku carries forward before passing across to Cherki. Cherki redirects the ball toward Haaland in a more central position, and Haaland scores."
+    },
+    {
+      "id": "chapter-arsenal-restart",
+      "revealTime": 199,
+      "kind": "response",
+      "focusEventId": "e60",
+      "eventIds": ["e56", "e57", "e58", "e59", "e60"],
+      "playerIds": ["arsenal-zubimendi", "arsenal-gabriel", "arsenal-calafiori", "arsenal-rice"],
+      "heading": "Back first, then forward",
+      "fan": "Arsenal restart backward, reconnect out wide, and bring Rice forward with the ball.",
+      "analyst": "The restart goes to Gabriel before moving outward through Calafiori. Rice receives inward from the flank and carries toward Arsenal's attacking end."
+    },
+    {
+      "id": "chapter-guehi-interruption",
+      "revealTime": 215,
+      "kind": "turnover",
+      "focusEventId": "e65",
+      "eventIds": ["e61", "e62", "e63", "e64", "e65"],
+      "playerIds": ["arsenal-rice", "arsenal-martinelli", "arsenal-odegaard", "arsenal-saka", "manchester-city-guehi"],
+      "heading": "Guehi interrupts the inward ball",
+      "fan": "Saka has carried farther along the flank, but the next ball belongs to Guehi.",
+      "analyst": "The sequence crosses from Martinelli through Odegaard to Saka. After advancing wide, Saka attempts an inward pass that Guehi intercepts."
+    },
+    {
+      "id": "chapter-martinelli-progress",
+      "revealTime": 265,
+      "kind": "buildup",
+      "focusEventId": "e80",
+      "eventIds": ["e76", "e77", "e78", "e79", "e80"],
+      "playerIds": ["arsenal-timber", "arsenal-zubimendi", "arsenal-rice", "arsenal-calafiori", "arsenal-martinelli"],
+      "heading": "The route reaches Martinelli",
+      "fan": "Arsenal move across from Timber's side and turn the connection into another Martinelli carry.",
+      "analyst": "Timber's pass comes inward to Zubimendi. Rice and Calafiori move it toward the opposite flank, where Martinelli receives and carries forward."
+    },
+    {
+      "id": "chapter-anderson-takes-over",
+      "revealTime": 275,
+      "kind": "turnover",
+      "focusEventId": "e83",
+      "eventIds": ["e80", "e81", "e82", "e83"],
+      "playerIds": ["arsenal-martinelli", "arsenal-gyokeres", "arsenal-odegaard", "manchester-city-anderson"],
+      "heading": "Anderson takes the next ball",
+      "fan": "The move comes inward through Gyokeres, then changes hands as Anderson intercepts Odegaard's pass.",
+      "analyst": "Martinelli finds Gyokeres centrally before the ball moves backward and across to Odegaard. Odegaard's next pass travels toward the middle and reaches Anderson."
+    },
+    {
+      "id": "chapter-city-cross-pitch",
+      "revealTime": 294,
+      "kind": "buildup",
+      "focusEventId": "e89",
+      "eventIds": ["e85", "e86", "e87", "e88", "e89"],
+      "playerIds": ["manchester-city-ait-nouri", "manchester-city-doku", "manchester-city-kovacic", "manchester-city-cherki", "manchester-city-foden"],
+      "heading": "From Doku's side to Foden",
+      "fan": "City connect the flanks through the middle, ending this passage with Foden receiving wide.",
+      "analyst": "Doku carries on one flank, then passes inward to Kovacic. The next connections through Cherki and Foden take the ball across toward the opposite flank."
+    }
+  ]
+}

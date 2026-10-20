@@ -142,6 +142,9 @@ tool inspection, two explanation modes and clickable pitch evidence.
 Section 6 weights technology, agentic innovation, impact, UX and category fit
 equally at 20%; this focused slice improves the evidence-to-experience story
 without claiming a score or guaranteed win.
+The narration/story slice adds the same measured-facts → bounded interpretation →
+explanation → visual/timed rendering → local Fan/Analyst personalization path.
+It is one structured response, not a multi-agent system or an eligibility claim.
 
 The rules exclude Microsoft employees and specify registration by October 20,
 noon Pacific, submission by October 27, 23:59 Pacific, a public repository,
@@ -172,9 +175,10 @@ The model also supplies ten phase tags. Local data maps verified roster IDs to
 names/shirt numbers and illustrative roles, not actual coach decisions.
 
 After the path/event stage passes validation, a second bounded Sol request
-authors **timed commentator cues for those exact facts**. Both must validate
+authors **one coherent narration package: contextual timed cues and distinct
+Fan/Analyst story chapters for those exact measured facts**. All must validate
 before atomic replacement. Invalid paths are rejected, never auto-corrected;
-missing/invalid cues keep the previous valid match. Historical 6v6 trajectories
+missing/invalid cues or story keep the previous valid match. Historical 6v6 trajectories
 and captions are not attached to a new 11v11 game.
 
 If an otherwise valid candidate violates the unchanged team width/depth gate,
@@ -183,7 +187,7 @@ for **one** targeted correction. It returns all 22 explicit trajectories;
 the event sequence, roster IDs, 300-second duration, initial owner and phase
 metadata cannot be edited. The viewer does not nudge coordinates or weaken
 thresholds. The complete parser/causality/onside/physics/shape validation runs
-again, and commentary is requested only after it passes. Invalid correction,
+again, and the narration/story package is requested only after it passes. Invalid correction,
 transport/auth failure, cancellation or timeout never starts another correction.
 
 The UI shows connecting/authentication/model/generation/validation progress and
@@ -201,8 +205,9 @@ retires the request; SDK session/runtime resources are disposed.
 Cleanup has its own deadline; if graceful SDK disposal stalls, only that
 generation's owned runtime is stopped and the cleanup error is reported.
 
-On startup the app plays a reviewed **five-minute Sol recording**, bundled unchanged
-from successful live explicit-path and commentary requests on 2026-10-19. This is labeled
+On startup the app plays a reviewed **five-minute Sol recording**: unchanged
+explicit paths from 2026-10-19 and one validated narration/story response from
+2026-10-20. This is labeled
 **Recorded SDK example · Not a fresh request**, not falsely presented as a new
 generation. Startup makes no model request. Clicking Generate produces a new
 scenario labeled **Fresh SDK / gpt-6.1-sol**; its actions remain synthetic.
@@ -251,37 +256,74 @@ finish-appropriate highlights discussed in the official
 not copied game code, artwork, fonts, skins, Unity rendering or mocap. PitchLens
 is not affiliated with Football Manager. It remains a 2D viewer, not a 3D
 match engine or newly generated celebration simulation.
-Match notes show completed phases, evidence event IDs and trajectory-derived
-movement. A beat is revealed only after its full time range has elapsed, so
-backward seeks remove future event/movement claims. Explanatory sentences are
-deterministic renderings of validated facts, **not a second AI request**.
+### The observed match story
+
+**Match story** is now an original visual narrative, not the old deterministic
+thirty-second pass lists. The same response that writes captions writes bounded,
+distinct **Fan** and **Analyst** interpretations. Startup's actual recorded
+package has twelve turning points: four buildups, four turnovers, two goals and
+two restart responses. Cards combine concise AI headings/interpretations with
+local consequence/score badges and the shared exact-coordinate action map.
+Evidence IDs, chapter-scoped pass measurements and provenance are expandable;
+they do not dominate the story. No TTS/audio, new provider or extra per-card call.
+
+The stored package covers the whole match, but the visible story is an as-of
+projection. Each chapter reveals exactly at its focus event's completion; every
+cited action must already be completed and no more than twenty seconds old.
+Every goal needs a chapter; turnover/response/buildup types must match actual
+evidence. The neutral **Match story** header never advertises a later outcome.
+Backward seeks remove future cards and claims. Audience switching, opening the
+story and replaying evidence make no AI request. Replay actions use the same
+native clock and labelled historical overlay as the evidence studio.
+
+Numerical score, lead/equalizer badges, pass counts and ball-path distance come
+from local observed facts, not model arithmetic. The original AI text remains
+interpretation, not certified causal truth. Identity/hash/reveal/plain-text checks
+do not prove every sentence's meaning. Historical phase/event resources remain
+explicitly historical/scripted and are never relabelled as AI story output.
 
 ### AI commentator subtitles and speed
 
 **CC** controls optional AI-generated subtitles at the bottom of the pitch,
 on by default when available. These are actual **gpt-6.1-sol** output, not
-renamed scripted match notes. Startup now uses **41 recorded cues** from one
-successful bounded SDK commentary refresh for the exact same 22-player match
-facts: a sharper broadcast voice, varied short calls and emphatic factual goals,
-not repeated full-name/pass-completed templates. They span 3-297 seconds, last
-**2-5 replay seconds** each (124 seconds total), cover both goals, and are bundled
-unchanged in `recorded_11v11_commentary_broadcast.json`. The prior 40-cue recording
-is retained as historical data, not silently hand-edited or relabeled.
-The match-facts digest is
-`7b6e52ea484abf19165a8534ec5ebe6921fe155e54cd3797ffe00e6e92896865`;
-the commentary file SHA-256 is
-`88859ee4825e45b06228a5a45528f420b8683ed97eb818fb62dc9dd3071adb6e`.
-This was one actual Sol request, no retries or fallback. Startup and playback
-make no requests. Settings distinguishes recorded/generated commentary from
-scripted story facts; all describe synthetic actions.
+renamed scripted match notes. Startup now uses **40 contextual cues plus twelve
+Fan/Analyst chapters** from one successful bounded Sol SDK storytelling request.
+Cues connect prior observed pass/carry sequences with their payoff, instead of
+repeating full-name/pass-completed templates. They span 3-298 seconds, last
+**2-4 replay seconds** each (119 seconds total), and cover both goals.
+`recorded_11v11_narration.json` is the exact unedited validated response,
+SHA-256 `9456026655d301cb03ac0303766638e83b7031b879d939bc81fe064aac7d9ed6`.
+Both caption/story tracks share measured-facts hash
+`318b2f66780d03907762d80568c9c5228947446aa5617660e40efa0e381aae72`.
+This was exactly one narration-only SDK Send, zero initial-plan requests,
+no repair/retry/fallback. Raw request, schema, measured facts and response were
+preserved in opt-in session-only artifacts before validation.
+Earlier 40/41-cue caption-only recordings remain historical, unedited resources.
+Startup/playback make no requests. Settings distinguishes recorded/generated
+narration/story; all describe synthetic actions.
 
-Cues reference a resolved event and involved roster IDs, start no earlier than
-their evidence, are ordered/nonoverlapping and bounded to 2-6 seconds and
+Cues reference a primary event, explicit contextual event IDs and involved
+roster IDs. All context must be completed by cue start and within twelve seconds;
+no future goal can explain an earlier pass. Cues are ordered/nonoverlapping and bounded to 2-6 seconds and
 140 plain-text characters. Every minute and every goal need coverage.
 Unknown references, early/overlapping cues, markup, numeric statistics and
 explicit prediction/unsupported goal wording are rejected. This is a bounded
 grounding contract, not a claim that a validator proves every natural-language
 meaning. Model text is rendered with `textContent`, never HTML.
+
+The existing generation budget remains two responses, or three with the one
+optional path correction: the storytelling package **replaces** the caption
+response, it does not add a hidden stage. Each new match must validate its own
+matching cues and chapters before atomic delivery; caption-only historical data
+cannot satisfy a new-generation success. The visible thinking/stage/elapsed/
+cancel feedback also covers this combined stage.
+
+For no-paid acceptance, seek to 85.9s then 86s and open Match story: the observed
+lead appears only at 86s. At 176s the locally proved equalizer appears.
+Switch Fan/Analyst, select a miniature path and replay its evidence; check the
+pinned clock/positions and seek backward to remove future cards. Do not press
+New match or Ask Sol merely to browse the recorded story. Native visual
+acceptance remains separate from headless rendering and the real SDK request.
 
 The transport offers **1x / 2x / 3x / 5x**. Rate changes re-anchor the native
 monotonic clock without moving the playhead; JS projects from that anchor with

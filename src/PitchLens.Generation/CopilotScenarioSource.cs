@@ -26,10 +26,12 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
         AuthoredGenerationPipeline.RunAsync(paths,
             (document, failure, cancellation) => RequestAsync(AuthoredPathRefinement.Prompt(document, failure),
                 AuthoredPathRefinement.Schema, "correction", progress, cancellation),
-            (match, cancellation) => GenerateCommentaryAsync(match, progress, cancellation),
+            (match, cancellation) => GenerateNarrationAsync(match, progress, cancellation),
             progress, token, archive);
     public Task<string> GenerateCommentaryAsync(Match match, IProgress<string>? progress, CancellationToken cancellationToken) =>
         RequestAsync(CommentaryPrompt.For(match), CommentaryPrompt.Schema, "commentary", progress, cancellationToken);
+    public Task<string> GenerateNarrationAsync(Match match, IProgress<string>? progress, CancellationToken cancellationToken) =>
+        RequestAsync(NarrationPrompt.For(match), NarrationPrompt.Schema, "commentary", progress, cancellationToken);
     internal CopilotClient CreateClient()
     {
         if (!Path.IsPathFullyQualified(cliPath) || !File.Exists(cliPath))
@@ -106,7 +108,7 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
                 progress?.Report(responseStage switch
                 {
                     "correction" => "Sol is refining player paths (one correction maximum)…",
-                    "commentary" => "Sol is composing grounded commentator subtitles…",
+                    "commentary" => "Sol is composing contextual narration and match story…",
                     _ => "Sol is authoring all 22 player paths and match events…"
                 });
                 var response = await session.SendAndWaitAsync(new MessageOptions

@@ -1,13 +1,14 @@
 namespace PitchLens.Core;
 
-public sealed record CommentaryCue(string Id, string EventId, double Start, double End, string[] PlayerIds, string Text);
+public sealed record CommentaryCue(string Id, string EventId, double Start, double End, string[] PlayerIds, string Text, string[]? EvidenceIds = null);
 
 public sealed class CommentaryTrack
 {
     public string Model { get; }
     public IReadOnlyList<CommentaryCue> Cues { get; }
+    public string? FactsHash { get; }
 
-    public CommentaryTrack(Match match, string model, IEnumerable<CommentaryCue> cues)
+    public CommentaryTrack(Match match, string model, IEnumerable<CommentaryCue> cues, string? factsHash = null)
     {
         var items = cues.ToArray();
         static void Require(bool valid, string message) { if (!valid) throw new ArgumentException(message); }
@@ -23,9 +24,15 @@ public sealed class CommentaryTrack
             Require(double.IsFinite(cue.Start) && double.IsFinite(cue.End) && cue.Start >= evidence!.Time &&
                 cue.Start <= evidence.Time + 2 && cue.Start >= previousEnd && cue.End <= match.Duration &&
                 cue.End - cue.Start is >= 2 and <= 6, "Commentary must be ordered, nonoverlapping, 2-6 seconds and follow its evidence.");
-            Require(cue.PlayerIds is { Length: >= 1 and <= 2 } &&
+            var context = cue.EvidenceIds ?? [cue.EventId];
+            Require(context.Length is >= 1 and <= 6 && context.Distinct().Count() == context.Length && context.Contains(cue.EventId),
+                "Cue needs distinct evidence including its focus.");
+            var contextEvents = context.Select(id => match.Events.SingleOrDefault(e => e.Id == id)).ToArray();
+            Require(contextEvents.All(e => e is not null && e.Time <= cue.Start && e.Time >= cue.Start - 12),
+                "Cue context must be observed through its start and within twelve seconds.");
+            Require(cue.PlayerIds is { Length: >= 1 and <= 6 } && (cue.EvidenceIds is not null || cue.PlayerIds.Length <= 2) &&
                 cue.PlayerIds.Distinct().Count() == cue.PlayerIds.Length &&
-                cue.PlayerIds.All(id => id is not null && (id == evidence!.ActorId || id == evidence.ReceiverId)),
+                cue.PlayerIds.All(id => id is not null && contextEvents.Any(e => id == e!.ActorId || id == e.ReceiverId)),
                 "Commentary players must participate in the anchored event.");
             Require(cue.Text is { Length: >= 8 and <= 140 } && !cue.Text.Any(c => char.IsControl(c) || char.IsDigit(c) || c is '<' or '>'),
                 "Commentary must be short plain text, without markup or numerical statistics.");
@@ -42,13 +49,22 @@ public sealed class CommentaryTrack
                     remainingNames = remainingNames.Replace(player.Name, "", StringComparison.OrdinalIgnoreCase);
                 }
             previousEnd = cue.End;
+            if (cue.EvidenceIds is not null)
+            {
+                NarrativeText.Validate(cue.Text, 8, 140);
+                Require(evidence.Kind == EventKind.Goal || !words.Any(w => w is "lead" or "level" or "equalizer" or "equaliser" or "opener"),
+                    "Outcome-bearing commentary requires the primary observed goal.");
+                if (words.Any(w => w is "equalizer" or "equaliser"))
+                    Require(Replay.At(match, evidence.Time).Score.Values.Distinct().Count() == 1, "Equalizer cue requires an actual tying goal.");
+            }
         }
         for (double minute = 0; minute < match.Duration; minute += 60)
             Require(items.Count(c => c.Start >= minute && c.Start < minute + 60) >= 2, "Commentary needs coverage in every minute.");
         Require(match.Events.Where(e => e.Kind == EventKind.Goal).All(g => items.Any(c => c.EventId == g.Id)),
             "Each goal needs a commentary cue.");
         Model = model;
-        Cues = Array.AsReadOnly(items.Select(c => c with { PlayerIds = c.PlayerIds.ToArray() }).ToArray());
+        FactsHash = factsHash;
+        Cues = Array.AsReadOnly(items.Select(c => c with { PlayerIds = c.PlayerIds.ToArray(), EvidenceIds = c.EvidenceIds?.ToArray() }).ToArray());
     }
 }
 

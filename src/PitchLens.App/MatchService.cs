@@ -8,7 +8,7 @@ public sealed record NativeView(PresentationFrame Frame, string? Model, bool Fre
 public sealed partial class MatchService : IDisposable
 {
     private readonly object gate = new();
-    private readonly ReplayPresentation presentation = new(AuthoredMatchRecording.Create(), new MonotonicClock());
+    private readonly ReplayPresentation presentation = new(NarrationRecording.Create(), new MonotonicClock());
     private readonly GenerationService generation;
     private readonly Func<IProgress<string>, CancellationToken, Task> checkConnection;
     public RequestActivity GenerationActivity { get; } = new();
@@ -112,6 +112,18 @@ public sealed partial class MatchService : IDisposable
             if (disposed || Explainer.Busy) return;
             presentation.Pause();
             ExplanationSnapshot = MomentEvidence.Capture(presentation.Match, presentation.Revision, presentation.Position, eventId);
+        }
+        Changed?.Invoke();
+    }
+    public void InspectEvidence(MomentEvidence captured, string id)
+    {
+        lock (gate)
+        {
+            if (disposed || presentation.Revision != captured.Revision)
+                throw new InvalidOperationException("This evidence belongs to an earlier match. The current replay was not changed.");
+            var fact = captured.Resolve(id);
+            presentation.Pause();
+            presentation.Seek(fact.Time);
         }
         Changed?.Invoke();
     }

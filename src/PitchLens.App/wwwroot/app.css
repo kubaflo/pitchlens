@@ -85,6 +85,25 @@ small, .caption { font-size: 14px; line-height: 1.4; color: var(--muted); }
 .transport output { min-width: 112px; font-size: 16px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .request-status { padding: 8px 32px; font-size: 16px; flex: none; }
 .moment-dialog { width: min(1120px, calc(100vw - 48px)); }
+.narrative-dialog { width: min(1040px, calc(100vw - 48px)); }
+.narrative-context { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 15px; }
+.narrative-context > strong { margin-left: auto; font-size: 26px; font-variant-numeric: tabular-nums; }
+.story-arc { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.story-arc button { display: grid; gap: 3px; min-width: 104px; padding: 8px 12px; background: #f4edf7; border: 1px solid var(--line); border-radius: 5px; color: var(--purple); font: inherit; text-align: left; }
+.story-arc button span { font-size: 13px; }
+.story-arc button strong { font-size: 14px; }
+.story-arc .arc-goal { background: var(--purple); color: white; border-bottom: 3px solid var(--mint); }
+.narrative-card { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 12px 24px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+.narrative-kicker { display: flex; align-items: center; gap: 10px; font-size: 13px; margin-bottom: 8px; }
+.narrative-kicker time { color: var(--muted); }
+.narrative-kicker > span { background: #e7f9ef; padding: 3px 7px; border-radius: 4px; }
+.narrative-kicker strong { margin-left: auto; font-size: 20px; }
+.narrative-copy h3 { font-size: 26px; line-height: 1.1; }
+.narrative-copy > p { margin: 8px 0; font-size: 20px; line-height: 1.4; }
+.narrative-copy > button { padding: 4px 0; font-size: 15px; }
+.narrative-map > span { display: block; color: var(--muted); font-size: 12px; margin-top: 5px; }
+.narrative-card > details { grid-column: 1 / -1; font-size: 14px; }
+@media (max-width: 700px) { .narrative-card { grid-template-columns: 1fr; } .narrative-map { max-width: 360px; } }
 .moment-dialog .dialog-head { position: sticky; top: 0; z-index: 2; background: white; padding: 18px 24px; }
 .studio-body { gap: 16px; padding: 20px 24px; }
 .studio-toolbar { display: flex; justify-content: space-between; align-items: end; gap: 24px; }

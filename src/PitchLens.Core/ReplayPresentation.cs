@@ -53,17 +53,21 @@ public sealed class ReplayPresentation : IDisposable
             cachedSnapshot = snapshot;
             SnapshotComputations++;
         }
-        if (snapshot.Events.Count != eventCount || Mode != cachedMode)
+        var modeChanged = Mode != cachedMode;
+        if (snapshot.Events.Count != eventCount || modeChanged)
         {
             explanations = Explanations.At(Match, time, Mode);
             ExplanationComputations++;
             eventCount = snapshot.Events.Count;
             cachedMode = Mode;
         }
-        var beats = Match.Story?.Beats.Count(b => b.EndTime <= time) ?? 0;
-        if (storyCount != beats)
+        var beats = Match.Narrative is null ? Match.Story?.Beats.Count(b => b.EndTime <= time) ?? 0 :
+            Match.Narrative.Chapters.Count(c => c.RevealTime <= time);
+        if (storyCount != beats || modeChanged)
         {
-            story = StoryReplay.At(Match, time);
+            story = Match.Narrative is null ? StoryReplay.At(Match, time) :
+                NarrativeReplay.At(Match, time).Select(c => new StoryMoment(c.Id, c.RevealTime, c.Heading,
+                    Mode == ExplanationMode.Analyst ? c.Analyst : c.Fan, c.EventIds)).ToArray();
             StoryComputations++;
             storyCount = beats;
         }
