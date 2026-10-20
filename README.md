@@ -774,18 +774,21 @@ No remote font server or font download at runtime is required.
 Club crest use is based on the user's stated permission for **this hackathon
 prototype**. This records user-reported permission, not a blanket redistribution
 or open-asset license, and does not imply league/club endorsement. The club crests
-retain their owners' rights. No Premier League lion logo, player photographs,
-proprietary fonts, site CSS/scripts or page markup are bundled. The pitch and
-app icon/splash remain original artwork. The app identity uses an original
-crowned-football badge in the league-inspired purple/mint palette, not the
-official Premier League crest or an endorsement mark.
+retain their owners' rights. No player photographs, proprietary fonts, site
+CSS/scripts or page markup are bundled. The pitch remains original artwork.
+The user selected **10 / Split Signal** for the app icon and splash: an original
+purple/mint diagonal tile and tilted white card containing the official Premier
+League lion mark, used at the user's explicit direction. The mark is embedded
+unchanged from the official source recorded below; this is not an endorsement
+or a blanket redistribution license.
 
 The subsequent [ten HTML logo directions](design/logo-mocks/index.html) are
 review-only explorations using an official Premier League mark at the user's
 request. Each has its own HTML page plus small-size/dock previews. Asset source,
 hash and permission scope are recorded in `design/logo-mocks/assets/provenance.json`;
-these mock assets are not bundled into the app and no option is applied before
-selection.
+only the selected Split Signal identity is exported into app assets. Recreate
+the SVG masters with `node design/logo-mocks/export-split-signal.mjs`; the export
+verifies the official image hash before embedding it and makes no network call.
 
 Downloaded 2026-10-18 directly from the official Premier League CDN (not Google
 thumbnail caches or image-result pages):

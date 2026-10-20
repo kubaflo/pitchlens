@@ -21,12 +21,12 @@ function icon(c, size) {
     if(c.id==="09") detail='<span class="bars" aria-hidden="true"><span></span><span></span><span></span><span></span></span>';
     return `<div class="icon c${c.id}"${size ? ` style="--size:${size}px"`:""}>${mark}${detail}</div>`;
 }
-const header='<header class="top"><a class="brand" href="index.html">PitchLens <span>Identity review / 10 directions</span></a><span class="status">Mockups only · App unchanged in this review</span></header>';
+const header='<header class="top"><a class="brand" href="index.html">PitchLens <span>Identity review / 10 directions</span></a><span class="status">Selected: 10 / Split Signal</span></header>';
 const footer='<footer>Official Premier League mark: <a href="https://www.premierleague.com/resources/v1.55.23/i/favicon/favicon-196x196.png">premierleague.com official asset</a>. Used in these prototype mockups at your request; rights remain with the Premier League. These are independent PitchLens design explorations, not an endorsement or a claim of official-app status. Original layouts and frames; freely licensed local Barlow type. No site scripts, proprietary fonts or analytics.</footer>';
 const id=document.body.dataset.concept;
 let content;
 if(!id) {
-    content=`<main><div class="eyebrow">Logo / App icon study</div><h1>Ten ways to look like matchday.</h1><p class="intro">Actual Premier League assets. Ten distinct PitchLens directions. Open any mock to compare the large mark, small sizes and dock context before choosing.</p><div class="grid">${concepts.map(c=>`<a class="card" href="${file(c)}"><div class="card-stage">${icon(c)}</div><div class="card-copy"><span class="number">${c.id} / APP IDENTITY</span><h2>${c.name}</h2><p>${c.line}</p></div></a>`).join("")}</div><p class="legend">This is a design review, not a deployment. No option is being applied to the app until you choose one. Start with <strong>03 The Lens</strong> for a distinct PitchLens identity, or <strong>01 The Lion</strong> for the simplest official-asset direction.</p></main>`;
+    content=`<main><div class="eyebrow">Logo / App icon study</div><h1>Ten ways to look like matchday.</h1><p class="intro">Actual Premier League assets. Ten distinct PitchLens directions. Open any mock to compare the large mark, small sizes and dock context.</p><div class="grid">${concepts.map(c=>`<a class="card" href="${file(c)}"><div class="card-stage">${icon(c)}</div><div class="card-copy"><span class="number">${c.id} / ${c.id==="10"?"SELECTED":"APP IDENTITY"}</span><h2>${c.name}</h2><p>${c.line}</p></div></a>`).join("")}</div><p class="legend"><strong>Selected: 10 / Split Signal.</strong> This direction is exported to the app icon and splash. The other nine directions remain review-only explorations.</p></main>`;
 } else {
     const c=concepts.find(c=>c.id===id);
     if(!c) throw new Error("Unknown logo mock.");
