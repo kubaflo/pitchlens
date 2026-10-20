@@ -2,6 +2,23 @@ using PitchLens.Core;
 using PitchLens.Generation;
 using GitHub.Copilot;
 
+if (args is ["--variety-live", var varietyRuntime, var varietyWork, var varietyWitness])
+{
+    Directory.CreateDirectory(varietyWitness);
+    var initial=NarrationRecording.Create();
+    var capture=new FullRequestCapture(new CopilotScenarioSource(varietyRuntime,varietyWork,Path.Combine(varietyWitness,"raw-responses")));
+    var service=new GenerationService(capture,initial,ScenarioOrigin.RecordedSdkExample,CopilotScenarioSource.Model,new MatchVariety());
+    await service.GenerateAsync(new Progress<string>(Console.WriteLine),CancellationToken.None);
+    if(service.State!=GenerationState.Succeeded)
+    { Console.Error.WriteLine($"VARIETY FULL REQUEST NOT VERIFIED: {service.Status}");return 1; }
+    var varietyOutput=Path.Combine(varietyWitness,"validated-match.json");
+    await File.WriteAllTextAsync(varietyOutput,capture.Response!);
+    if(!OperatingSystem.IsWindows()) File.SetUnixFileMode(varietyOutput,UnixFileMode.UserRead|UnixFileMode.UserWrite);
+    var match=service.Current;var score=Replay.At(match,300).Score;
+    var signature=MatchVariety.Signature(match);
+    Console.WriteLine($"VARIETY FULL REQUEST VERIFIED | model={service.CurrentModel} | players={match.Players.Count} | knots={match.Players.Sum(p=>p.Path.Frames.Count)} | events={match.Events.Count} | score={score["arsenal"]}:{score["manchester-city"]} | cues={match.Commentary!.Cues.Count} | chapters={match.Narrative!.Chapters.Count} | gameplayHash={signature.Hash}");
+    return 0;
+}
 if (args is ["--director", var directorRuntime, var directorWork, var directorWitness])
 {
     var observed = DirectorEvidence.Capture(NarrationRecording.Create(), 1, 300);

@@ -2,7 +2,7 @@
 @inject MatchService Session
 @inject IJSRuntime JS
 
-@if (frame is not null)
+@if (frame is not null && Session.HasMatch)
 {
     var match = frame.Match;
     var snapshot = frame.Snapshot;
@@ -14,7 +14,7 @@
             <button class="synthetic-badge" @onclick='() => Open("settings-dialog")'>Synthetic match · @($"{match.Players.Count / 2}v{match.Players.Count / 2}")</button>
             <div class="actions">
                 @if (Session.Generating) { <button class="button ghost" id="cancel-generation" @onclick="Session.Cancel">Cancel creation</button> }
-                <button id="generate-match" class="button mint" disabled="@(Session.FilmActive || Session.Director.Busy)" @onclick='() => Open("generation-dialog")'>@(Session.Generating ? "Creating…" : "New match")</button>
+                <button id="generate-match" class="button mint" disabled="@(Session.Generating || Session.CheckingConnection || Session.Explainer.Busy || Session.FilmActive || Session.Director.Busy)" title="Creates a genuinely new AI match. Uses Copilot usage." aria-label="New AI match. Uses Copilot usage." @onclick="Generate">@(Session.Generating ? "Creating…" : "New match")</button>
             </div>
         </header>
         <div class="persistent-activities">
@@ -57,7 +57,7 @@
         }
         <footer class="transport">
             <fieldset class="match-controls" disabled="@Session.FilmActive">
-            <button id="restart" class="button" @onclick='() => Command("restart")'>Restart</button>
+            <button id="restart" class="button" title="Replay this same match. No AI request." @onclick='() => Command("restart")'>Replay from start</button>
             <button id="play-pause" class="button purple play" aria-keyshortcuts="Space" @onclick="Toggle">@(snapshot.Time >= match.Duration ? "Replay match" : frame.Playing ? "Pause" : "Play")</button>
             <label class="scrub-label" for="timeline">Replay<span class="scrub-track"><input id="timeline" type="range" min="0" max="@match.Duration" step="0.1" @onchange="TimelineChanged" aria-label="Replay time in seconds" />@foreach (var goal in snapshot.Events.Where(e => e.Kind == EventKind.Goal)) { <button class="goal-tick" style="left:@((goal.Time / match.Duration * 100).ToString(System.Globalization.CultureInfo.InvariantCulture))%" aria-label="Watch @match.Player(goal.ActorId).Name goal at @goal.Time seconds" @onclick="() => WatchGoal(goal.Id)">●</button> }</span></label>
             <output id="replay-clock" aria-live="off" aria-label="Current replay time"></output>
@@ -189,16 +189,36 @@
         </dialog>
     </div>
 }
+else
+{
+    <div class="matchday match-preparing">
+        <header class="brand-bar"><div class="wordmark">PitchLens <span>Matchday</span></div><span>New session · Fresh AI match</span></header>
+        <main class="new-session-pitch">
+            <span class="eyebrow">Every match is a new story</span><h1>@(Session.Generating ? "Your next match is taking shape." : "Ready for a different match.")</h1>
+            <p>Startup creates a new five-minute AI-authored match with Sol. Uses Copilot usage: paths, optional one correction, then narration/story. Up to three responses; no automatic retry.</p>
+            <RequestActivityView Activity="Session.GenerationActivity" Title="Sol · Creating a fresh match" Budget="15-minute total budget · Up to 3 responses · 270s per response" Cancel="Session.Cancel" />
+            @if (!Session.Generating)
+            {
+                <p role="status">@Session.Status</p>
+                <div class="actions"><button class="button mint" @onclick="Generate" title="Uses Copilot usage">Try a new AI match</button><button class="button" @onclick="Session.PlayRecordedDemo">Play recorded demo · No AI call</button></div>
+            }
+            <small>No recorded match is silently substituted. Replay controls appear only after a valid match or your explicit demo choice.</small>
+        </main>
+    </div>
+}
 
 @code {
     private PresentationFrame? frame;
     private NativeView? view;
     private ElementReference canvas;
     private IJSObjectReference? module;
+    private Task? rendererInitialization;
+    private bool rendererReady;
     private DotNetObjectReference<MatchView>? reference;
     private readonly CancellationTokenSource lifetime = new();
     private Task? ticker;
     private bool disposed;
+    private bool startupRequested;
     private string? error;
     private string? evidenceNotice;
     private FilmPlan? loadedFilm;
@@ -218,18 +238,20 @@
     }
     protected override async Task OnAfterRenderAsync(bool first)
     {
+        if (disposed || error is not null) return;
         try
         {
-            if (first)
+            if (!startupRequested)
             {
-                var imported = await JS.InvokeAsync<IJSObjectReference>("import", "./js/pitch.mjs");
-                if (disposed) { await imported.DisposeAsync(); return; }
-                module = imported;
-                reference = DotNetObjectReference.Create(this);
-                await module.InvokeVoidAsync("initialize", canvas, reference);
-                await Refresh(true);
-                await module.InvokeVoidAsync("setCaptionsEnabled", captionsEnabled);
-                ticker = Tick();
+                startupRequested = true;
+                await Session.StartSessionAsync();
+                if (!disposed) StateHasChanged();
+                return;
+            }
+            if (Session.HasMatch && !rendererReady)
+            {
+                rendererInitialization ??= InitializeRendererAsync();
+                await rendererInitialization;
             }
             if (!disposed && module is not null && pendingPopup is { } popup)
             {
@@ -238,6 +260,19 @@
             }
         }
         catch (JSException e) { if (!disposed) { error = $"Match interface failed: {e.Message}"; Session.Command("pause"); StateHasChanged(); } }
+    }
+    private async Task InitializeRendererAsync()
+    {
+        var imported = await JS.InvokeAsync<IJSObjectReference>("import", "./js/pitch.mjs");
+        if (disposed) { await imported.DisposeAsync(); return; }
+        module = imported;
+        reference = DotNetObjectReference.Create(this);
+        await module.InvokeVoidAsync("initialize", canvas, reference);
+        if (disposed) return;
+        rendererReady = true;
+        await Refresh(true);
+        await module.InvokeVoidAsync("setCaptionsEnabled", captionsEnabled);
+        ticker ??= Tick();
     }
     private void Changed() { if (!disposed) _ = InvokeAsync(() => Refresh(true)); }
     private async Task Tick()
@@ -262,7 +297,7 @@
         else { lastFilmTime = double.NaN; lastFilmPlaying = false; }
         try
         {
-            if (module is not null)
+            if (module is not null && rendererReady && Session.HasMatch)
             {
                 if (loadedRevision != current.Revision)
                 {

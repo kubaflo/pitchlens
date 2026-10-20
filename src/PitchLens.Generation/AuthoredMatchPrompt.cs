@@ -36,12 +36,12 @@ public static class AuthoredMatchPrompt
         inownhalf OR not beyond BOTH ball andsecond-lastopponent towardgoal (1.5m tolerance). Plan defendingline and receiver runs accordingly.
         Ballflight forpass/shot is derived between your actorpath atstart and receiverpath atend / attackinggoal.
         Choose start/time and paths so flight<=40m/s; typical1-3s. Flightstart strictly AFTER lastpossessionchange.
-        ONLY scoring shots inthisboundedprototype: shot atattackinggoal, explicit pairedGOAL event. Atleastonegoal EACHclub.
+        ONLY scoring shots inthisboundedprototype: shot atattackinggoal, explicit pairedGOAL event. Atleastonegoal TOTAL; eitherclub may score none.
         Opposing outfield KICKOFF>=3saftergoal, authored kickerpath EXACTLY(52.5,34) atkickofftime. Plan reachable run tocentre.
         Aftergoal no otheraction beforekickoff. Don't reuse ownball actor after opponent interception. No own-goal/direction contradictions.
         >=4interceptedpasses. >=2pass/carry/shot events ineach sliding20swindow. Last meaningfulaction>=295s.
         Completedpasses BOTHclubs inEACH60sminute; >=7distinct outfieldactors EACHclub overmatch, including newlyaddedplayers.
-        Both clubs should have credible possessions/attacks/goals/responses; not a prewritten old6v6 game with extras.
+        Both clubs should have credible possessions/attacks/responses, but NOT necessarily goals. Choose a varied result, never force a draw.
         phaseKinds exactly10entries for0..30,30..60,...270..300: possession/turnover/counterattack/finish/response.
         finish requiresactualgoal inphase;turnover requiresactualinterception. Usepossessionifuncertain, no unsupported tacticalmetrics.
         Think through coherent possession/actions first, then coordinate ALL paths and realistic teamshape with those events.

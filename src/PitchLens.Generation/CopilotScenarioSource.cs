@@ -16,7 +16,10 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
     public Task<string> GeneratePlanAsync(IProgress<string>? progress, CancellationToken cancellationToken) =>
         RequestAsync(Prompt, AuthoredMatchPrompt.Schema, "paths", progress, cancellationToken);
     public Task<string> GenerateAsync(IProgress<string>? progress, CancellationToken cancellationToken) =>
-        PipelineAsync(token => GeneratePlanAsync(progress, token), progress, cancellationToken);
+        GenerateAsync(new MatchVariety().Next(), progress, cancellationToken);
+    public Task<string> GenerateAsync(VarietyRequest request, IProgress<string>? progress, CancellationToken token) =>
+        PipelineAsync(cancellation => RequestAsync(Prompt + "\n" + request.Instructions, AuthoredMatchPrompt.Schema,
+            "paths", progress, cancellation), progress, token);
     public async Task<string> RefinePreservedAsync(string rawPaths, IProgress<string>? progress, CancellationToken token)
     {
         if (archive is not null) await archive.SaveAsync("paths", rawPaths).ConfigureAwait(false);
@@ -94,6 +97,7 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
         var stage = "setup";
         try
         {
+            if (archive is not null) await archive.SaveAsync(responseStage + "-request", prompt).ConfigureAwait(false);
             var client = CreateClient();
             await using var owner = new BoundedClient(client, () => progress?.Report("Cleaning up the owned SDK runtime…"));
             await ConnectAsync(client, progress, value => stage = value, cancellationToken).ConfigureAwait(false);

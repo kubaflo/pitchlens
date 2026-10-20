@@ -4,13 +4,41 @@ namespace PitchLens.App;
 
 public sealed partial class MatchService
 {
+    private string? varietyMetadataError;
     public MatchService()
     {
-        generation = new(new NativeSource(this), presentation.Match, ScenarioOrigin.RecordedSdkExample, AuthoredMatchRecording.Model);
+        generation = new(new NativeSource(this), presentation.Match, ScenarioOrigin.RecordedSdkExample, AuthoredMatchRecording.Model, LoadVariety());
         Explainer = new(new NativeMomentSource(this));
         Director = new(new NativeDirectorSource(this));
         checkConnection = (progress, token) => new NativeSource(this).CheckAsync(progress, token);
         Initialize();
+    }
+    private MatchVariety LoadVariety()
+    {
+        var path = Path.Combine(FileSystem.AppDataDirectory, "recent-gameplay.json");
+        try
+        {
+            GameplaySignature[]? history = null;
+            if (File.Exists(path))
+            {
+                if (new FileInfo(path).Length > 250000) throw new InvalidOperationException("Recent gameplay metadata is oversized.");
+                history = System.Text.Json.JsonSerializer.Deserialize(File.ReadAllText(path), VarietyJsonContext.Default.GameplaySignatureArray)
+                    ?? throw new InvalidOperationException("Recent gameplay metadata is invalid.");
+            }
+            return new(history, entries =>
+            {
+                Directory.CreateDirectory(FileSystem.AppDataDirectory);
+                var temporary = path + ".tmp";
+                File.WriteAllText(temporary, System.Text.Json.JsonSerializer.Serialize(entries.ToArray(), VarietyJsonContext.Default.GameplaySignatureArray));
+                if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(temporary, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+                File.Move(temporary, path, true);
+            });
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidOperationException)
+        {
+            varietyMetadataError = $"Recent gameplay history could not be read: {e.Message} Resolve the metadata file at {path} and reopen the app before generating; no model request was made.";
+            return new();
+        }
     }
     private static string Executable(MatchService owner) => string.IsNullOrWhiteSpace(owner.CliOverride)
         ? Path.Combine(Foundation.NSBundle.MainBundle.ResourcePath ?? throw new CopilotGenerationException("App resources missing."),
@@ -34,9 +62,15 @@ public sealed partial class MatchService
     }
     private sealed class NativeSource(MatchService owner) : IScenarioSource
     {
-        private CopilotScenarioSource Source() => new(Executable(owner), FileSystem.AppDataDirectory);
+        private CopilotScenarioSource Source()
+        {
+            if (owner.varietyMetadataError is { } error) throw new CopilotGenerationException(error);
+            return new(Executable(owner), FileSystem.AppDataDirectory);
+        }
         public Task<string> GenerateAsync(IProgress<string>? progress, CancellationToken token) =>
             Task.Run(() => Source().GenerateAsync(progress, token), token);
+        public Task<string> GenerateAsync(VarietyRequest request, IProgress<string>? progress, CancellationToken token) =>
+            Task.Run(() => Source().GenerateAsync(request, progress, token), token);
         public Task CheckAsync(IProgress<string>? progress, CancellationToken token) =>
             Task.Run(() => Source().VerifyConnectionAsync(progress, token, includeSession: true), token);
     }

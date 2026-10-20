@@ -16,7 +16,7 @@ internal static class NarrationFixtures
             [c.EventId])).ToArray();
         var selected = match.Events.Where(e => e.Kind == EventKind.Goal)
             .Concat(match.Events.Where(e => e.Kind == EventKind.Pass && e.Completed == false).Take(2))
-            .Concat(new[] { 25d, 115, 225, 285 }.Select(time =>
+            .Concat(new[] { 25d, 75, 115, 225, 285 }.Select(time =>
                 match.Events.Last(e => e.Time <= time && e.Kind == EventKind.Pass && e.Completed == true)))
             .DistinctBy(e => e.Id).OrderBy(e => e.Time).ToArray();
         var chapters = selected.Select((e, i) =>

@@ -84,11 +84,15 @@ One SDK Send, zero initial-plan/narration/correction/retry requests; internal
 provider inference-turn count was not measured. Raw prompt/facts/schema/response
 were preserved in session-only owner-readable witnesses before validation.
 
-For **no-paid native review**, seek the matching startup recording to 300s,
+For **no-additional-call recorded-film review after cancelling the startup request**, explicitly
+choose **Play recorded demo / No AI call**, then seek that matching recording to 300s,
 open Settings → **Recorded Director's Cut demo / No AI call**, then **Watch
 recorded film / No AI call**. This is explicitly **Recorded SDK / Not fresh**,
 never substituted for the normal Director action. It is unavailable on another
 scene or before that observed cutoff. The selected Split Signal logo is retained.
+Opening the normal new build itself automatically begins usage-consuming fresh
+generation; this preview does not make that launch free. For strictly no-paid
+verification use the headless controlled tests without launching the app.
 
 | Film wall interval | Actual source footage | Freeze hold | Local score after finish |
 |---|---|---|---|
@@ -259,7 +263,12 @@ Cloud/Foundry, CV, live feeds and a multi-agent system remain deferred.
 
 ## Generate a match with Copilot
 
-Open **New match**, then choose **Create match with Sol 6.1**. This runs **two stages plus at most one bounded AI path correction** through
+Each new app lifetime requests a fresh match **once after the first visible UI
+paint**. Startup visibly discloses Copilot usage and shows progress/elapsed/Cancel;
+constructing services, rendering again, activating a window or inspecting an
+unlaunched bundle does not request a game. **New match** directly starts another
+fresh request, with usage disclosed on its trigger; there is no second creation
+confirmation. This runs **two stages plus at most one bounded AI path correction** through
 `GitHub.Copilot.SDK` **1.0.22**, explicitly selecting **GPT-6.1 Sol (`gpt-6.1-sol`)** with medium reasoning.
 There is no Auto, Anthropic/Claude, alternate-provider or model fallback path.
 Normal Copilot authentication and model entitlement are required. Generation
@@ -308,14 +317,76 @@ retires the request; SDK session/runtime resources are disposed.
 Cleanup has its own deadline; if graceful SDK disposal stalls, only that
 generation's owned runtime is stopped and the cleanup error is reported.
 
-On startup the app plays a reviewed **five-minute Sol recording**: unchanged
-explicit paths from 2026-10-19 and one validated narration/story response from
-2026-10-20. This is labeled
-**Recorded SDK example · Not a fresh request**, not falsely presented as a new
-generation. Startup makes no model request. Clicking Generate produces a new
-scenario labeled **Fresh SDK / gpt-6.1-sol**; its actions remain synthetic.
-Restart resets playback, not the scenario. Reopening starts the bundled example;
-subsequent generated scenarios are not automatically persisted.
+Normal startup no longer plays the same recording. Before first delivery the
+pitch-first creation state hides bootstrap players, replay controls and score:
+there is **no active game**, not a fabricated empty success. Validated paths,
+captions and story arrive atomically as **Fresh SDK / gpt-6.1-sol**. Startup
+failure/cancellation leaves this state with **Try a new AI match** and an
+explicit **Play recorded demo / No AI call** choice. It never silently substitutes
+the bundled recording or automatically retries. The demo keeps unchanged paths
+from 2026-10-19 and the validated narration/story from 2026-10-20, honestly labelled
+**Recorded / Not fresh**. Later creation failure retains the user's current match.
+**Replay from start** restarts the current game without a request; **New match**
+means genuinely new AI authoring. Reopening the app starts a new bounded request,
+not the same bundled game. Raw generated matches remain in memory, not persisted.
+
+### Match variety and duplicate protection
+
+Every production generation receives a new request identity **and meaningful
+football direction**, rotating between central combinations, wing-led asymmetric
+progression, varied passing-chain/turnover rhythm and contrasting patient/direct
+carry play. The model chooses protagonists, timing, scorers, route coordinates,
+goal counts and outcome. A nonce alone is not treated as diversity evidence.
+The prompt includes bounded recent safe goal/distributor summaries to avoid.
+All resulting knots/events are still authored by Sol; no local random route
+offset, seed expansion, scoreboard edit or fallback fixture invents a new match.
+
+The forced **both clubs score** condition has been removed from the active prompt
+and shared quality gate. At least **one actual goal total** is still required by
+this scoring-shot prototype; 0:0/non-scoring shots are not claimed. One-sided
+results and variable scorer/goal counts are allowed. Physics, 22-player/300s
+coverage, width30m/depth22m, activity, speed/acceleration, collision, offside and
+causal gates are unchanged. Narration, score-as-of, goal highlights and Director
+availability use actual goals, not a prescribed draw.
+
+Before atomic delivery, a canonical gameplay fingerprint rejects exact or
+near-identical recent matches. Exact hash covers ordered event kind/time/order/
+actor/receiver/outcome and all canonical player knots, excluding event IDs,
+titles, captions, request nonce and story prose. Near-copy detection compares
+ordered event signatures (kind/participants/outcome with timestamps in rounded
+3s buckets) using longest-common-subsequence similarity, and each player's
+positions sampled every10s into5m cells. Reject when event counts differ at most
+10%, at least85% of action signatures align, and at least90% of coordinate-cell
+entries differ by no more than one cell. This is a declared near-copy heuristic,
+not proof that all football games are aesthetically unique. A changed title,
+new event IDs or slightly shifted routes cannot alone pass it.
+
+At most eight signatures, coarse sampled cells and synthetic goal/distributor
+summaries persist in app-local `recent-gameplay.json`, owner-readable, for
+cross-launch comparison; no raw generated JSON, captions or credentials are
+stored. The reviewed old example is also a duplicate baseline. Metadata read or
+write errors are explicit and prevent false delivery; no silent history reset
+or retry loop. A rejected duplicate keeps the last match and reports the reason.
+
+One full live verification on 2026-10-20 used exactly **two Sol responses**
+(paths plus matching narration), with zero correction/retry/fallback. It reached
+`GenerationService.Succeeded / FreshSdkGeneration`: 300s, 22 players,
+**854 AI knots / 72 events / Arsenal 2:0 City**, goals **Rice at135s** and
+**Saka at250s**, with 40 timed cues and eleven Fan/Analyst chapters.
+Unchanged full physics/causality/shape/activity gates passed on the first paths
+response. The canonical gameplay hash is
+`5e56ba57e1cb47f9c82f3b1628771b5195ceb9179548b8a8a297ae5e2e217568`;
+the paths response SHA is
+`bf055d06b429befee1279804a18afbc4f03e3d152e9a3b97fcb89ae1869969d6`;
+matching narration-facts hash is
+`0a1d2a0a097d90f83d400dd78983b20ec56d359d3ba4f4634fbf5320c049bf26`.
+All22 player paths differ from the old805-knot/90-event1:1 recording and the
+prior812-knot/74-event1:1 correction fixture. At10s samples, mean player
+displacement is **17.213m /22.070m** respectively, and actor/action/time-bucket
+LCS similarity is **0%** to each. This is measured diversity for one attempt,
+not a guarantee that every model response validates or a reason to buy another
+test. Prompt, raw stages and validated output are session-only witnesses; the
+new2:0 JSON is **not bundled** as a replacement static startup.
 
 The pitch shows a concise latest observed action. Goal presentation focuses on
 the football rather than a large poster: visible posts/net depth outside each
@@ -362,7 +433,7 @@ match engine or newly generated celebration simulation.
 
 **Match story** is now an original visual narrative, not the old deterministic
 thirty-second pass lists. The same response that writes captions writes bounded,
-distinct **Fan** and **Analyst** interpretations. Startup's actual recorded
+distinct **Fan** and **Analyst** interpretations. The explicit recorded demo's
 package has twelve turning points: four buildups, four turnovers, two goals and
 two restart responses. Cards combine concise AI headings/interpretations with
 local consequence/score badges and the shared exact-coordinate action map.
@@ -388,7 +459,7 @@ explicitly historical/scripted and are never relabelled as AI story output.
 
 **CC** controls optional AI-generated subtitles at the bottom of the pitch,
 on by default when available. These are actual **gpt-6.1-sol** output, not
-renamed scripted match notes. Startup now uses **40 contextual cues plus twelve
+renamed scripted match notes. The explicit recorded demo uses **40 contextual cues plus twelve
 Fan/Analyst chapters** from one successful bounded Sol SDK storytelling request.
 Cues connect prior observed pass/carry sequences with their payoff, instead of
 repeating full-name/pass-completed templates. They span 3-298 seconds, last
@@ -401,7 +472,8 @@ This was exactly one narration-only SDK Send, zero initial-plan requests,
 no repair/retry/fallback. Raw request, schema, measured facts and response were
 preserved in opt-in session-only artifacts before validation.
 Earlier 40/41-cue caption-only recordings remain historical, unedited resources.
-Startup/playback make no requests. Settings distinguishes recorded/generated
+Playback and choosing the recorded demo make no requests; normal startup does.
+Settings distinguishes recorded/generated
 narration/story; all describe synthetic actions.
 
 Cues reference a primary event, explicit contextual event IDs and involved
@@ -521,7 +593,7 @@ players, maximum sub-0.4 m pair count is one. Maximum sampled knot-to-knot
 acceleration is **1.8634 m/s²**. Keepers stay at their own ends. These are
 bounded synthetic realism checks, not a full football/rules simulation.
 
-Exact startup path/event response: `Resources/recorded_11v11_paths.json`,
+Exact explicit-demo path/event response: `Resources/recorded_11v11_paths.json`,
 SHA-256 `1144297eb3969f394417e8a78d0840914b4305c2d2339e64d2af781812f9e64b`.
 One subsequent actual Sol request produced the matching 40-cue recording above.
 No further requests, alternate model or fabricated success were used.
@@ -654,10 +726,11 @@ advanced runtime configuration. Native dialogs provide Escape, close/backdrop
 behavior and focus return. Story, settings and creation deliberately close the
 player flow and pause replay; closing those modals does not automatically resume.
 
-**New match** opens the real Copilot SDK generation dialog. Its explicit Create
-action makes the actual Sol request: no scripted Preview/Use-preview path from
-the design mocks is shipped. Progress, errors and cancellation are available
-inside the dialog; the brand bar keeps creation/cancel access when it is closed.
+**New match** directly starts the real Copilot SDK request, deduplicated while
+busy; it does not reopen an instructional confirmation. Progress, errors and
+cancellation remain visible in the persistent request card, and detailed status
+is available in the creation dialog. The recorded demo is a separate explicit
+first-delivery choice, never a fresh-response substitute.
 Playback controls stay pinned. Space toggles playback and Left/Right seek one
 second outside form controls and modal dialogs. Restart remains available at full time.
 Window deactivation pauses playback; returning does not automatically resume it.

@@ -23,6 +23,11 @@ small, .caption { font-size: 14px; line-height: 1.4; color: var(--muted); }
 .text-button { background: transparent; color: var(--purple); border: 0; padding: 12px; font-size: 16px; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
 .eyebrow { display: block; font-size: 16px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
 .matchday { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.new-session-pitch { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 24px; padding: clamp(28px, 6vw, 90px); background: linear-gradient(90deg, #173b3010 1px, transparent 1px), linear-gradient(#173b3010 1px, transparent 1px), #f5f2f7; background-size: 90px 90px; }
+.new-session-pitch > p { max-width: 740px; font-size: 20px; line-height: 1.45; }
+.new-session-pitch h1 { max-width: 800px; }
+.new-session-pitch .request-activity { width: min(900px, 100%); }
+.new-session-pitch small { max-width: 740px; }
 .brand-bar { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 8px 32px; color: white; background: var(--purple); flex: none; }
 .wordmark { display: flex; gap: 16px; align-items: baseline; font-size: 26px; font-weight: 700; }
 .wordmark span { font-size: 16px; font-weight: 400; }

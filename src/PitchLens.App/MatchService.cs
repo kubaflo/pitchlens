@@ -23,17 +23,20 @@ public sealed partial class MatchService : IDisposable
     public bool FilmPlaying => film?.Playing == true;
     public FilmFrame? FilmFrame => film?.Frame;
     public string DirectorNotice { get; private set; } = "";
-    public bool CanDirect => !disposed && !Generating && !CheckingConnection && !Explainer.Busy && !FilmActive &&
+    public bool CanDirect => HasMatch && !disposed && !Generating && !CheckingConnection && !Explainer.Busy && !FilmActive &&
         (Director.Busy || DirectorEvidence.CanCapture(presentation.Match, presentation.Position));
     public MomentEvidence? ExplanationSnapshot { get; private set; }
     private CancellationTokenSource? cancellation;
     private CancellationTokenSource? connectionCancellation;
     private bool disposed;
+    private Task? startupRequest;
+    private bool startupAdmitted;
+    public bool HasMatch { get; private set; }
     private Task? momentRequest;
     public string? MomentIntentNotice { get; private set; }
     public bool CanExplainCurrent
     {
-        get { lock (gate) return !disposed && !Generating && !CheckingConnection && !Director.Busy && !FilmActive &&
+        get { lock (gate) return HasMatch && !disposed && !Generating && !CheckingConnection && !Director.Busy && !FilmActive &&
             (Explainer.Busy || presentation.Match.Events.Any(e => e.Time <= presentation.Position)); }
     }
     public event Action? Changed;
@@ -50,9 +53,10 @@ public sealed partial class MatchService : IDisposable
     public Match Match => presentation.Match;
 
     public MatchService(IScenarioSource scenarios, IMomentSource moments, Func<IProgress<string>, CancellationToken, Task> connection,
-        IDirectorSource? director = null, IMonotonicClock? filmClock = null)
+        IDirectorSource? director = null, IMonotonicClock? filmClock = null, bool readyDemo = true, MatchVariety? variety = null)
     {
-        generation = new(scenarios, presentation.Match, ScenarioOrigin.RecordedSdkExample, AuthoredMatchRecording.Model);
+        generation = new(scenarios, presentation.Match, ScenarioOrigin.RecordedSdkExample, AuthoredMatchRecording.Model, variety);
+        HasMatch = readyDemo;
         Explainer = new(moments);
         Director = new(director ?? new UnavailableDirectorSource());
         if (filmClock is not null) this.filmClock = filmClock;
@@ -61,6 +65,7 @@ public sealed partial class MatchService : IDisposable
     }
     private void Initialize()
     {
+        if (!HasMatch) { Status = "Preparing a fresh AI match. Startup uses Copilot usage."; CurrentModel = null; }
         Explainer.ChangeScene(presentation.Revision);
         Explainer.Changed += NotifyChanged;
         Director.ChangeScene(presentation.Revision);
@@ -68,6 +73,29 @@ public sealed partial class MatchService : IDisposable
         presentation.Select("arsenal-odegaard");
     }
     private void NotifyChanged() { if (!disposed) Changed?.Invoke(); }
+    public Task StartSessionAsync()
+    {
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (startupAdmitted) return startupRequest ?? Task.CompletedTask;
+            startupAdmitted = true;
+            if (HasMatch) return Task.CompletedTask;
+            return startupRequest = GenerateAsync();
+        }
+    }
+    public void PlayRecordedDemo()
+    {
+        lock (gate)
+        {
+            if (disposed || Generating) throw new InvalidOperationException("Cancel or finish creation before selecting the recorded demo.");
+            if (HasMatch && Fresh) throw new InvalidOperationException("The fresh match is retained; recorded demo is only available before first delivery.");
+            startupAdmitted = true; HasMatch = true; Fresh = false; Origin = ScenarioOrigin.RecordedSdkExample;
+            CurrentModel = AuthoredMatchRecording.Model;
+            Status = "Explicit recorded SDK demo / Not fresh / No AI request.";
+        }
+        NotifyChanged();
+    }
 
     public NativeView? Sample(bool force = false)
     {
@@ -89,6 +117,7 @@ public sealed partial class MatchService : IDisposable
         lock (gate)
         {
             if (disposed) return;
+            if (!HasMatch && command != "pause") return;
             if (film is not null) { DirectorNotice = "Exit Director's Cut to use the match replay and player controls."; return; }
             switch (command)
             {
@@ -140,7 +169,7 @@ public sealed partial class MatchService : IDisposable
     {
         lock (gate)
         {
-            if (disposed || Explainer.Busy) return;
+            if (disposed || !HasMatch || Explainer.Busy) return;
             presentation.Pause();
             ExplanationSnapshot = MomentEvidence.Capture(presentation.Match, presentation.Revision, presentation.Position, eventId);
         }
@@ -282,6 +311,7 @@ public sealed partial class MatchService : IDisposable
                 if (generation.State == GenerationState.Succeeded)
                 {
                     presentation.Replace(generation.Current);
+                    HasMatch = true;
                     Explainer.ChangeScene(presentation.Revision);
                     ExplanationSnapshot = null;
                     MomentIntentNotice = null;
@@ -291,6 +321,7 @@ public sealed partial class MatchService : IDisposable
                     Fresh = true;
                     Origin = generation.Origin;
                 }
+                else if (!HasMatch) Status = generation.Status.Replace("Previous match kept.", "No active match. Try again explicitly or choose the recorded demo.", StringComparison.Ordinal);
             }
         }
         finally

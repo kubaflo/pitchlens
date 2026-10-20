@@ -37,10 +37,9 @@ public static class SustainedQuality
         Require(match.Events.Where(e => e.Kind is EventKind.Pass or EventKind.Carry or EventKind.Shot).Last().Time >= 295,
             "Match has an idle padded tail.");
         Require(match.Events.Count(e => e.Kind == EventKind.Pass && e.Completed == false) >= 4, "Match needs multiple genuine turnovers.");
+        Require(match.Events.Any(e => e.Kind == EventKind.Goal), "This prototype requires at least one actual goal total.");
         foreach (var team in match.Teams)
         {
-            Require(match.Events.Any(e => e.Kind == EventKind.Goal && match.Player(e.ActorId).TeamId == team.Id),
-                "Both clubs need a meaningful finish.");
             for (double start = 0; start < 300; start += 60)
                 Require(match.Events.Any(e => e.Kind == EventKind.Pass && e.Completed == true &&
                     match.Player(e.ActorId).TeamId == team.Id && e.Time > start && e.Time <= start + 60),

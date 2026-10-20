@@ -5,13 +5,14 @@ namespace PitchLens.Generation;
 public interface IScenarioSource
 {
     Task<string> GenerateAsync(IProgress<string>? progress, CancellationToken cancellationToken);
+    Task<string> GenerateAsync(VarietyRequest request, IProgress<string>? progress, CancellationToken token) => GenerateAsync(progress, token);
 }
 
 public enum GenerationState { Ready, Generating, Succeeded, Failed, Cancelled }
 public enum ScenarioOrigin { DeterministicDemo, RecordedSdkExample, FreshSdkGeneration }
 
 public sealed class GenerationService(IScenarioSource source, Match initial, ScenarioOrigin initialOrigin = ScenarioOrigin.DeterministicDemo,
-    string? initialModel = null)
+    string? initialModel = null, MatchVariety? variety = null)
 {
     private int running;
     public Match Current { get; private set; } = initial;
@@ -32,12 +33,14 @@ public sealed class GenerationService(IScenarioSource source, Match initial, Sce
         timeout.CancelAfter(TimeSpan.FromMinutes(15));
         try
         {
-            var json = await source.GenerateAsync(progress, timeout.Token).ConfigureAwait(false);
+            var json = variety is null ? await source.GenerateAsync(progress, timeout.Token).ConfigureAwait(false) :
+                await source.GenerateAsync(variety.Next(), progress, timeout.Token).ConfigureAwait(false);
             timeout.Token.ThrowIfCancellationRequested();
             progress?.Report("Validating roster, trajectories, possession and event causality…");
             var candidate = AuthoredMatchPlan.Parse(json);
             if (candidate.Narrative is null) throw new ScenarioValidationException("New matches require a matching AI narration/story package, not historical captions alone.");
             timeout.Token.ThrowIfCancellationRequested();
+            variety?.Accept(candidate);
             Current = candidate;
             Origin = ScenarioOrigin.FreshSdkGeneration;
             CurrentModel = CopilotScenarioSource.Model;
