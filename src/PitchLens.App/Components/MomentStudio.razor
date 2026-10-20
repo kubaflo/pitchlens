@@ -1,0 +1,98 @@
+@using System.Globalization
+
+<div class="studio-provenance"><span class="source-pill">@(Result.Fresh ? "Fresh Sol" : "Recorded Sol / Not fresh")</span><span>Captured @facts.Cutoff.ToString("0.0")s · Synthetic football</span>@if (Pending) { <strong>Earlier answer — a new request is running</strong> }</div>
+<div class="studio-grid">
+    <section class="studio-main">
+        <div class="studio-section-title"><div><span class="eyebrow">Follow the move</span><h3>Evidence, on the pitch.</h3></div><span class="caption">Recorded coordinates · No inferred team direction</span></div>
+        <svg class="sequence-pitch" viewBox="-4 -3 113 74" role="group" aria-label="Observed ball-path sequence. Select an event, then watch it on the main replay.">
+            <rect x="-4" y="-3" width="113" height="74" fill="#173b30" rx="2" />
+            <g fill="none" stroke="#ffffff66" stroke-width=".3">
+                <rect x="0" y="0" width="105" height="68" /><path d="M52.5 0V68" /><circle cx="52.5" cy="34" r="9.15" />
+                <path d="M0 13.84H16.5V54.16H0 M105 13.84H88.5V54.16H105 M0 24.84H5.5V43.16H0 M105 24.84H99.5V43.16H105" />
+                <rect x="-3" y="30.34" width="3" height="7.32" /><rect x="105" y="30.34" width="3" height="7.32" />
+            </g>
+            @foreach (var e in DrawEvents)
+            {
+                var selected = visuals.HighlightedIds.Contains(e.Id);
+                <g class="sequence-event @(selected ? "is-selected" : "") kind-@e.Kind.ToLowerInvariant()" role="button" tabindex="0" aria-label="Select @e.Kind by @e.Actor at @e.Time.ToString("0.0") seconds" @onclick="() => Select(e.Id)" @onkeydown="args => KeySelect(args, e.Id)">
+                    <title>@e.Actor · @e.Kind · @e.Time.ToString("0.0")s · @e.Id</title>
+                    <polyline points="@Points(e)" fill="none" />
+                    @if (e.Ball.Length > 0)
+                    {
+                        var end = e.Ball[^1];
+                        <circle cx="@N(end.X)" cy="@N(end.Y)" r="1.2" />
+                    }
+                </g>
+            }
+        </svg>
+        <div class="sequence-key"><span>Pass —</span><span>Carry - -</span><span>Shot / Goal ●</span></div>
+        <div class="sequence-events" aria-label="Keyboard-accessible sequence selection">
+            @foreach (var e in visuals.Sequence)
+            { <button class="@(visuals.SelectedId == e.Id ? "selected" : "")" aria-pressed="@(visuals.SelectedId == e.Id ? "true" : "false")" @onclick="() => Select(e.Id)">@e.Time.ToString("0.#")s <strong>@e.Kind</strong></button> }
+        </div>
+        @if (selectedEvent is { } chosen)
+        {
+            <div class="selected-evidence"><div><strong>@chosen.Actor</strong><span>@chosen.Kind @(chosen.Receiver is null ? "" : $"→ {chosen.Receiver}") · @chosen.Start.ToString("0.#")–@chosen.Time.ToString("0.#")s</span></div><button class="button purple" @onclick="() => Inspect.InvokeAsync(chosen.Id)">Watch this evidence</button></div>
+        }
+    </section>
+    <aside class="studio-analysis">
+        <div class="segments"><button class="@(!analyst ? "selected" : "")" aria-pressed="@(!analyst ? "true" : "false")" @onclick="() => analyst = false">Fan</button><button class="@(analyst ? "selected" : "")" aria-pressed="@(analyst ? "true" : "false")" @onclick="() => analyst = true">Analyst</button></div>
+        <div class="insight-lead"><span class="eyebrow">@(analyst ? "The pattern" : "The moment")</span><p>@Claims[0].Text</p><div class="insight-links">@foreach (var id in Claims[0].EvidenceIds)
+            { <button class="text-button" @onclick="() => Select(id)">Highlight @Result.Evidence.Resolve(id).Time.ToString("0.#")s</button> }</div></div>
+        <div class="histogram">
+            <div class="studio-section-title"><h3>Pass distance</h3><strong>@visuals.MeasuredPasses measured</strong></div>
+            <p class="caption">Recent @facts.Events.Length-event window · @visuals.WindowStart.ToString("0.#")–@facts.Events.LastOrDefault()?.Time.ToString("0.#")s</p>
+            @if (visuals.Passes.Count == 0) { <p class="caption">No pass attempts in this window.</p> }
+            else if (visuals.MeasuredPasses == 0) { <p class="caption">Recorded pass distances are unavailable.</p> }
+            @foreach (var bin in visuals.Bins)
+            {
+                var count = bin.EventIds.Length;
+                <button class="histogram-bin" disabled="@(count == 0)" aria-label="@bin.Label, @count pass attempts. Select their evidence." @onclick="() => SelectBin(bin)">
+                    <span>@bin.Label</span><span class="histogram-track">@if (count > 0) { <span style="width:@N(100d * count / Math.Max(1, visuals.Bins.Max(b => b.EventIds.Length)))%"></span> }</span><strong>@count</strong>
+                </button>
+            }
+            <div class="studio-kpis"><div><span>Mean pass travel</span><strong>@(visuals.MeanPassMetres is double mean ? $"{mean:F1} m" : "Unavailable")</strong></div><div><span>Unknown distance</span><strong>@visuals.UnknownDistances</strong></div></div>
+            <details class="chart-definition"><summary>Sample & units</summary><p class="caption">All teams' attempts in this recent window, completed or intercepted; not a team comparison. Recorded ball-path travel in metres, lower bound inclusive, upper exclusive. Unknown distances excluded, not zero. Bar length scales to the largest count, not a percentage. Select a bar to highlight its event IDs.</p></details>
+            @if (visuals.SelectedBin is { } activeBin)
+            { <div class="insight-links">@foreach (var id in activeBin.EventIds) { <button class="text-button" @onclick="() => Select(id)">@id · @Result.Evidence.Resolve(id).Time.ToString("0.#")s</button> }</div> }
+        </div>
+    </aside>
+</div>
+<div class="studio-details">
+    <details><summary>Full original AI explanation (@Claims.Length statements)</summary>
+        <p class="caption">AI interpretation, not verified causal truth. Original response retained unchanged; the lead above is visually clamped, not rewritten.</p>
+        @foreach (var claim in Claims)
+        { <article class="moment-claim"><p>@claim.Text</p><div class="insight-links">@foreach (var id in claim.EvidenceIds) { <button class="evidence" @onclick="() => Inspect.InvokeAsync(id)">@Result.Evidence.Resolve(id).Time.ToString("0.#")s · @id</button> }</div></article> }
+    </details>
+    <details><summary>Match-to-cutoff player totals & provenance</summary>
+        <p class="caption">Local totals through @facts.Cutoff.ToString("0.0")s, not the recent histogram sample and not AI arithmetic. Accuracy unavailable before attempts.</p>
+        @foreach (var p in facts.Players.Where(p => facts.Events.Any(e => e.Actor == p.Name || e.Receiver == p.Name)))
+        { <p><strong>@p.Name</strong> · Passes @p.CompletedPasses/@p.Passes · Accuracy @(p.Passes == 0 ? "Unavailable" : ((double)p.CompletedPasses / p.Passes).ToString("P0")) · Shots @p.Shots · Goals @p.Goals · @p.DistanceMetres.ToString("F1") m · Max @p.MaxSpeedMetresPerSecond.ToString("F2") m/s</p> }
+        <p class="caption">@CopilotScenarioSource.Model · Revision @Result.Evidence.Revision · @Result.ToolCalls @(Result.Fresh ? "tool calls" : "original recorded tool calls") · Reference/schema checks do not prove all prose true.</p>
+        <small>Snapshot @Result.Evidence.Hash</small>
+    </details>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ExplainedMoment Result { get; set; } = null!;
+    [Parameter] public bool Pending { get; set; }
+    [Parameter] public EventCallback<string> Inspect { get; set; }
+    private MomentEvidence? cached;
+    private MomentFacts facts = null!;
+    private MomentVisuals visuals = null!;
+    private bool analyst;
+    private MomentClaim[] Claims => analyst ? Result.Answer.Analyst : Result.Answer.Fan;
+    private MomentEvent? selectedEvent => visuals.Selected;
+    private IEnumerable<MomentEvent> DrawEvents => visuals.DrawEvents;
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(cached, Result.Evidence)) return;
+        cached = Result.Evidence; facts = cached.Facts; visuals = new(facts);
+        Select(cached.FocusId);
+    }
+    private void Select(string id) => visuals.Select(id);
+    private void SelectBin(DistanceBin bin) => visuals.SelectBin(bin);
+    private void KeySelect(KeyboardEventArgs e, string id) { if (e.Key is "Enter" or " ") Select(id); }
+    private static string N(double value) => value.ToString("R", CultureInfo.InvariantCulture);
+    private static string Points(MomentEvent e) => string.Join(" ", e.Ball.Select(p => $"{N(p.X)},{N(p.Y)}"));
+}

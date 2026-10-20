@@ -150,6 +150,8 @@ public sealed class MomentExplanationTests
         service.ChangeScene(1);
         await service.GenerateAsync(evidence, CancellationToken.None);
         Assert.Null(service.Current); Assert.Contains("timed out", service.Status);
+        Assert.False(service.Activity.Snapshot.Active);
+        Assert.Equal(RequestStage.Failed, service.Activity.Snapshot.Stage);
         using var cancel = new CancellationTokenSource();
         var pending = service.GenerateAsync(evidence, cancel.Token);
         cancel.Cancel(); await pending;

@@ -24,6 +24,48 @@ moment**. This may consume Copilot usage. One SDK request to **gpt-6.1-sol**
 returns both **Fan** and **Analyst** interpretations; changing modes is local.
 There are no background/per-frame calls, automatic retries or alternate models.
 
+### Visible activity and a visual evidence studio
+
+Every request has an immediate prominent activity card: in its dialog and in
+the persistent match chrome if the dialog is closed. This covers moment analysis,
+match paths, optional correction and commentary. The SDK connection check has
+its own **No AI request** label. Cancel stays reachable. Monotonic elapsed time
+updates once per second even while replay is paused, without sampling/sending
+the replay clock, rebuilding the scene or making another AI call.
+
+Activity messages reflect actual startup/auth/model/session stages, SDK turn-start
+events, real read-only evidence tool invocations, validation and cleanup.
+They do not expose private reasoning, claim a percentage, estimate remaining work
+or animate imaginary data. Tool counts are observed invocations, not a count of
+model inference turns. Success appears only after response validation and bounded
+SDK cleanup. Cancellation/error/timeout stops the spinner, and stale/late updates
+cannot restart it or enter a new scene. Earlier valid answers remain explicitly
+marked as earlier while another request is pending. Reduced motion keeps the
+indicator static; accessible stage status and elapsed text remain available.
+
+The responsive desktop studio uses an original SVG mini-pitch for the six most
+recent recorded actions (plus any selected older evidence in the captured
+window), with keyboard-accessible event buttons. Selecting a path or histogram
+bin highlights exact event IDs; **Watch this evidence** uses the existing
+authoritative replay and pinned historical overlay. Fan/Analyst each lead with
+their original first insight, visually clamped to three lines; the complete,
+unchanged response, all evidence links and technical provenance are expandable.
+No model call or silent prose rewriting is used for this presentation.
+
+**Pass-distance histogram:** all observed pass attempts, completed or intercepted,
+from the at-most-twelve-event captured window, pooling teams explicitly rather
+than implying a team comparison. Distance is the sum of recorded ball-path
+segments in metres, not player distance or inferred direction. Bins are
+`[0,10)`, `[10,20)`, `[20,30)` and `[30,infinity)` metres. Absolute counts and
+sample timestamps are shown; bar widths scale to the largest count, not a success
+percentage. A genuinely measured zero belongs in the first bin; missing/invalid
+distance is excluded and counted as **Unknown**, never replaced with zero.
+The local mean is unavailable for an empty measured sample. Match-to-cutoff
+player totals remain separately labelled in details, not mixed into this sample.
+For the recorded 86s example the eight measured attempts give bins **2/4/1/1**
+and mean **17.0429447133 m** (displayed with local formatting to one decimal).
+No chart dependency, new AI chart values, xG, pressure or invented paths are used.
+
 This is a small read-only agent loop, not a scripted explanation presented as AI.
 The model first reads `observed_match` (captured event index, clipped player paths,
 local player totals), then resolves selected evidence through `observed_event`
@@ -589,6 +631,12 @@ The build creates an ad-hoc signed development bundle at
 it does **not** launch it. Apple Silicon/macOS with configured Xcode is required;
 Intel/distribution/App Store packaging is not verified. Core/generation tests
 can run headlessly without a MAUI workload.
+The test project also renders the actual studio/activity Razor components using
+ASP.NET Core's in-process `HtmlRenderer` (included with the .NET SDK), and tests
+the platform-neutral native service bridge with delayed sources. No browser,
+app launch, simulator, XCTest or screen automation is involved. These tests
+check paused elapsed/stage rendering, safe text, exact histogram values and
+request-scoped lifecycle transitions; they do not certify desktop pixels.
 
 ## User-operated runtime acceptance
 

@@ -17,6 +17,11 @@
                 <button id="generate-match" class="button mint" @onclick='() => Open("generation-dialog")'>@(Session.Generating ? "Creating…" : "New match")</button>
             </div>
         </header>
+        <div class="persistent-activities">
+            <RequestActivityView Activity="Session.Explainer.Activity" Title="Sol · Explain this moment" Budget="270s response budget · Up to 6 read-only tool calls · Bounded cleanup" Cancel="Session.Explainer.Cancel" />
+            <RequestActivityView Activity="Session.GenerationActivity" Title="Sol · Creating your match" Budget="15-minute total budget · Up to 3 model responses · No fallback" Cancel="Session.Cancel" />
+            <RequestActivityView Activity="Session.ConnectionActivity" Title="SDK connection check · No AI request" Budget="45-second check · No generation or model usage" Cancel="Session.CancelConnection" />
+        </div>
         <div class="page-heading">
             <div><span class="eyebrow">Matchday / Synthetic 11v11</span><h1>Arsenal <span class="fixture-versus">v</span> City</h1></div>
             <div class="actions"><button class="button purple" disabled="@(snapshot.Events.Count == 0)" @onclick="OpenMoment">Explain this moment</button><button id="players-button" class="button" @onclick='() => Open("roster-dialog")'>Players</button><button class="button purple" @onclick='() => Open("story-dialog")'>Match story</button></div>
@@ -63,9 +68,6 @@
         {
             <div class="request-status" role="status">Creation cancelled. Previous match kept.</div>
         }
-        @if (Session.Explainer.Busy)
-        { <div class="request-status" role="status">Analysing the captured moment. <button class="text-button" @onclick="Session.Explainer.Cancel">Cancel explanation</button></div> }
-
         <dialog id="player-dialog" class="player-dialog" aria-modal="false" aria-labelledby="player-title">
             <header class="dialog-head"><div><span class="eyebrow">Player lens</span><span class="caption">Synthetic facts at @snapshot.Time.ToString("00.0")s</span></div><button class="close" data-close-popup aria-label="Close player popup">Close</button></header>
             <div class="dialog-body">
@@ -105,52 +107,43 @@
             </div>
         </dialog>
         <dialog id="moment-dialog" class="moment-dialog" aria-labelledby="moment-title">
-            <header class="dialog-head"><div><span class="eyebrow">Evidence studio / Copilot SDK</span><h2 id="moment-title">Explain this moment</h2></div><button class="close" data-close-popup>Close</button></header>
-            <div class="dialog-body">
-                <p class="caption">Synthetic football. Captured evidence, not live scouting. Opening this panel or switching modes makes no AI request.</p>
-                @if (snapshot.Time >= 86 && MomentRecording.Available(match, frame.Revision))
-                { <button class="button" disabled="@Session.Explainer.Busy" @onclick="Session.LoadRecordedMoment">View recorded goal analysis · 86s · No AI call</button> }
+            <header class="dialog-head"><div><span class="eyebrow">PitchLens / Evidence studio</span><h2 id="moment-title">Explain this moment</h2><span class="caption">Synthetic football · AI interpretation, not verified causal truth</span></div><button class="close" data-close-popup>Close</button></header>
+            <div class="dialog-body studio-body">
+                <RequestActivityView Activity="Session.Explainer.Activity" Title="Sol · Moment analysis" Budget="270s response budget · Up to 6 read-only tool calls · Bounded cleanup" Cancel="Session.Explainer.Cancel" />
+                <div class="studio-toolbar">
                 @if (Session.ExplanationSnapshot is { } captured)
                 {
-                    <label for="moment-event">Observed moment through @captured.Cutoff.ToString("0.0")s</label>
+                    <label for="moment-event">Observed through @captured.Cutoff.ToString("0.0")s
                     <select id="moment-event" value="@captured.FocusId" disabled="@Session.Explainer.Busy" @onchange="MomentChanged">
                         @foreach (var e in snapshot.Events.TakeLast(12).Reverse())
                         { <option value="@e.Id">@e.Time.ToString("0.0")s · @e.Kind · @match.Player(e.ActorId).Name</option> }
                     </select>
-                    <p>One explicit <strong>gpt-6.1-sol</strong> request returns both modes. It may consume Copilot usage, including up to six read-only evidence tool calls. Response budget 270 seconds, then bounded SDK cleanup; no automatic retry or fallback.</p>
-                    <div class="actions"><button class="button mint" disabled="@(Session.Explainer.Busy || Session.Generating || Session.CheckingConnection)" @onclick="Session.ExplainAsync">Ask Sol about this moment</button>@if (Session.Explainer.Busy) { <button class="button" @onclick="Session.Explainer.Cancel">Cancel explanation</button> }</div>
+                    </label>
                 }
-                <p role="status">@Session.Explainer.Status</p>
+                    <div class="studio-ask"><small>Uses Copilot usage · One request, both modes</small><button class="button mint" disabled="@(Session.Explainer.Busy || Session.Generating || Session.CheckingConnection || Session.ExplanationSnapshot is null)" @onclick="Session.ExplainAsync">@(Session.Explainer.Busy ? "Sol is working…" : "Ask Sol")</button></div>
+                </div>
                 @if (Session.Explainer.VisibleAt(frame.Revision, snapshot.Time) is { } explained)
                 {
-                    <div class="moment-provenance">@(explained.Fresh ? "Fresh SDK" : "Recorded SDK / Not fresh") · @CopilotScenarioSource.Model · Captured @explained.Evidence.Cutoff.ToString("0.0")s · Revision @explained.Evidence.Revision · @explained.ToolCalls @(explained.Fresh ? "read-only tool calls" : "tool calls in original recording")</div>
-                    <div class="segments"><button class="@(momentAnalyst ? "" : "selected")" aria-pressed="@(!momentAnalyst ? "true" : "false")" @onclick="() => momentAnalyst = false">Fan</button><button class="@(momentAnalyst ? "selected" : "")" aria-pressed="@(momentAnalyst ? "true" : "false")" @onclick="() => momentAnalyst = true">Analyst</button></div>
-                    <p class="caption">AI interpretation, not verified causal truth. References and snapshot identity are checked; prose can still be wrong.</p>
-                    @foreach (var claim in (momentAnalyst ? explained.Answer.Analyst : explained.Answer.Fan))
-                    {
-                        <article class="moment-claim"><p>@claim.Text</p><div class="actions">@foreach (var id in claim.EvidenceIds)
-                            {
-                                var fact = explained.Evidence.Resolve(id);
-                                <button class="evidence" @onclick="() => InspectEvidence(explained.Evidence, id)">@fact.Time.ToString("0.0")s · @fact.Kind · @id</button>
-                            }</div></article>
-                    }
-                    <details><summary>Local measured facts / captured snapshot</summary>
-                        <p class="caption">Totals through @explained.Evidence.Cutoff.ToString("0.0")s. Not calculated by AI. Pass accuracy is unavailable before any attempts.</p>
-                        @foreach (var metric in explained.Evidence.Facts.Players.Where(p => explained.Evidence.Facts.Events.Any(e => e.Actor == p.Name || e.Receiver == p.Name)))
-                        { <p><strong>@metric.Name</strong> · Passes @metric.CompletedPasses/@metric.Passes · Accuracy @(metric.Passes == 0 ? "Unavailable" : ((double)metric.CompletedPasses / metric.Passes).ToString("P0")) · Shots @metric.Shots · Goals @metric.Goals · @metric.DistanceMetres.ToString("F1") m · Max @metric.MaxSpeedMetresPerSecond.ToString("F2") m/s</p> }
-                        <small>Snapshot SHA-256 @explained.Evidence.Hash</small>
-                    </details>
+                    <MomentStudio Result="explained" Pending="Session.Explainer.Busy" Inspect="id => InspectEvidence(explained.Evidence, id)" />
                 }
                 else if (Session.Explainer.Current is { } hiddenExplanation)
                 { <p class="caption">Saved analysis is hidden before its captured cutoff of @hiddenExplanation.Evidence.Cutoff.ToString("0.0")s. Seek forward to that time to view it again.</p> }
+                else if (Session.ExplanationSnapshot is { } preview)
+                { <div class="studio-empty"><span class="eyebrow">Your next perspective</span><h3>A move. A map. A grounded explanation.</h3><p>Choose an observed moment and ask Sol. Its Fan and Analyst views link directly to recorded actions.</p><small>No request on opening or switching modes.</small></div> }
+                <div class="studio-footnote"><span class="caption">@Session.Explainer.Status</span>
+                @if (snapshot.Time >= 86 && MomentRecording.Available(match, frame.Revision))
+                { <button class="text-button" disabled="@Session.Explainer.Busy" @onclick="Session.LoadRecordedMoment">Recorded goal analysis · 86s · No AI call</button> }
+                </div>
+                <details class="caption"><summary>Request limits & data handling</summary><p>Exact @CopilotScenarioSource.Model, up to six read-only evidence calls, one response for both modes. Response budget 270 seconds plus bounded SDK cleanup. No retries/fallback. Raw responses are not automatically logged. Invalid output keeps the earlier answer.</p></details>
             </div>
         </dialog>
         <dialog id="generation-dialog" aria-labelledby="generation-title">
             <header class="dialog-head"><div><span class="eyebrow">Copilot SDK</span><h2 id="generation-title">Create a new match.</h2><span class="caption">A real generation request, not a scripted preview.</span></div><button class="close" data-close-popup>Close</button></header>
             <div class="dialog-body">
+                <RequestActivityView Activity="Session.GenerationActivity" Title="Sol · Creating your match" Budget="15-minute total budget · Paths, optional correction, commentary" Cancel="Session.Cancel" />
                 <p>Arsenal vs Manchester City · Five minutes (300 seconds) · Synthetic 11v11. All 22 player paths and events authored by AI.</p>
                 <p>Only GPT-6.1 Sol (@CopilotScenarioSource.Model), using normal local Copilot login. Paths/events, at most one AI path correction for a rejected team shape, then grounded subtitles: at most three model responses, bounded to fifteen minutes. May consume usage. No model fallback.</p>
-                <div class="actions"><button class="button purple" @onclick="Generate" disabled="@(Session.Generating || Session.CheckingConnection)">@(Session.Generating ? "Creating…" : "Create match with Sol 6.1")</button>@if (Session.Generating) { <button class="button" @onclick="Session.Cancel">Cancel creation</button> }</div>
+                <div class="actions"><button class="button purple" @onclick="Generate" disabled="@(Session.Generating || Session.CheckingConnection || Session.Explainer.Busy)">@(Session.Generating ? "Creating…" : "Create match with Sol 6.1")</button>@if (Session.Generating) { <button class="button" @onclick="Session.Cancel">Cancel creation</button> }</div>
                 <p id="generation-status" role="@(Session.RequestState == GenerationState.Failed ? "alert" : "status")">@Session.Status</p>
                 <p class="caption">Closing this popup does not cancel creation. Cancel is also available in the main brand bar. Invalid output or cancellation keeps the last valid match.</p>
             </div>
@@ -158,6 +151,7 @@
         <dialog id="settings-dialog" aria-labelledby="settings-title">
             <header class="dialog-head"><div><h2 id="settings-title">Replay settings</h2><span class="caption">Source, model and local runtime</span></div><button class="close" data-close-popup>Close</button></header>
             <div class="dialog-body">
+                <RequestActivityView Activity="Session.ConnectionActivity" Title="SDK connection check · No AI request" Budget="45-second check · No generation or model usage" Cancel="Session.CancelConnection" />
                 <section id="scenario-provenance"><h3>@(view!.Origin == ScenarioOrigin.DeterministicDemo ? "Authored five-minute demo" : view.Fresh ? "New SDK-generated match" : "Recorded SDK example")</h3><p>Source model: @(view.Model ?? "None — authored locally"). @(view.Fresh ? "Generated in this session." : "Not a fresh request.")</p><p>All actions are synthetic. Real 2026/27 roster names; no real match result or athlete performance claim.</p></section>
                 <p>@(match.Commentary is { } commentary ? $"AI commentator subtitles: {commentary.Model}, {commentary.Cues.Count} timed cues for this match. {(view.Fresh ? "Generated with this match." : "Recorded generation, not a fresh request.")} Match story facts remain scripted." : "AI commentator subtitles unavailable; match story facts are scripted, not AI commentary.")</p>
                 @if (match.Players.Count == 22)
@@ -168,7 +162,7 @@
                 <button class="button" aria-pressed="@(frame.HighlightsEnabled ? "true" : "false")" @onclick="ToggleGoalReplays">Goal highlights: @(frame.HighlightsEnabled ? "On" : "Off")</button>
                 <p class="caption">Highlights use a contextual 2D camera and readable 1x buildup/finish/replay pace, then restore your selected speed at kickoff. The native clock owns both rates. Reduced motion keeps the tactical camera and suppresses extra effects.</p>
                 <p>Space plays or pauses; Left/Right seek one second outside form controls. Player lens and roster preserve playback. Story, settings and creation pause replay.</p>
-                <details><summary>Advanced generation setup</summary><p>New requests use @CopilotScenarioSource.Model. Normal Copilot login and model access are required.</p><label for="cli">Compatible runtime override</label><input id="cli" placeholder="Bundled runtime (leave blank)" @bind="Session.CliOverride" disabled="@(Session.Generating || Session.CheckingConnection)" /><button class="button" @onclick="Session.CheckConnectionAsync" disabled="@(Session.Generating || Session.CheckingConnection)">Check SDK connection (no generation)</button><p role="status">@Session.ConnectionStatus</p></details>
+                <details><summary>Advanced generation setup</summary><p>New requests use @CopilotScenarioSource.Model. Normal Copilot login and model access are required.</p><label for="cli">Compatible runtime override</label><input id="cli" placeholder="Bundled runtime (leave blank)" @bind="Session.CliOverride" disabled="@(Session.Generating || Session.CheckingConnection || Session.Explainer.Busy)" /><button class="button" @onclick="Session.CheckConnectionAsync" disabled="@(Session.Generating || Session.CheckingConnection || Session.Explainer.Busy)">Check SDK connection (no generation)</button><p role="status">@Session.ConnectionStatus</p></details>
             </div>
         </dialog>
     </div>
@@ -187,7 +181,6 @@
     private long loadedRevision;
     private PopupRequest? pendingPopup;
     private bool captionsEnabled = true;
-    private bool momentAnalyst;
     private sealed record PopupRequest(string Id);
     private static string Crest(string id) => id == "arsenal" ? "images/arsenal_crest.png" : "images/manchester_city_crest.png";
     private static string Club(Match match, string id) => match.Teams.Single(t => t.Id == id).Name;

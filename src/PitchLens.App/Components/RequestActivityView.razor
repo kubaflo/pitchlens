@@ -1,0 +1,52 @@
+@implements IAsyncDisposable
+
+@{
+    var state = Activity.Snapshot;
+}
+@if (state.Active || state.Stage is RequestStage.Failed or RequestStage.Cancelled)
+{
+    <section class="request-activity @(state.Active ? "is-active" : "is-terminal")" aria-busy="@(state.Active ? "true" : "false")">
+        <span class="request-orbit" aria-hidden="true"></span>
+        <div class="request-copy"><strong>@Title</strong><span role="@(state.Stage == RequestStage.Failed ? "alert" : "status")">@state.Message</span><small>@Budget @(state.ToolCalls > 0 ? $"· {state.ToolCalls} observed tool calls" : "")</small></div>
+        <output aria-label="Elapsed request time" aria-live="off">@TimeSpan.FromSeconds(state.ElapsedSeconds).ToString(@"m\:ss")</output>
+        @if (state.Active) { <button class="button" @onclick="Cancel">Cancel</button> }
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired] public RequestActivity Activity { get; set; } = null!;
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter, EditorRequired] public string Budget { get; set; } = "";
+    [Parameter] public EventCallback Cancel { get; set; }
+    private RequestActivity? subscribed;
+    private readonly CancellationTokenSource lifetime = new();
+    private Task? ticker;
+    private bool disposed;
+    protected override void OnParametersSet()
+    {
+        if (subscribed == Activity) return;
+        if (subscribed is not null) subscribed.Changed -= Updated;
+        subscribed = Activity;
+        subscribed.Changed += Updated;
+    }
+    protected override void OnInitialized() => ticker = Tick();
+    private void Updated() { if (!disposed) _ = InvokeAsync(StateHasChanged); }
+    private async Task Tick()
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            while (await timer.WaitForNextTickAsync(lifetime.Token))
+                if (!disposed && Activity.Snapshot.Active) await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
+    }
+    public async ValueTask DisposeAsync()
+    {
+        disposed = true;
+        if (subscribed is not null) subscribed.Changed -= Updated;
+        lifetime.Cancel();
+        if (ticker is not null) await ticker;
+        lifetime.Dispose();
+    }
+}

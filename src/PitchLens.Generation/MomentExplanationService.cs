@@ -4,6 +4,8 @@ public interface IMomentSource
 {
     int ToolCalls => 0;
     Task<string> ExplainAsync(MomentEvidence evidence, CancellationToken token);
+    Task<string> ExplainAsync(MomentEvidence evidence, CancellationToken token, IProgress<RequestProgress>? progress) =>
+        ExplainAsync(evidence, token);
 }
 
 public sealed record ExplainedMoment(MomentEvidence Evidence, MomentAnswer Answer, int ToolCalls, bool Fresh = true);
@@ -14,6 +16,9 @@ public sealed class MomentExplanationService(IMomentSource source, TimeSpan? tim
     private CancellationTokenSource? running;
     private long revision;
     private bool userCancelled;
+    private long activityId;
+    public RequestActivity Activity { get; } = new();
+    public event Action? Changed;
     public ExplainedMoment? Current { get; private set; }
     public bool Busy { get { lock (gate) return running is not null; } }
     public string Status { get; private set; } = "Choose an observed moment. Opening this panel makes no AI request.";
@@ -31,9 +36,19 @@ public sealed class MomentExplanationService(IMomentSource source, TimeSpan? tim
             running?.Cancel();
             Current = null;
             Status = "New match. Previous match explanations cleared.";
+            Activity.Reset();
+        }
+        Changed?.Invoke();
+    }
+    public void Cancel()
+    {
+        lock (gate)
+        {
+            userCancelled = true;
+            if (running is not null) Activity.Report(activityId, new(RequestStage.Cancelling, "Cancelling request; waiting for bounded cleanup…"));
+            running?.Cancel();
         }
     }
-    public void Cancel() { lock (gate) { userCancelled = true; running?.Cancel(); } }
     public void UseRecorded(ExplainedMoment recorded)
     {
         lock (gate)
@@ -42,7 +57,9 @@ public sealed class MomentExplanationService(IMomentSource source, TimeSpan? tim
                 throw new InvalidOperationException("Recorded analysis cannot replace an active request or another match.");
             Current = recorded;
             Status = "Recorded SDK explanation · gpt-6.1-sol · Not a fresh request. No usage consumed.";
+            Activity.Reset();
         }
+        Changed?.Invoke();
     }
     public async Task GenerateAsync(MomentEvidence evidence, CancellationToken token)
     {
@@ -55,11 +72,24 @@ public sealed class MomentExplanationService(IMomentSource source, TimeSpan? tim
             running = deadline;
             userCancelled = false;
             Status = "Requesting Sol analysis of this captured evidence. One request; up to six read-only tool calls; no retries.";
+            activityId = Activity.Begin("Preparing captured evidence…");
         }
+        Changed?.Invoke();
+        var id = activityId;
+        var progress = new InlineProgress<RequestProgress>(value =>
+        {
+            lock (gate)
+            {
+                if (running != deadline || revision != evidence.Revision) return;
+                Activity.Report(id, value);
+            }
+        });
+        var terminal = RequestStage.Failed;
         try
         {
-            var raw = await source.ExplainAsync(evidence, deadline.Token).ConfigureAwait(false);
+            var raw = await source.ExplainAsync(evidence, deadline.Token, progress).ConfigureAwait(false);
             deadline.Token.ThrowIfCancellationRequested();
+            progress.Report(new(RequestStage.Validating, "Checking snapshot identity and observed evidence references…", source.ToolCalls));
             var answer = evidence.Validate(raw);
             lock (gate)
             {
@@ -67,6 +97,7 @@ public sealed class MomentExplanationService(IMomentSource source, TimeSpan? tim
                 if (revision != evidence.Revision) return;
                 Current = new(evidence, answer, source.ToolCalls);
                 Status = "Fresh Copilot SDK explanation · gpt-6.1-sol · Synthetic match.";
+                terminal = RequestStage.Complete;
             }
         }
         catch (OperationCanceledException)
@@ -75,11 +106,20 @@ public sealed class MomentExplanationService(IMomentSource source, TimeSpan? tim
                 Status = token.IsCancellationRequested || userCancelled
                     ? "Explanation cancelled. Previous valid explanation kept."
                     : "Explanation timed out. Previous valid explanation kept.";
+            terminal = userCancelled || token.IsCancellationRequested ? RequestStage.Cancelled : RequestStage.Failed;
         }
         catch (Exception e) when (e is ScenarioValidationException or CopilotGenerationException or IOException or InvalidOperationException or TimeoutException or UnauthorizedAccessException)
         {
             lock (gate) if (revision == evidence.Revision) Status = $"Explanation failed: {e.Message} Previous valid explanation kept.";
         }
-        finally { lock (gate) if (running == deadline) running = null; }
+        finally
+        {
+            lock (gate)
+            {
+                if (running == deadline) running = null;
+                if (revision == evidence.Revision) Activity.Finish(id, terminal, Status);
+            }
+            Changed?.Invoke();
+        }
     }
 }

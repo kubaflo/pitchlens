@@ -59,7 +59,7 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
         try
         {
             var client = CreateClient();
-            await using var owner = new BoundedClient(client);
+            await using var owner = new BoundedClient(client, () => progress?.Report("Cleaning up the owned SDK runtime…"));
             await ConnectAsync(client, progress, value => stage = value, token).ConfigureAwait(false);
             if (includeSession)
             {
@@ -91,17 +91,24 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
         try
         {
             var client = CreateClient();
-            await using var owner = new BoundedClient(client);
+            await using var owner = new BoundedClient(client, () => progress?.Report("Cleaning up the owned SDK runtime…"));
             await ConnectAsync(client, progress, value => stage = value, cancellationToken).ConfigureAwait(false);
             progress?.Report(responseStage == "correction"
                 ? $"AI refining rejected paths with {Model} (one correction maximum; events unchanged)…"
                 : $"Generating synthetic match content with {Model}…");
             stage = "session";
+            progress?.Report("Creating the Copilot SDK session…");
             var session = await client.CreateSessionAsync(CreateSessionConfig(), cancellationToken).ConfigureAwait(false);
             try
             {
                 using var schema = JsonDocument.Parse(responseSchema);
                 stage = "response";
+                progress?.Report(responseStage switch
+                {
+                    "correction" => "Sol is refining player paths (one correction maximum)…",
+                    "commentary" => "Sol is composing grounded commentator subtitles…",
+                    _ => "Sol is authoring all 22 player paths and match events…"
+                });
                 var response = await session.SendAndWaitAsync(new MessageOptions
                 {
                     Prompt = prompt,
@@ -120,6 +127,7 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
             finally
             {
                 stage = "cleanup";
+                progress?.Report("Cleaning up the SDK session and owned runtime…");
                 using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                 try { await session.AbortAsync(cleanup.Token).ConfigureAwait(false); }
                 catch (OperationCanceledException e) when (!cancellationToken.IsCancellationRequested)
@@ -160,10 +168,11 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
             Content = "Generate original synthetic football match plans or evidence-anchored commentary as requested. Only structured JSON. No tools, agents, files or external services. Never claim actual athlete performance or reveal future outcomes in timed commentary."
         }
     };
-    internal sealed class BoundedClient(CopilotClient client) : IAsyncDisposable
+    internal sealed class BoundedClient(CopilotClient client, Action? onCleanup = null) : IAsyncDisposable
     {
         public async ValueTask DisposeAsync()
         {
+            onCleanup?.Invoke();
             var disposal = client.DisposeAsync().AsTask();
             try { await disposal.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false); }
             catch (TimeoutException e)

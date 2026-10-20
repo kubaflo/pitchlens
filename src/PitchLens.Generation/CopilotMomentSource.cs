@@ -35,23 +35,40 @@ public sealed class CopilotMomentSource(string cliPath, string workingDirectory,
         },"analyst":{"type":"array","minItems":1,"maxItems":4,"items":
         """ + ClaimSchema + "}}}";
 
-    public async Task<string> ExplainAsync(MomentEvidence evidence, CancellationToken token)
+    public Task<string> ExplainAsync(MomentEvidence evidence, CancellationToken token) => ExplainAsync(evidence, token, null);
+    public async Task<string> ExplainAsync(MomentEvidence evidence, CancellationToken token, IProgress<RequestProgress>? progress)
     {
         var stage = "setup";
         using var request = CancellationTokenSource.CreateLinkedTokenSource(token);
         request.CancelAfter(TimeSpan.FromSeconds(270));
-        var tools = new MomentTools(evidence, request);
+        var tools = new MomentTools(evidence, request, progress);
         try
         {
             var client = new CopilotScenarioSource(cliPath, workingDirectory).CreateClient();
-            await using var owner = new CopilotScenarioSource.BoundedClient(client);
-            await CopilotScenarioSource.ConnectAsync(client, null, value => stage = value, request.Token).ConfigureAwait(false);
+            await using var owner = new CopilotScenarioSource.BoundedClient(client,
+                () => progress?.Report(new(RequestStage.Cleanup, "Cleaning up the owned SDK runtime…", tools.Calls)));
+            await CopilotScenarioSource.ConnectAsync(client, null, value =>
+            {
+                stage = value;
+                progress?.Report(value switch
+                {
+                    "auth" => new(RequestStage.Authenticating, "Checking Copilot authentication…"),
+                    "models" => new(RequestStage.Model, "Checking exact GPT model availability…"),
+                    _ => new(RequestStage.Connecting, "Connecting to the local Copilot runtime…")
+                });
+            }, request.Token).ConfigureAwait(false);
             stage = "session";
+            progress?.Report(new(RequestStage.Session, "Creating the read-only explanation session…"));
             var session = await client.CreateSessionAsync(CreateConfig(tools), request.Token).ConfigureAwait(false);
             try
             {
+                using var observable = session.On<SessionEvent>(e =>
+                {
+                    if (ProgressForEvent(e, tools.Calls) is { } update) progress?.Report(update);
+                });
                 using var schema = JsonDocument.Parse(Schema);
                 stage = "response";
+                progress?.Report(new(RequestStage.Thinking, "Waiting for Sol to inspect the captured moment…"));
                 var response = await session.SendAndWaitAsync(new MessageOptions
                 {
                     Prompt = $"Explain this captured moment. snapshotHash={evidence.Hash}; cutoff={evidence.Cutoff:R}; focusId={evidence.FocusId}. Inspect the read-only tools before answering.",
@@ -69,6 +86,7 @@ public sealed class CopilotMomentSource(string cliPath, string workingDirectory,
             }
             finally
             {
+                progress?.Report(new(RequestStage.Cleanup, "Closing the SDK session and owned runtime…", tools.Calls));
                 using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                 await session.AbortAsync(cleanup.Token).ConfigureAwait(false);
             }
@@ -82,6 +100,9 @@ public sealed class CopilotMomentSource(string cliPath, string workingDirectory,
         }
         finally { ToolCalls = tools.Calls; }
     }
+    public static RequestProgress? ProgressForEvent(SessionEvent e, int toolCalls) => e is AssistantTurnStartEvent
+        ? new(RequestStage.Thinking, "Sol is working on the explanation…", toolCalls) : null;
+
     private async Task SaveWitnessAsync(string name, string content, CancellationToken token)
     {
         if (content.Length > 1_000_000) throw new CopilotGenerationException("Synthetic witness exceeded the diagnostic size bound.");
@@ -119,6 +140,7 @@ public sealed class MomentTools
 {
     private readonly MomentEvidence evidence;
     private readonly CancellationTokenSource request;
+    private readonly IProgress<RequestProgress>? progress;
     private int calls;
     private int readIndex, readFocus;
     public int Calls => Volatile.Read(ref calls);
@@ -126,9 +148,10 @@ public sealed class MomentTools
     public bool ReadFocus => Volatile.Read(ref readFocus) != 0;
     public AIFunction Index { get; }
     public AIFunction Event { get; }
-    public MomentTools(MomentEvidence evidence, CancellationTokenSource request)
+    public MomentTools(MomentEvidence evidence, CancellationTokenSource request, IProgress<RequestProgress>? progress = null)
     {
         this.evidence = evidence; this.request = request;
+        this.progress = progress;
         Index = new ReadTool(this, false); Event = new ReadTool(this, true);
     }
     private object Read(bool detail, AIFunctionArguments arguments, CancellationToken token)
@@ -143,6 +166,7 @@ public sealed class MomentTools
             throw new InvalidOperationException("Unknown tool argument.");
         if (!detail)
         {
+            progress?.Report(new(RequestStage.Evidence, "Inspecting the captured match index…", Calls));
             Interlocked.Exchange(ref readIndex, 1);
             var facts = evidence.Facts;
             return JsonSerializer.SerializeToElement(new MomentIndex(facts.Revision, facts.Cutoff, facts.FocusId,
@@ -152,6 +176,7 @@ public sealed class MomentTools
         if (!arguments.TryGetValue("eventId", out var value)) throw new InvalidOperationException("Observed event ID required.");
         var id = value switch { string text => text, JsonElement { ValueKind: JsonValueKind.String } element => element.GetString(), _ => null };
         var fact = evidence.Resolve(id ?? "");
+        progress?.Report(new(RequestStage.Evidence, $"Inspecting observed event {fact.Id}…", Calls));
         if (fact.Id == evidence.FocusId) Interlocked.Exchange(ref readFocus, 1);
         return JsonSerializer.SerializeToElement(fact, MomentJsonContext.Default.MomentEvent);
     }

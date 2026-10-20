@@ -5,11 +5,15 @@ namespace PitchLens.App;
 
 public sealed record NativeView(PresentationFrame Frame, string? Model, bool Fresh, string Status, bool Generating, ScenarioOrigin Origin);
 
-public sealed class MatchService : IDisposable
+public sealed partial class MatchService : IDisposable
 {
     private readonly object gate = new();
     private readonly ReplayPresentation presentation = new(AuthoredMatchRecording.Create(), new MonotonicClock());
     private readonly GenerationService generation;
+    private readonly Func<IProgress<string>, CancellationToken, Task> checkConnection;
+    public RequestActivity GenerationActivity { get; } = new();
+    public RequestActivity ConnectionActivity { get; } = new();
+    private long generationActivityId, connectionActivityId;
     public MomentExplanationService Explainer { get; }
     public MomentEvidence? ExplanationSnapshot { get; private set; }
     private CancellationTokenSource? cancellation;
@@ -28,13 +32,20 @@ public sealed class MatchService : IDisposable
     public GenerationState RequestState => generation.State;
     public Match Match => presentation.Match;
 
-    public MatchService()
+    public MatchService(IScenarioSource scenarios, IMomentSource moments, Func<IProgress<string>, CancellationToken, Task> connection)
     {
-        generation = new(new NativeSource(this), presentation.Match, ScenarioOrigin.RecordedSdkExample, AuthoredMatchRecording.Model);
-        Explainer = new(new NativeMomentSource(this));
+        generation = new(scenarios, presentation.Match, ScenarioOrigin.RecordedSdkExample, AuthoredMatchRecording.Model);
+        Explainer = new(moments);
+        checkConnection = connection;
+        Initialize();
+    }
+    private void Initialize()
+    {
         Explainer.ChangeScene(presentation.Revision);
+        Explainer.Changed += NotifyChanged;
         presentation.Select("arsenal-odegaard");
     }
+    private void NotifyChanged() { if (!disposed) Changed?.Invoke(); }
 
     public NativeView? Sample(bool force = false)
     {
@@ -85,7 +96,15 @@ public sealed class MatchService : IDisposable
         }
         Changed?.Invoke();
     }
-    public void Cancel() { lock (gate) cancellation?.Cancel(); }
+    public void Cancel()
+    {
+        lock (gate)
+        {
+            if (cancellation is not null) GenerationActivity.Report(generationActivityId, new(RequestStage.Cancelling, "Cancelling match creation; waiting for cleanup…"));
+            cancellation?.Cancel();
+        }
+    }
+    public void CancelConnection() { lock (gate) connectionCancellation?.Cancel(); }
     public void CaptureMoment(string? eventId = null)
     {
         lock (gate)
@@ -104,10 +123,7 @@ public sealed class MatchService : IDisposable
             if (disposed || Generating || CheckingConnection || Explainer.Busy) return;
             captured = ExplanationSnapshot ?? throw new InvalidOperationException("Capture an observed moment first.");
         }
-        var pending = Explainer.GenerateAsync(captured, CancellationToken.None);
-        Changed?.Invoke();
-        try { await pending.ConfigureAwait(false); }
-        finally { if (!disposed) Changed?.Invoke(); }
+        await Explainer.GenerateAsync(captured, CancellationToken.None).ConfigureAwait(false);
     }
     public void LoadRecordedMoment()
     {
@@ -123,19 +139,21 @@ public sealed class MatchService : IDisposable
         using var token = new CancellationTokenSource(TimeSpan.FromSeconds(45));
         lock (gate)
         {
-            if (disposed || Generating || CheckingConnection) return;
+            if (disposed || Generating || CheckingConnection || Explainer.Busy) return;
             connectionCancellation = token;
             ConnectionStatus = "Checking bundled runtime, normal login and exact Sol availability. No AI generation.";
+            connectionActivityId = ConnectionActivity.Begin(ConnectionStatus);
         }
         Changed?.Invoke();
-        var progress = new Progress<string>(message =>
+        var activityId = connectionActivityId;
+        var progress = new InlineProgress<string>(message =>
         {
             lock (gate) { if (disposed || connectionCancellation != token) return; ConnectionStatus = message; }
-            Changed?.Invoke();
+            ConnectionActivity.Report(activityId, RequestProgress.FromSdkStatus(message));
         });
         try
         {
-            await new NativeSource(this).CheckAsync(progress, token.Token).ConfigureAwait(false);
+            await checkConnection(progress, token.Token).ConfigureAwait(false);
             lock (gate) ConnectionStatus = "Connection verified: runtime startup, normal authentication, gpt-6.1-sol enabled and empty session creation. No generation request made.";
         }
         catch (OperationCanceledException) { lock (gate) ConnectionStatus = "Connection check cancelled or exceeded 45 seconds. Previous match unchanged."; }
@@ -143,6 +161,8 @@ public sealed class MatchService : IDisposable
         finally
         {
             lock (gate) connectionCancellation = null;
+            ConnectionActivity.Finish(activityId, ConnectionStatus.StartsWith("Connection verified", StringComparison.Ordinal) ? RequestStage.Complete :
+                token.IsCancellationRequested ? RequestStage.Cancelled : RequestStage.Failed, ConnectionStatus);
             if (!disposed) Changed?.Invoke();
         }
     }
@@ -153,16 +173,18 @@ public sealed class MatchService : IDisposable
         {
             if (disposed || cancellation is not null || CheckingConnection || Explainer.Busy) { token.Dispose(); return; }
             cancellation = token;
+            generationActivityId = GenerationActivity.Begin("Preparing the match-generation request…");
         }
         Command("pause");
-        var progress = new Progress<string>(message =>
+        var activityId = generationActivityId;
+        var progress = new InlineProgress<string>(message =>
         {
             lock (gate)
             {
-                if (disposed || generation.State != GenerationState.Generating) return;
+                if (disposed || cancellation != token || generation.State != GenerationState.Generating) return;
                 Status = message;
             }
-            Changed?.Invoke();
+            GenerationActivity.Report(activityId, RequestProgress.FromSdkStatus(message));
         });
         try
         {
@@ -190,6 +212,8 @@ public sealed class MatchService : IDisposable
                 token.Dispose();
             }
             if (!disposed) Changed?.Invoke();
+            GenerationActivity.Finish(activityId, generation.State == GenerationState.Succeeded ? RequestStage.Complete :
+                generation.State == GenerationState.Cancelled ? RequestStage.Cancelled : RequestStage.Failed, Status);
         }
     }
     public void Freeze(double time, long revision)
@@ -211,37 +235,9 @@ public sealed class MatchService : IDisposable
             cancellation?.Cancel();
             connectionCancellation?.Cancel();
             Explainer.Cancel();
+            Explainer.Changed -= NotifyChanged;
             presentation.Dispose();
             disposed = true;
         }
-    }
-    private sealed class NativeMomentSource(MatchService owner) : IMomentSource
-    {
-        private CopilotMomentSource? source;
-        public int ToolCalls => source?.ToolCalls ?? 0;
-        public Task<string> ExplainAsync(MomentEvidence evidence, CancellationToken token)
-        {
-            var executable = string.IsNullOrWhiteSpace(owner.CliOverride)
-                ? Path.Combine(Foundation.NSBundle.MainBundle.ResourcePath ?? throw new CopilotGenerationException("App resources missing."),
-                    "CopilotRuntime", "prebuilds", "darwin-arm64", "copilot-runtime") : owner.CliOverride.Trim();
-            source = new(executable, FileSystem.AppDataDirectory);
-            return Task.Run(() => source.ExplainAsync(evidence, token), token);
-        }
-    }
-    private sealed class NativeSource(MatchService owner) : IScenarioSource
-    {
-        private CopilotScenarioSource Source()
-        {
-            var executable = string.IsNullOrWhiteSpace(owner.CliOverride)
-                ? Path.Combine(Foundation.NSBundle.MainBundle.ResourcePath
-                    ?? throw new CopilotGenerationException("App resources are missing."),
-                    "CopilotRuntime", "prebuilds", "darwin-arm64", "copilot-runtime") : owner.CliOverride.Trim();
-            var directory = FileSystem.AppDataDirectory;
-            return new(executable, directory);
-        }
-        public Task<string> GenerateAsync(IProgress<string>? progress, CancellationToken token) =>
-            Task.Run(() => Source().GenerateAsync(progress, token), token);
-        public Task CheckAsync(IProgress<string>? progress, CancellationToken token) =>
-            Task.Run(() => Source().VerifyConnectionAsync(progress, token, includeSession: true), token);
     }
 }
