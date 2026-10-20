@@ -776,7 +776,9 @@ prototype**. This records user-reported permission, not a blanket redistribution
 or open-asset license, and does not imply league/club endorsement. The club crests
 retain their owners' rights. No Premier League lion logo, player photographs,
 proprietary fonts, site CSS/scripts or page markup are bundled. The pitch and
-app icon/splash remain original artwork.
+app icon/splash remain original artwork. The app identity uses an original
+crowned-football badge in the league-inspired purple/mint palette, not the
+official Premier League crest or an endorsement mark.
 
 Downloaded 2026-10-18 directly from the official Premier League CDN (not Google
 thumbnail caches or image-result pages):
