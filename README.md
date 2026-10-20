@@ -780,6 +780,13 @@ app icon/splash remain original artwork. The app identity uses an original
 crowned-football badge in the league-inspired purple/mint palette, not the
 official Premier League crest or an endorsement mark.
 
+The subsequent [ten HTML logo directions](design/logo-mocks/index.html) are
+review-only explorations using an official Premier League mark at the user's
+request. Each has its own HTML page plus small-size/dock previews. Asset source,
+hash and permission scope are recorded in `design/logo-mocks/assets/provenance.json`;
+these mock assets are not bundled into the app and no option is applied before
+selection.
+
 Downloaded 2026-10-18 directly from the official Premier League CDN (not Google
 thumbnail caches or image-result pages):
 
