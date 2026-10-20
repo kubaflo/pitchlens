@@ -52,6 +52,11 @@ their original first insight, visually clamped to three lines; the complete,
 unchanged response, all evidence links and technical provenance are expandable.
 No model call or silent prose rewriting is used for this presentation.
 
+Keyboard focus uses restrained purple rings on light controls and contrasting
+lilac on dark surfaces, with a two-tone pitch/player indicator. SVG evidence
+keeps its visible focused-path treatment and separate selected state. Ordinary
+focus is not a validation error; genuine error/status accents remain distinct.
+
 **Pass-distance histogram:** all observed pass attempts, completed or intercepted,
 from the at-most-twelve-event captured window, pooling teams explicitly rather
 than implying a team comparison. Distance is the sum of recorded ball-path

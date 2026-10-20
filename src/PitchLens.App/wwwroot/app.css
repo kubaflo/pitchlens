@@ -1,13 +1,14 @@
 @font-face { font-family: Barlow; src: url("fonts/Barlow-Regular.ttf") format("truetype"); font-weight: 400; font-display: swap; }
 @font-face { font-family: Barlow; src: url("fonts/Barlow-SemiBold.ttf") format("truetype"); font-weight: 600; font-display: swap; }
 @font-face { font-family: Barlow; src: url("fonts/Barlow-Bold.ttf") format("truetype"); font-weight: 700; font-display: swap; }
-:root { font-family: Barlow, Arial, sans-serif; font-size: 18px; line-height: 1.4; color: #37003c; background: #f5f2f7; --purple: #37003c; --mint: #00ff87; --pink: #ff2882; --muted: #6e5675; --line: #e4dbe8; }
+:root { font-family: Barlow, Arial, sans-serif; font-size: 18px; line-height: 1.4; color: #37003c; background: #f5f2f7; --purple: #37003c; --mint: #00ff87; --pink: #ff2882; --muted: #6e5675; --line: #e4dbe8; --focus-ring: #76528f; --focus-on-dark: #e6d5f2; }
 * { box-sizing: border-box; }
 html, body, #app { height: 100%; margin: 0; min-width: 0; }
 button, input { font: inherit; }
 button { cursor: pointer; }
 button:disabled { opacity: .5; cursor: default; }
-:focus-visible { outline: 3px solid var(--pink); outline-offset: 4px; }
+:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.brand-bar, .pitch-slot, .sequence-pitch, .request-activity { --focus-ring: var(--focus-on-dark); }
 h1, h2, h3, p { margin: 0; }
 h1 { font-size: 48px; line-height: 1.05; font-weight: 700; letter-spacing: -1px; }
 h2 { font-size: 32px; line-height: 1.1; font-weight: 700; }
@@ -44,7 +45,7 @@ small, .caption { font-size: 14px; line-height: 1.4; color: var(--muted); }
 .player-target { position: absolute; left: 0; top: 0; width: var(--player-size); height: var(--player-size); padding: 0; margin: 0; border: 0; border-radius: 50%; appearance: none; background: transparent; pointer-events: auto; touch-action: manipulation; }
 .player-target:hover { box-shadow: 0 0 0 2px white; }
 .player-target[hidden] { display: none; }
-.player-target:focus-visible { outline: 3px solid var(--pink); outline-offset: 3px; box-shadow: 0 0 0 7px var(--purple); }
+.pitch-slot canvas:focus-visible, .player-target:focus-visible { outline: 2px solid var(--focus-on-dark); outline-offset: 2px; box-shadow: 0 0 0 6px var(--purple); }
 .pitch-caption { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 0; font-size: 16px; flex: none; }
 .pitch-caption > span:last-child { font-size: 14px; color: var(--muted); }
 .pitch-caption > span:last-child { max-width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -106,8 +107,8 @@ small, .caption { font-size: 14px; line-height: 1.4; color: var(--muted); }
 .sequence-event.kind-carry polyline { stroke-dasharray: 5 4; }
 .sequence-event.kind-shot, .sequence-event.kind-goal { color: #ffe46b; }
 .sequence-event.is-selected { color: var(--mint); }
-.sequence-event.is-selected polyline, .sequence-event:focus polyline { stroke-width: 4; }
-.sequence-event:focus { outline: none; color: white; }
+.sequence-event.is-selected polyline, .sequence-event:focus-visible polyline { stroke-width: 4; }
+.sequence-event:focus-visible { outline: none; color: var(--focus-on-dark); }
 .sequence-key { display: flex; justify-content: space-between; gap: 12px; margin: 6px 0 10px; color: var(--muted); font-size: 13px; }
 .sequence-events { display: flex; gap: 6px; flex-wrap: wrap; }
 .sequence-events button { display: grid; gap: 2px; padding: 6px 10px; border: 1px solid var(--line); background: #faf7fc; color: var(--purple); font-size: 13px; border-radius: 4px; }
