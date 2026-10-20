@@ -11,9 +11,11 @@ public sealed record MomentEvent(string Id, double Time, double Start, string Ki
     bool? Completed, MomentPoint[] Ball);
 public sealed record MomentMetric(string PlayerId, string Name, int Passes, int CompletedPasses, int Shots, int Goals,
     double DistanceMetres, double MaxSpeedMetresPerSecond, MomentPoint[] Path);
-public sealed record MomentFacts(long Revision, double Cutoff, string FocusId, MomentEvent[] Events, MomentMetric[] Players);
+public sealed record MomentFacts(long Revision, double Cutoff, string FocusId, MomentEvent[] Events, MomentMetric[] Players,
+    [property:JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingNull)] Team[]? Clubs=null);
 public sealed record MomentIndexEvent(string Id, double Time, string Kind, string Actor, string? Receiver, bool? Completed);
-public sealed record MomentIndex(long Revision, double Cutoff, string FocusId, MomentIndexEvent[] Events, MomentMetric[] Players);
+public sealed record MomentIndex(long Revision, double Cutoff, string FocusId, MomentIndexEvent[] Events, MomentMetric[] Players,
+    [property:JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingNull)] Team[]? Clubs=null);
 public sealed record MomentClaim(string Text, string[] EvidenceIds);
 public sealed record MomentAnswer(string SnapshotHash, MomentClaim[] Fan, MomentClaim[] Analyst);
 
@@ -74,7 +76,8 @@ public sealed class MomentEvidence
             return new MomentMetric(p.Id, p.Name, s.Passes, s.CompletedPasses, s.Shots, s.Goals,
                 s.Distance, s.MaxSpeed, path);
         }).ToArray();
-        return new(new(revision, cutoff, focus.Id, events, players));
+        return new(new(revision, cutoff, focus.Id, events, players,
+            match.Teams[0].Id=="arsenal"&&match.Teams[1].Id=="manchester-city"?null:match.Teams.ToArray()));
     }
 
     public MomentEvent Resolve(string id) => Facts.Events.SingleOrDefault(e => e.Id == id)

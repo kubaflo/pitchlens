@@ -103,8 +103,8 @@ public sealed class VarietyTests
         var valid = service.Current;
         await service.GenerateAsync(null, CancellationToken.None);
         Assert.Equal(GenerationState.Failed, service.State);
-        Assert.Same(valid, service.Current);
-        Assert.Contains("near-identical", service.Status);
+        Assert.Same(valid,service.Current);
+        Assert.Contains("near-identical",service.Status);
         Assert.Equal(2, source.Calls);
     }
     [Fact]
@@ -134,6 +134,6 @@ public sealed class VarietyTests
         public int Calls; public VarietyRequest? Request;
         public Task<string> GenerateAsync(IProgress<string>? p, CancellationToken t) { Calls++; return Task.FromResult(json); }
         public Task<string> GenerateAsync(VarietyRequest request, IProgress<string>? p, CancellationToken t)
-        { Request = request; return GenerateAsync(p,t); }
+        { Request = request;Calls++;return Task.FromResult(FixtureTests.Json(request.Fixture!)); }
     }
 }

@@ -6,8 +6,9 @@ using PitchLens.Core;
 
 namespace PitchLens.Generation;
 
-public sealed record GameplaySignature(string Hash, string[] Actions, int[] PositionCells, string Summary);
-public sealed record VarietyRequest(string RequestId, string Direction, GameplaySignature[] Recent)
+public sealed record GameplaySignature(string Hash, string[] Actions, int[] PositionCells, string Summary, string? FixturePair = null);
+public sealed record FixtureHistory(string? LastPair,GameplaySignature[] Games);
+public sealed record VarietyRequest(string RequestId, string Direction, GameplaySignature[] Recent, MatchFixture? Fixture = null)
 {
     public string Instructions => $"""
         FRESH MATCH REQUEST {RequestId}. Editorial direction: {Direction}.
@@ -24,13 +25,16 @@ public sealed record VarietyRequest(string RequestId, string Direction, Gameplay
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow)]
 [JsonSerializable(typeof(GameplaySignature[]))]
+[JsonSerializable(typeof(FixtureHistory))]
 public partial class VarietyJsonContext : JsonSerializerContext;
 
 public sealed class MatchVariety
 {
     private readonly List<GameplaySignature> recent = [];
     private readonly Action<IReadOnlyList<GameplaySignature>>? save;
+    private readonly Action<string>? saveSelection;
     private int direction = RandomNumberGenerator.GetInt32(Directions.Length);
+    private string? lastPair;
     private static readonly string[] Directions =
     [
         "Build patient central combinations and a few sudden diagonal switches; let the result emerge from different finishers.",
@@ -39,9 +43,11 @@ public sealed class MatchVariety
         "Contrast calm recycling with quick vertical carries and support runs; let one club finish more clinically without forcing equal goals."
     ];
     public IReadOnlyList<GameplaySignature> Recent => recent.AsReadOnly();
-    public MatchVariety(IEnumerable<GameplaySignature>? history = null, Action<IReadOnlyList<GameplaySignature>>? save = null)
+    public MatchVariety(IEnumerable<GameplaySignature>? history = null, Action<IReadOnlyList<GameplaySignature>>? save = null,
+        string? previousPair=null,Action<string>? saveSelection=null)
     {
         this.save = save;
+        this.saveSelection=saveSelection;
         if (history is not null)
         {
             var entries = history.ToArray();
@@ -50,17 +56,33 @@ public sealed class MatchVariety
                 s.PositionCells is not { Length: 1364 } || s.Summary is not { Length: >= 1 and <= 2000 }))
                 throw new InvalidOperationException("Recent gameplay metadata is invalid.");
             recent.AddRange(entries);
+            lastPair=entries.LastOrDefault()?.FixturePair;
         }
         var baseline = Signature(AuthoredMatchRecording.Create());
         if (!recent.Any(s => s.Hash == baseline.Hash)) recent.Insert(0, baseline);
         if (recent.Count > 8) recent.RemoveRange(1, recent.Count - 8);
+        if(previousPair is not null)
+        {
+            var clubs=previousPair.Split('|');
+            if(clubs.Length!=2 || clubs[0]==clubs[1] || clubs.Any(id=>!FixtureCatalog.Clubs.Any(c=>c.Id==id)))
+                throw new InvalidOperationException("Last fixture metadata is invalid.");
+            lastPair=previousPair;
+        }
     }
-    public VarietyRequest Next() => new(Guid.NewGuid().ToString("N"), Directions[direction++ % Directions.Length], recent.TakeLast(8).ToArray());
+    public VarietyRequest Next()
+    {
+        var fixture=FixtureCatalog.Select(lastPair,direction);
+        saveSelection?.Invoke(fixture.PairKey);
+        lastPair=fixture.PairKey;
+        return new(Guid.NewGuid().ToString("N"), Directions[direction++ % Directions.Length], recent.TakeLast(8).ToArray(),fixture);
+    }
     public static GameplaySignature Signature(Match match)
     {
-        var actions = match.Events.Select(e => FormattableString.Invariant($"{e.Kind}|{e.ActorId}|{e.ReceiverId}|{e.Completed}|{Math.Round(e.Time / 3)}|{(e.StartTime.HasValue ? Math.Round(e.StartTime.Value / 3) : -1)}")).ToArray();
+        var canonical=match.Teams.SelectMany((team,side)=>match.Players.Where(p=>p.TeamId==team.Id).Select((player,index)=>(player.Id,Slot:$"{side}:{index}"))).ToArray();
+        var slots=canonical.ToDictionary(p=>p.Id,p=>p.Slot);
+        var actions = match.Events.Select(e => FormattableString.Invariant($"{e.Kind}|{slots[e.ActorId]}|{(e.ReceiverId is null?"-":slots[e.ReceiverId])}|{e.Completed}|{Math.Round(e.Time / 3)}|{(e.StartTime.HasValue ? Math.Round(e.StartTime.Value / 3) : -1)}")).ToArray();
         var cells = new List<int>();
-        foreach (var player in match.Players.OrderBy(p => p.Id, StringComparer.Ordinal))
+        foreach (var player in canonical.Select(p=>match.Player(p.Id)))
             for (double t = 0; t <= match.Duration; t += 10)
             { var point = player.Path.At(t); cells.Add((int)Math.Floor(point.X / 5)); cells.Add((int)Math.Floor(point.Y / 5)); }
         var exact = string.Join("\n", match.Events.Select(e => FormattableString.Invariant($"{e.Kind}|{e.Time:R}|{e.Order}|{e.ActorId}|{e.ReceiverId}|{e.Completed}|{e.StartTime:R}"))) +
@@ -72,7 +94,7 @@ public sealed class MatchVariety
             .OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal).Take(3).Select(g => g.Key);
         var summary = $"Goals: {string.Join(", ", goals)}. {match.Events.Count} actions; {match.Events.Count(e => e.Kind == EventKind.Pass)} passes; " +
             $"{match.Events.Count(e => e.Kind == EventKind.Carry)} carries. Main distributors: {string.Join(", ", busiest)}.";
-        return new(hash, actions, cells.ToArray(), summary);
+        return new(hash, actions, cells.ToArray(), summary,string.Join("|",match.Teams.Select(t=>t.Id).Order(StringComparer.Ordinal)));
     }
     public static bool NearDuplicate(GameplaySignature a, GameplaySignature b)
     {

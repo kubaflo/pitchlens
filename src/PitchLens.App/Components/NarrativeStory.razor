@@ -43,7 +43,7 @@ else
     {
         if (!ReferenceEquals(cached, Match) || cachedRevision != Revision)
         { cached = Match; cachedRevision = Revision; entries.Clear(); }
-        ScoreNow = $"{Score["arsenal"]} : {Score["manchester-city"]}";
+        ScoreNow = $"{Score[Match.Teams[0].Id]} : {Score[Match.Teams[1].Id]}";
         var chapters = NarrativeReplay.At(Match, Cutoff);
         foreach (var chapter in chapters)
             if (!entries.ContainsKey(chapter.Id))
@@ -52,7 +52,7 @@ else
                 var facts = evidence.Facts;
                 var score = Replay.At(Match, chapter.RevealTime).Score;
                 entries[chapter.Id] = new(chapter, evidence, new(facts), NarrativeReplay.Consequence(Match, chapter),
-                    $"{score["arsenal"]} : {score["manchester-city"]}");
+                    $"{score[Match.Teams[0].Id]} : {score[Match.Teams[1].Id]}");
             }
         visible = chapters.Select(c => entries[c.Id]).ToArray();
     }

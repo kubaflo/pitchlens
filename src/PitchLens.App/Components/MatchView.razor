@@ -19,19 +19,19 @@
         </header>
         <div class="persistent-activities">
             <RequestActivityView Activity="Session.Explainer.Activity" Title="Sol · Explain this moment" Budget="270s response budget · Up to 6 read-only tool calls · Bounded cleanup" Cancel="Session.Explainer.Cancel" />
-            <RequestActivityView Activity="Session.GenerationActivity" Title="Sol · Creating your match" Budget="15-minute total budget · Up to 3 model responses · No fallback" Cancel="Session.Cancel" />
+            <RequestActivityView Activity="Session.GenerationActivity" Title="@(Session.RequestedFixture is { } creating?$"Sol · {creating.Home.Name} v {creating.Away.Name}":"Sol · Creating your match")" Budget="15-minute total budget · Up to 3 model responses · No fallback" Cancel="Session.Cancel" />
             <RequestActivityView Activity="Session.ConnectionActivity" Title="SDK connection check · No AI request" Budget="45-second check · No generation or model usage" Cancel="Session.CancelConnection" />
             <RequestActivityView Activity="Session.Director.Activity" Title="Sol · Director's Cut" Budget="One editorial request · 270s response budget · Bounded cleanup" Cancel="Session.Director.Cancel" />
         </div>
         <div class="page-heading">
-            <div><span class="eyebrow">Matchday / Synthetic 11v11</span><h1>Arsenal <span class="fixture-versus">v</span> City</h1></div>
+            <div><span class="eyebrow">Matchday / Synthetic 11v11</span><h1>@match.Teams[0].Name <span class="fixture-versus">v</span> @match.Teams[1].Name</h1></div>
             <div class="actions"><button class="button purple" disabled="@(!Session.CanExplainCurrent)" title="Uses Copilot usage. Requires an observed event; unavailable during match creation or an SDK connection check." aria-label="Explain this moment. Uses Copilot usage." @onclick="OpenMoment">Explain this moment</button><button id="players-button" class="button" disabled="@Session.FilmActive" @onclick='() => Open("roster-dialog")'>Players</button><button class="button purple" disabled="@Session.FilmActive" @onclick='() => Open("story-dialog")'>Match story</button></div>
             <button class="button" disabled="@(!Session.CanDirect)" title="Uses Copilot usage. Needs an observed goal and at least a minute of evidence." aria-label="Director's Cut. Uses Copilot usage." @onclick="OpenDirector">Director's Cut</button>
         </div>
         <section class="score-strip" aria-label="Synthetic match score">
-            <div class="team"><img src="images/arsenal_crest.png" alt="Arsenal crest" /><strong>Arsenal</strong></div>
+            <div class="team"><img src="@Crest(match.Teams[0].Id)" alt="@match.Teams[0].Name crest" /><strong>@match.Teams[0].Name</strong></div>
             <div class="score-centre"><strong class="score" id="match-score" aria-label="Synthetic match score"></strong><span>@((int)(match.Duration / 60))-minute synthetic replay</span></div>
-            <div class="team away"><strong>Manchester City</strong><img src="images/manchester_city_crest.png" alt="Manchester City crest" /></div>
+            <div class="team away"><strong>@match.Teams[1].Name</strong><img src="@Crest(match.Teams[1].Id)" alt="@match.Teams[1].Name crest" /></div>
         </section>
         @if (error is not null) { <div class="error" role="alert">@error</div> }
         @if (evidenceNotice is not null) { <div class="request-status" role="status">@evidenceNotice</div> }
@@ -40,7 +40,7 @@
             <div class="pitch-slot">
                 <canvas @ref="canvas" id="pitch" tabindex="0" role="img" aria-label="Synthetic football replay. Click a shirt, or use Players for keyboard-accessible selection."></canvas>
                 <div id="pitch-players" class="pitch-players" role="group" aria-label="Select a player on the pitch"></div>
-                <div class="pitch-scorebug" aria-label="Synthetic match score"><span>ARS</span><strong id="pitch-bug-score"></strong><span>MCI</span><time id="pitch-bug-clock"></time></div>
+                <div class="pitch-scorebug" aria-label="Synthetic match score"><span>@match.Teams[0].Abbreviation</span><strong id="pitch-bug-score"></strong><span>@match.Teams[1].Abbreviation</span><time id="pitch-bug-clock"></time></div>
                 <div id="goal-banner" class="goal-banner" hidden role="status" aria-label="Goal celebration">
                     <div class="goal-card"><img id="goal-crest" alt="" /><div class="goal-copy"><span class="goal-event-tag">GOAL</span><span id="goal-team" class="goal-team"></span><strong id="goal-title"></strong><span id="goal-detail"></span></div><strong id="goal-score" class="goal-score"></strong></div>
                 </div>
@@ -162,7 +162,7 @@
             <header class="dialog-head"><div><span class="eyebrow">Copilot SDK</span><h2 id="generation-title">Create a new match.</h2><span class="caption">A real generation request, not a scripted preview.</span></div><button class="close" data-close-popup>Close</button></header>
             <div class="dialog-body">
                 <RequestActivityView Activity="Session.GenerationActivity" Title="Sol · Creating your match" Budget="15-minute total budget · Paths, optional correction, commentary" Cancel="Session.Cancel" />
-                <p>Arsenal vs Manchester City · Five minutes (300 seconds) · Synthetic 11v11. All 22 player paths and events authored by AI.</p>
+                <p>@(Session.RequestedFixture is { } fixture?$"{fixture.Home.Name} v {fixture.Away.Name}":"Selected Premier League clubs") · Five minutes (300 seconds) · Synthetic 11v11. All 22 player paths and events authored by AI.</p>
                 <p>Only GPT-6.1 Sol (@CopilotScenarioSource.Model), using normal local Copilot login. Paths/events, at most one AI path correction for a rejected team shape, then grounded subtitles: at most three model responses, bounded to fifteen minutes. May consume usage. No model fallback.</p>
                 <div class="actions"><button class="button purple" @onclick="Generate" disabled="@(Session.Generating || Session.CheckingConnection || Session.Explainer.Busy)">@(Session.Generating ? "Creating…" : "Create match with Sol 6.1")</button>@if (Session.Generating) { <button class="button" @onclick="Session.Cancel">Cancel creation</button> }</div>
                 <p id="generation-status" role="@(Session.RequestState == GenerationState.Failed ? "alert" : "status")">@Session.Status</p>
@@ -196,6 +196,7 @@ else
         <main class="new-session-pitch">
             <span class="eyebrow">Every match is a new story</span><h1>@(Session.Generating ? "Your next match is taking shape." : "Ready for a different match.")</h1>
             <p>Startup creates a new five-minute AI-authored match with Sol. Uses Copilot usage: paths, optional one correction, then narration/story. Up to three responses; no automatic retry.</p>
+            @if(Session.RequestedFixture is { } pendingFixture){<h2>@pendingFixture.Home.Name <span class="fixture-versus">v</span> @pendingFixture.Away.Name</h2>}
             <RequestActivityView Activity="Session.GenerationActivity" Title="Sol · Creating a fresh match" Budget="15-minute total budget · Up to 3 responses · 270s per response" Cancel="Session.Cancel" />
             @if (!Session.Generating)
             {
@@ -228,7 +229,7 @@ else
     private PopupRequest? pendingPopup;
     private bool captionsEnabled = true;
     private sealed record PopupRequest(string Id);
-    private static string Crest(string id) => id == "arsenal" ? "images/arsenal_crest.png" : "images/manchester_city_crest.png";
+    private static string Crest(string id) => FixtureCatalog.Clubs.Single(t=>t.Id==id).Crest!;
     private static string Club(Match match, string id) => match.Teams.Single(t => t.Id == id).Name;
     protected override void OnInitialized()
     {

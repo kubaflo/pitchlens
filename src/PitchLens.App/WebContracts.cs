@@ -10,7 +10,7 @@ public sealed record WebGoal(string Id, double Time, string Scorer, string Score
     double? ShotStart, double? RestartTime, double BuildUpStart, string[] PlayerIds, double GoalX, double GoalY);
 public sealed record WebCaption(string Id, string EventId, double Start, double End, string Text);
 public sealed record WebScenario(long Revision, double Duration, WebPlayer[] Players, WebFrame[] Ball, WebGoal[] Goals, WebCaption[] Captions,
-    PlaybackRateWindow[] FocusWindows);
+    PlaybackRateWindow[] FocusWindows,Team[] Teams);
 public sealed record WebClock(long Revision, long Sequence, double Time, bool Playing, string SelectedId, double Rate,
     double EffectiveRate, bool HighlightsEnabled);
 
@@ -39,7 +39,7 @@ public static class WebContracts
                     match.Teams.Single(t => t.Id == scorer.TeamId).Name, shot.StartTime, restart?.Time,
                     highlight.BuildUpStart, highlight.PlayerIds.ToArray(), goalPoint.X, goalPoint.Y);
             }).ToArray(), match.Commentary?.Cues.Select(c => new WebCaption(c.Id, c.EventId, c.Start, c.End, c.Text)).ToArray() ?? [],
-            highlights.Select(h => new PlaybackRateWindow(h.BuildUpStart, h.End)).ToArray());
+            highlights.Select(h => new PlaybackRateWindow(h.BuildUpStart, h.End)).ToArray(),match.Teams.ToArray());
         return JsonSerializer.Serialize(dto, WebJsonContext.Default.WebScenario);
     }
     public static string Clock(PresentationFrame frame) => JsonSerializer.Serialize(

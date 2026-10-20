@@ -66,14 +66,22 @@ public static class AuthoredGenerationPipeline
         Func<CancellationToken, Task<string>> generatePaths,
         Func<AuthoredMatchDocument, AuthoredPathValidationException, CancellationToken, Task<string>> refinePaths,
         Func<Match, CancellationToken, Task<string>> generateCommentary,
-        IProgress<string>? progress, CancellationToken token, GenerationResponseArchive? archive = null)
+        IProgress<string>? progress, CancellationToken token, GenerationResponseArchive? archive = null, MatchFixture? fixture = null)
     {
         var raw = await generatePaths(token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
         var document = AuthoredMatchPlan.Document(raw);
+        if(fixture is not null)
+        {
+            FixtureCatalog.RequireKnown(fixture);
+            if(document.Fixture is not null) FixtureCatalog.RequireKnown(document.Fixture);
+            if(document.Fixture is not null && (document.Fixture.Id!=fixture.Id || !document.Fixture.Players.SequenceEqual(fixture.Players)))
+                throw new ScenarioValidationException("AI changed immutable captured fixture metadata.");
+            document=document with { Fixture=fixture };
+        }
         Match match;
         progress?.Report("Validating all 22 AI-authored paths and events…");
-        try { match = AuthoredMatchPlan.Build(document, requireCommentary: false); }
+        try { match = AuthoredMatchPlan.Build(document, requireCommentary: false,expectedFixture:fixture); }
         catch (AuthoredPathValidationException failure)
         {
             progress?.Report("AI refining rejected player paths (one bounded correction; events unchanged)…");
@@ -94,7 +102,7 @@ public static class AuthoredGenerationPipeline
             if (archive is not null)
                 await archive.SaveAsync("corrected", JsonSerializer.Serialize(corrected, AuthoredJsonContext.Default.AuthoredMatchDocument)).ConfigureAwait(false);
             document = corrected;
-            match = AuthoredMatchPlan.Build(document, requireCommentary: false); // Full validation, no second correction.
+            match = AuthoredMatchPlan.Build(document, requireCommentary: false,expectedFixture:fixture); // Full validation, no second correction.
         }
         token.ThrowIfCancellationRequested();
         progress?.Report("Creating contextual narration and Fan/Analyst story for the validated match…");

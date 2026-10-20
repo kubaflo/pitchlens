@@ -19,20 +19,31 @@ public sealed partial class MatchService
         try
         {
             GameplaySignature[]? history = null;
+            string? lastPair=null;
             if (File.Exists(path))
             {
                 if (new FileInfo(path).Length > 250000) throw new InvalidOperationException("Recent gameplay metadata is oversized.");
-                history = System.Text.Json.JsonSerializer.Deserialize(File.ReadAllText(path), VarietyJsonContext.Default.GameplaySignatureArray)
-                    ?? throw new InvalidOperationException("Recent gameplay metadata is invalid.");
+                var json=File.ReadAllText(path);
+                if(json.TrimStart().StartsWith('['))
+                    history=System.Text.Json.JsonSerializer.Deserialize(json,VarietyJsonContext.Default.GameplaySignatureArray);
+                else
+                {
+                    var stored=System.Text.Json.JsonSerializer.Deserialize(json,VarietyJsonContext.Default.FixtureHistory)
+                        ?? throw new InvalidOperationException("Recent fixture metadata is invalid.");
+                    history=stored.Games;lastPair=stored.LastPair;
+                }
+                if(history is null) throw new InvalidOperationException("Recent gameplay metadata is invalid.");
             }
-            return new(history, entries =>
+            var games=history??[];
+            void Save()
             {
                 Directory.CreateDirectory(FileSystem.AppDataDirectory);
                 var temporary = path + ".tmp";
-                File.WriteAllText(temporary, System.Text.Json.JsonSerializer.Serialize(entries.ToArray(), VarietyJsonContext.Default.GameplaySignatureArray));
+                File.WriteAllText(temporary,System.Text.Json.JsonSerializer.Serialize(new FixtureHistory(lastPair,games),VarietyJsonContext.Default.FixtureHistory));
                 if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(temporary, UnixFileMode.UserRead | UnixFileMode.UserWrite);
                 File.Move(temporary, path, true);
-            });
+            }
+            return new(history,entries=>{games=entries.ToArray();Save();},lastPair,pair=>{lastPair=pair;Save();});
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidOperationException)
         {

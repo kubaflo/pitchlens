@@ -171,7 +171,7 @@ public sealed class MomentTools
             var facts = evidence.Facts;
             return JsonSerializer.SerializeToElement(new MomentIndex(facts.Revision, facts.Cutoff, facts.FocusId,
                 facts.Events.Select(e => new MomentIndexEvent(e.Id, e.Time, e.Kind, e.Actor, e.Receiver, e.Completed)).ToArray(),
-                facts.Players), MomentJsonContext.Default.MomentIndex);
+                facts.Players,facts.Clubs), MomentJsonContext.Default.MomentIndex);
         }
         if (!arguments.TryGetValue("eventId", out var value)) throw new InvalidOperationException("Observed event ID required.");
         var id = value switch { string text => text, JsonElement { ValueKind: JsonValueKind.String } element => element.GetString(), _ => null };

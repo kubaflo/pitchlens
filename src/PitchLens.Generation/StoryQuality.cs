@@ -8,7 +8,7 @@ public static class StoryQuality
     {
         "Pressure and Space", "The Turning Tide", "A Game of Transitions", "Seventy-Two Seconds"
     });
-    public static bool IsKeeper(Player p) => p.Id is "arsenal-raya" or "manchester-city-donnarumma";
+    public static bool IsKeeper(Player p) => p.Role=="goalkeeper" || p.Role is null && p.Id is "arsenal-raya" or "manchester-city-donnarumma";
     public static bool IsActiveOutfielder(Player p) => !IsKeeper(p) && p.Path.Frames.Count >= 6 &&
         p.Path.Measure(72).Distance >= 35 && p.Path.Measure(72).MaxSpeed >= 3 && DirectionChanges(p.Path) >= 2;
 

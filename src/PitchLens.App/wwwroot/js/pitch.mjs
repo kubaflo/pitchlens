@@ -15,6 +15,11 @@ let film = null;
 let reducedMotion = false, motionQuery = null, motionHandler = null, lastClockTime = 0;
 const playerTargets = new Map();
 const now = () => performance.now();
+const teams = () => engine.scenario.teams ?? [
+    {id:"arsenal",name:"Arsenal",color:"#00ff87",crest:"images/arsenal_crest.png"},
+    {id:"manchester-city",name:"Manchester City",color:"#ff83b8",crest:"images/manchester_city_crest.png"}
+];
+const club = id => teams().find(t=>t.id===id);
 
 export function initialize(element, dotnet) {
     dispose();
@@ -183,7 +188,8 @@ function draw() {
         }
         if (p.id === engine.selectedId) { c.lineWidth = .6; circle(c, point.x, point.y, 2.8, null, "#fff"); }
         circle(c, point.x + .15, point.y + .3, 2.2, "#23382b", null);
-        c.lineWidth = .18; circle(c, point.x, point.y, 2, p.teamId === "arsenal" ? "#00ff87" : "#ff83b8", "#f4f4ef");
+        c.lineWidth = .18; circle(c, point.x, point.y, 2, club(p.teamId).color, "#f4f4ef");
+        if(p.teamId===teams()[1].id){c.strokeStyle="#fff";c.lineWidth=.25;c.beginPath();c.moveTo(point.x-1.5,point.y+1.1);c.lineTo(point.x+1.5,point.y+1.1);c.stroke();}
         c.fillStyle = "#37003c"; c.font = "700 2.5px Barlow, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
         c.fillText(String(p.number), point.x, point.y);
         if (p.id === broadcast.goal?.scorerId && broadcast.phase === "reaction") {
@@ -206,7 +212,7 @@ function draw() {
         c.strokeStyle = "#fff"; c.lineWidth = .25; c.beginPath(); c.moveTo(from.x, from.y); c.lineTo(to.x, to.y); c.stroke();
     }
     if (broadcast.contact) {
-        const goal = broadcast.contact.goal, age = broadcast.contact.age, right = goal.teamId === "arsenal";
+        const goal = broadcast.contact.goal, age = broadcast.contact.age, right = (goal.goalX ?? (goal.teamId===teams()[0].id?105:0)) > 52.5;
         drawNet(c, right, age, goal.goalY ?? 34);
         const settle = reducedMotion ? 1.5 : 1.8 * (1 - Math.exp(-age * 5));
         circle(c, (goal.goalX ?? (right ? 105 : 0)) + (right ? settle : -settle), goal.goalY ?? 34, .65, "#fff", "#14281c");
@@ -243,7 +249,7 @@ function buildPlayerTargets() {
         button.type = "button";
         button.className = "player-target";
         button.dataset.playerId = p.id;
-        button.setAttribute("aria-label", `Open ${p.name} player details, ${p.teamId === "arsenal" ? "Arsenal" : "Manchester City"}, shirt ${p.number}`);
+        button.setAttribute("aria-label", `Open ${p.name} player details, ${club(p.teamId).name}, shirt ${p.number}`);
         button.setAttribute("aria-controls", "player-dialog");
         button.style.zIndex = String(engine.drawPlayers.findIndex(player => player.id === p.id) + 1);
         const activate = () => {
@@ -280,7 +286,7 @@ function updateTransport(time, broadcast = broadcastFrame(engine.scenario, time,
         if (!cue && caption.textContent) caption.textContent = "";
     }
     const score = document.getElementById("match-score");
-    const value = `${broadcast.score.arsenal} : ${broadcast.score["manchester-city"]}`;
+    const value = `${broadcast.score[teams()[0].id]} : ${broadcast.score[teams()[1].id]}`;
     if (score && score.textContent !== value) score.textContent = value;
     const bugScore = document.getElementById("pitch-bug-score"), bugClock = document.getElementById("pitch-bug-clock");
     if (bugScore && bugScore.textContent !== value) bugScore.textContent = value;
@@ -304,7 +310,8 @@ function updateTransport(time, broadcast = broadcastFrame(engine.scenario, time,
             if (banner.getAttribute("data-phase") !== broadcast.phase) banner.setAttribute("data-phase", broadcast.phase);
             banner.style.setProperty("--goal-fade", String(broadcast.fade));
             const crest = document.getElementById("goal-crest"), team = document.getElementById("goal-team"), goalScore = document.getElementById("goal-score");
-            const image = `images/${broadcast.goal.teamId === "arsenal" ? "arsenal" : "manchester_city"}_crest.png`;
+            banner.style.setProperty("--goal-accent", club(broadcast.goal.teamId).color);
+            const image = club(broadcast.goal.teamId).crest;
             if (crest.getAttribute("src") !== image) { crest.setAttribute("src", image); crest.alt = broadcast.goal.teamName; }
             if (team.textContent !== broadcast.goal.teamName) team.textContent = broadcast.goal.teamName;
             if (goalScore.textContent !== value) goalScore.textContent = value;

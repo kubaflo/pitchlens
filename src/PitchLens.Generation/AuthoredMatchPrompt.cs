@@ -4,6 +4,17 @@ namespace PitchLens.Generation;
 
 public static class AuthoredMatchPrompt
 {
+    public static string For(MatchFixture fixture)
+    {
+        FixtureCatalog.RequireKnown(fixture);
+        var basis=Text[..Text.IndexOf("VERIFIEDillustrativeroster",StringComparison.Ordinal)];
+        basis=basis.Replace("Arsenal-ManchesterCity",$"{fixture.Home.Name} versus {fixture.Away.Name}",StringComparison.Ordinal)
+            .Replace("Arsenal attacksRIGHT, CityLEFT. GK Raya atownLEFTx4..15,y22..46;Donnarumma ownRIGHTx90..101,y22..46.",
+                $"{fixture.Home.Name} ({fixture.Home.Id}) attacksRIGHT. {fixture.Away.Name} ({fixture.Away.Id}) attacksLEFT. Each selected goalkeeper stays at their OWN end: homeLEFTx4..15,y22..46; awayRIGHTx90..101,y22..46.",StringComparison.Ordinal)
+            .Replace("opposite forCity","opposite for the away club",StringComparison.Ordinal);
+        return basis+"\nCAPTURED VERIFIED FIXTURE (immutable; do NOT return or change metadata; use EXACT22playerIDs below):\n"+
+            JsonSerializer.Serialize(fixture,AuthoredJsonContext.Default.MatchFixture);
+    }
     public static string Text => """
         Author a complete original synthetic300s11v11 Arsenal-ManchesterCity match. YOU generate ALL events AND ALL22 PLAYER PATHS.
         No procedural role solver will supply movement. The engine ONLY linearly interpolates your explicit [time,x,y] knots.

@@ -7,9 +7,11 @@ popup. The approved **01 Matchday** review design is implemented: purple brand
 bar, large white score strip, readable local Barlow typography and sparse,
 pitch-first framing. Statistics and event notes are revealed through popups.
 
-**Real roster names; synthetic match actions.** The app uses selected Arsenal and
-Manchester City players from a verified **2026/27** snapshot, checked
-**2026-10-19**. These are illustrative **11-a-side selections (22 players)**, not actual
+**Real clubs/roster names; synthetic match actions.** The supported pool is
+**Arsenal, Manchester City, Liverpool, Chelsea, Manchester United and Tottenham
+Hotspur**. The four additional clubs' **2026/27** selected squad facts were
+checked against official club pages on **2026-10-21**; Arsenal/City retain their
+previous verified snapshot. These are illustrative **11-a-side selections (22 players)**, not actual
 starting XIs, match results, athlete performance or a season dataset. We chose
 2026/27 as the current season when the requested “Premier League 2026” season
 could not be clarified. PitchLens is independent and unaffiliated with the league
@@ -263,6 +265,70 @@ Cloud/Foundry, CV, live feeds and a multi-agent system remain deferred.
 
 ## Generate a match with Copilot
 
+### Different clubs, not only different goals
+
+Each fresh request captures two distinct supported clubs and their own verified
+22-player roster **before** the model starts. The selected fixture is visible
+while thinking. On a first run without fixture history, both clubs come from
+Liverpool/Chelsea/Manchester United/Spurs, not Arsenal/City. Later requests rotate
+across the six-club pool, excluding the last **unordered pair** even if home/away
+were reversed. Selection metadata is persisted before the request, so cancellation
+or a failed generation does not repeat that fixture on relaunch. This is a small
+verified pool, not a claim of all twenty Premier League squads.
+
+`MatchFixture` is captured through paths → optional single shape correction →
+narration → final validation, and stored in the generated document for replay.
+The candidate cannot change clubs, player IDs, names, shirt numbers or role data.
+AI authors fresh coordinates/events for that selected roster; the production
+pipeline does not rename an Arsenal/City match or reuse its paths. Duplicate
+comparison also normalizes players to captured home/away roster slots, so simply
+relabeling old geometry under another club is still a near-copy.
+
+The first team attacks **right**, the second **left**, with keeper roles from
+the captured roster. Onside checks, goal centres, shape/activity validation and
+restart logic use this ordering, not club-name tests. Heading, abbreviations,
+crests, shirt display colours, roster/popups, goal scorebug, captions/story,
+one-click explanation and Director footage all use the same fixture. New facts
+hashes include club metadata and selected roster names/IDs/numbers/roles.
+Historical demo hash compatibility is isolated; old recorded story/Director
+packages only attach to their exact matching Arsenal/City scene.
+
+Squad facts and sources: `src/PitchLens.Generation/Resources/fixture-provenance.json`.
+The new selections use official first-team page position groups in an illustrative
+4-3-3; they are not actual match-day starting XIs. Club accent colours are display
+colours, not licensed kit artwork. The locally bundled official crests retain
+their owners' rights under the user's reported prototype permission, without
+endorsement or an open redistribution license.
+
+| Added club | Official selected-squad source (checked 2026-10-21) | Official crest |
+|---|---|---|
+| Liverpool | [Men's team](https://www.liverpoolfc.com/teams/mens-team) | [PL CDN vector](https://resources.premierleague.com/premierleague/badges/t14.svg) |
+| Chelsea | [Men's profiles](https://www.chelseafc.com/en/teams/men) | [PL CDN](https://resources.premierleague.com/premierleague/badges/t8.png) |
+| Manchester United | [Men's team](https://www.manutd.com/en/teams/mens-team) | [PL CDN](https://resources.premierleague.com/premierleague/badges/t1.png) |
+| Tottenham Hotspur | [Men's squad](https://www.tottenhamhotspur.com/teams/mens/squad) | [PL CDN](https://resources.premierleague.com/premierleague/badges/t6.png) |
+
+Public squad-only excerpts and source-page hashes were retained in session
+verification artifacts: all44 new names/shirt numbers were checked against the
+official pages, not inferred from older transfer knowledge. Liverpool/Chelsea
+embedded squad data and United/Spurs visible squad-card text supplied the facts;
+on-loan-only entries were not selected. No authentication/login bypass was used.
+
+The single real full fixture integration attempt produced **Liverpool 1:0 Chelsea**:
+Szoboszlai at214s,22 verified selected players,745 AI-authored knots,70events,
+40 matching cues and10 Fan/Analyst chapters. It reached `GenerationService`
+Fresh/Succeeded in exactly **two** SDK responses, no correction/retry/fallback.
+All raw AI paths/events/owner/phases and narration were preserved unchanged.
+Final session-only SHA:
+`b560990c17b74ab13c5a315c98df5122e49295afffc4f8508e34794580ad9a2f`;
+paths SHA `bea5db8a373e1a9309e08eb409f1cae39f0d3836b80f64562d60a78f2cbf4d57`;
+narration-facts hash `a92da20634046b4c95957ded5feadd0858a877bfdd6c2e9b7d2b6ad71291bfdd`.
+There are zero overlapping player IDs and zero identical corresponding-role
+paths versus either prior Arsenal/City game. At10s samples, mean corresponding
+player displacement is14.322m versus the805-knot1:1 and14.879m versus the854-knot2:0.
+This live output is **not bundled as a new static game**. Normal native review
+launch still begins a fresh usage-consuming request; strictly no-paid checks use
+headless controlled tests and offline validation of the session witness.
+
 Each new app lifetime requests a fresh match **once after the first visible UI
 paint**. Startup visibly discloses Copilot usage and shows progress/elapsed/Cancel;
 constructing services, rendering again, activating a window or inspecting an
@@ -353,9 +419,9 @@ Before atomic delivery, a canonical gameplay fingerprint rejects exact or
 near-identical recent matches. Exact hash covers ordered event kind/time/order/
 actor/receiver/outcome and all canonical player knots, excluding event IDs,
 titles, captions, request nonce and story prose. Near-copy detection compares
-ordered event signatures (kind/participants/outcome with timestamps in rounded
+ordered event signatures (kind/home-away roster slots/outcome with timestamps in rounded
 3s buckets) using longest-common-subsequence similarity, and each player's
-positions sampled every10s into5m cells. Reject when event counts differ at most
+positions in the same captured roster order sampled every10s into5m cells. Reject when event counts differ at most
 10%, at least85% of action signatures align, and at least90% of coordinate-cell
 entries differ by no more than one cell. This is a declared near-copy heuristic,
 not proof that all football games are aesthetically unique. A changed title,
@@ -677,8 +743,8 @@ forcing every player to sprint continuously.
 
 Ball motion/possession are deterministically derived from validated player paths
 and events, not accepted as an unrelated model-supplied track. Possession is null
-during flights and goal-to-kickoff resets. The attacking goal is x=105 for Arsenal,
-x=0 for City. Kickoff must be at centre by the opposing team after at least three
+during flights and goal-to-kickoff resets. The attacking goal is x=105 for the first/home club,
+x=0 for the second/away club. Kickoff must be at centre by the opposing team after at least three
 seconds. The ball follows its owner outside flights/resets. Completed-pass
 receiver positions are checked against ball/second-last-opponent at release,
 with 1.5 m tolerance; this is an obvious-offside guard, not a full referee engine.
@@ -694,8 +760,9 @@ which atomically restarts and plays rather than presenting a disabled Play.
 Drawing and inverse click hit-testing share the same aspect-preserving transform.
 Letterbox margins do not select players. Nearest player within the marker radius
 wins, with ordinal ID resolving exact overlaps; the roster also selects obscured
-players. White rings and lilac past-only trails show selection. Mint is Arsenal,
-pink is Manchester City. Actual club crests appear in the white score strip
+players. White rings and lilac past-only trails show selection. Shirts use
+captured club display colours (the historical demo remains mint/pink).
+Actual selected-club crests appear in the white score strip
 and player popup. Moving pitch
 markers retain readable shirt numbers rather than large logos. Crests are
 packaged local images with aspect-fit sizing and a white backing for contrast

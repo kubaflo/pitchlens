@@ -29,7 +29,8 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         scale(x, y) { const m = this.matrix; m[0] *= x; m[1] *= x; m[2] *= y; m[3] *= y; }
         fillRect(x, y, width, height) { this.fills.push({ x, y, width, height }); } clearRect() { this.labels = []; } drawImage() {}
         strokeRect(x, y, w, h) { if (w === 105 && h === 68) this.field = [...this.matrix]; }
-        beginPath() {} moveTo() {} lineTo() {} stroke() {} arc() {} fill() {}
+        colors = [];
+        beginPath() {} moveTo() {} lineTo() {} stroke() {} arc() {} fill() { this.colors.push(this.fillStyle); }
         fillText(text, x, y) {
             const m = this.matrix;
             this.labels.push({ text, x: m[0] * x + m[2] * y + m[4], y: m[1] * x + m[3] * y + m[5] });
@@ -369,6 +370,23 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         loadFilm(null);
         assert.equal(layer.hidden, false);
         assert.equal(diagnostics().renderTime, 0, "exiting film restores canonical source snapshot");
+        const clubs=[{id:"liverpool",name:"Liverpool",color:"#e32939",crest:"images/liverpool_crest.svg"},
+            {id:"chelsea",name:"Chelsea",color:"#5291ff",crest:"images/chelsea_crest.png"}];
+        const clubFixture={...goalClip,revision:4,teams:clubs,
+            players:goalClip.players.map((p,i)=>({...p,id:`${i<11?"liverpool":"chelsea"}-player-${i}`,name:`Verified Player ${i}`,teamId:clubs[i<11?0:1].id})),
+            goals:[{...goalClip.goals[0],teamId:"chelsea",teamName:"Chelsea",scorerId:"chelsea-player-12",scorer:"Verified Player 12",goalX:0,playerIds:["chelsea-player-12"]}]};
+        loadScenario(JSON.stringify(clubFixture));context.colors=[];
+        setClock(JSON.stringify({revision:4,sequence:++sequence,time:49,playing:false,highlightsEnabled:true}));
+        assert.equal(goalNodes["match-score"].textContent,"0 : 1");
+        assert.equal(goalNodes["goal-team"].textContent,"Chelsea");
+        assert.equal(goalNodes["goal-crest"].attributes.src,"images/chelsea_crest.png");
+        assert.ok(context.colors.includes("#e32939")&&context.colors.includes("#5291ff"),"actual shirts use captured club display colours");
+        assert.match(layer.children[0].attributes["aria-label"],/Liverpool/);
+        assert.match(layer.children[21].attributes["aria-label"],/Chelsea/);
+        assert.ok(layer.children.every(b=>!b.attributes["aria-label"].includes("Arsenal")&&!b.attributes["aria-label"].includes("Manchester City")));
+        setClock(JSON.stringify({revision:4,sequence:++sequence,time:48.9,playing:false}));
+        assert.equal(goalNodes["match-score"].textContent,"0 : 0");
+        assert.equal(layer.children.length,22);
         dispose();
         assert.equal(caption.hidden, true);
         assert.equal(layer.children.length, 0);

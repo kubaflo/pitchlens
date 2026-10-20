@@ -22,6 +22,7 @@ public sealed class GenerationService(IScenarioSource source, Match initial, Sce
     public ScenarioOrigin Origin { get; private set; } = initialOrigin;
     public string? CurrentModel { get; private set; } = initialOrigin == ScenarioOrigin.RecordedSdkExample ? initialModel ?? RecordedScenario.Model : null;
     public bool IsSdkGenerated => Origin == ScenarioOrigin.FreshSdkGeneration;
+    public MatchFixture? RequestedFixture { get; private set; }
 
     public async Task GenerateAsync(IProgress<string>? progress, CancellationToken cancellationToken)
     {
@@ -33,11 +34,14 @@ public sealed class GenerationService(IScenarioSource source, Match initial, Sce
         timeout.CancelAfter(TimeSpan.FromMinutes(15));
         try
         {
-            var json = variety is null ? await source.GenerateAsync(progress, timeout.Token).ConfigureAwait(false) :
-                await source.GenerateAsync(variety.Next(), progress, timeout.Token).ConfigureAwait(false);
+            var request=variety?.Next();
+            RequestedFixture=request?.Fixture;
+            if(RequestedFixture is { } fixture) progress?.Report($"Creating {fixture.Home.Name} v {fixture.Away.Name} with verified selected players…");
+            var json = request is null ? await source.GenerateAsync(progress, timeout.Token).ConfigureAwait(false) :
+                await source.GenerateAsync(request, progress, timeout.Token).ConfigureAwait(false);
             timeout.Token.ThrowIfCancellationRequested();
             progress?.Report("Validating roster, trajectories, possession and event causality…");
-            var candidate = AuthoredMatchPlan.Parse(json);
+            var candidate = AuthoredMatchPlan.Parse(json,expectedFixture:RequestedFixture);
             if (candidate.Narrative is null) throw new ScenarioValidationException("New matches require a matching AI narration/story package, not historical captions alone.");
             timeout.Token.ThrowIfCancellationRequested();
             variety?.Accept(candidate);

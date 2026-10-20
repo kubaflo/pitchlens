@@ -51,6 +51,7 @@ public sealed partial class MatchService : IDisposable
     public bool Fresh { get; private set; }
     public GenerationState RequestState => generation.State;
     public Match Match => presentation.Match;
+    public MatchFixture? RequestedFixture => generation.RequestedFixture;
 
     public MatchService(IScenarioSource scenarios, IMomentSource moments, Func<IProgress<string>, CancellationToken, Task> connection,
         IDirectorSource? director = null, IMonotonicClock? filmClock = null, bool readyDemo = true, MatchVariety? variety = null)
@@ -70,7 +71,7 @@ public sealed partial class MatchService : IDisposable
         Explainer.Changed += NotifyChanged;
         Director.ChangeScene(presentation.Revision);
         Director.Changed += NotifyChanged;
-        presentation.Select("arsenal-odegaard");
+        presentation.Select(presentation.Match.Players.First(p=>p.Role=="midfielder").Id);
     }
     private void NotifyChanged() { if (!disposed) Changed?.Invoke(); }
     public Task StartSessionAsync()
@@ -292,14 +293,18 @@ public sealed partial class MatchService : IDisposable
         }
         Command("pause");
         var activityId = generationActivityId;
+        string? shownFixture=null;
         var progress = new InlineProgress<string>(message =>
         {
+            var fixtureChanged=false;
             lock (gate)
             {
                 if (disposed || cancellation != token || generation.State != GenerationState.Generating) return;
                 Status = message;
+                if(generation.RequestedFixture is { } selected && selected.Id!=shownFixture){shownFixture=selected.Id;fixtureChanged=true;}
             }
             GenerationActivity.Report(activityId, RequestProgress.FromSdkStatus(message));
+            if(fixtureChanged) NotifyChanged();
         });
         try
         {

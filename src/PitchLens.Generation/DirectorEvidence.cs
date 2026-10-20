@@ -6,8 +6,11 @@ using PitchLens.Core;
 
 namespace PitchLens.Generation;
 
-public sealed record DirectorPlayer(string Id, string Name, string TeamId, MomentPoint[] Path);
-public sealed record DirectorFacts(long Revision, double Cutoff, DirectorPlayer[] Players, NarrationFact[] Events);
+public sealed record DirectorPlayer(string Id, string Name, string TeamId, MomentPoint[] Path,
+    [property:JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingNull)] int? Number=null,
+    [property:JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingNull)] string? Role=null);
+public sealed record DirectorFacts(long Revision, double Cutoff, DirectorPlayer[] Players, NarrationFact[] Events,
+    [property:JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingNull)] Team[]? Clubs=null);
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow)]
@@ -21,11 +24,12 @@ public sealed class DirectorEvidence
     public double Cutoff { get; }
     public string Json { get; }
     public string Hash { get; }
-    public DirectorFacts Facts => JsonSerializer.Deserialize(Json, DirectorJsonContext.Default.DirectorFacts)!;
+    public DirectorFacts Facts => JsonSerializer.Deserialize(NarrationPrompt.NormalizeScores(Json), DirectorJsonContext.Default.DirectorFacts)!;
     private DirectorEvidence(DirectorFacts facts)
     {
         Revision = facts.Revision; Cutoff = facts.Cutoff;
-        Json = JsonSerializer.Serialize(facts, DirectorJsonContext.Default.DirectorFacts);
+        var json=JsonSerializer.Serialize(facts, DirectorJsonContext.Default.DirectorFacts);
+        Json = facts.Clubs is null?NarrationPrompt.LegacyScores(json):json;
         Hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(Json)));
     }
     public static bool CanCapture(Match match, double cutoff) => double.IsFinite(cutoff) && cutoff >= 60 && cutoff <= match.Duration &&
@@ -35,11 +39,12 @@ public sealed class DirectorEvidence
     public static DirectorEvidence Capture(Match match, long revision, double cutoff)
     {
         if (!CanCapture(match, cutoff)) throw new InvalidOperationException("Director's Cut needs an observed goal and at least a minute of match evidence.");
-        var all = JsonSerializer.Deserialize(NarrationPrompt.Facts(match), NarrationJsonContext.Default.NarrationFacts)!;
+        var all = JsonSerializer.Deserialize(NarrationPrompt.NormalizeScores(NarrationPrompt.Facts(match)), NarrationJsonContext.Default.NarrationFacts)!;
         return new(new(revision, cutoff, match.Players.Select(p => new DirectorPlayer(p.Id, p.Name, p.TeamId,
             p.Path.Frames.Where(f => f.Time < cutoff).Append(new(cutoff, p.Path.At(cutoff)))
-                .Select(f => new MomentPoint(f.Time, f.Position.X, f.Position.Y)).ToArray())).ToArray(),
-            all.Events.Where(e => e.Time <= cutoff).ToArray()));
+                .Select(f => new MomentPoint(f.Time, f.Position.X, f.Position.Y)).ToArray(),
+                NarrationPrompt.IsHistorical(match)?null:p.Number,NarrationPrompt.IsHistorical(match)?null:p.Role)).ToArray(),
+            all.Events.Where(e => e.Time <= cutoff).ToArray(),all.Clubs));
     }
     public FilmPlan Validate(string json)
     {
@@ -80,7 +85,7 @@ public sealed class DirectorEvidence
                 var words = NarrativeText.Words(scene.Text);
                 if (focus.Kind != "goal" && words.Any(w => w is "goal" or "scores" or "scored" or "equalizer" or "equaliser" or "lead" or "opener"))
                     throw new ArgumentException("Outcome wording requires this scene's observed goal.");
-                if (words.Any(w => w is "equalizer" or "equaliser") && focus.ArsenalGoals != focus.CityGoals)
+                if (words.Any(w => w is "equalizer" or "equaliser") && focus.HomeGoals != focus.AwayGoals)
                     throw new ArgumentException("Equalizer language requires a locally tied score.");
                 previousStart = scene.SourceStart;
             }

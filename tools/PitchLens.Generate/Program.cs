@@ -16,7 +16,7 @@ if (args is ["--variety-live", var varietyRuntime, var varietyWork, var varietyW
     if(!OperatingSystem.IsWindows()) File.SetUnixFileMode(varietyOutput,UnixFileMode.UserRead|UnixFileMode.UserWrite);
     var match=service.Current;var score=Replay.At(match,300).Score;
     var signature=MatchVariety.Signature(match);
-    Console.WriteLine($"VARIETY FULL REQUEST VERIFIED | model={service.CurrentModel} | players={match.Players.Count} | knots={match.Players.Sum(p=>p.Path.Frames.Count)} | events={match.Events.Count} | score={score["arsenal"]}:{score["manchester-city"]} | cues={match.Commentary!.Cues.Count} | chapters={match.Narrative!.Chapters.Count} | gameplayHash={signature.Hash}");
+    Console.WriteLine($"VARIETY FULL REQUEST VERIFIED | fixture={match.Teams[0].Name} v {match.Teams[1].Name} | model={service.CurrentModel} | players={match.Players.Count} | knots={match.Players.Sum(p=>p.Path.Frames.Count)} | events={match.Events.Count} | score={score[match.Teams[0].Id]}:{score[match.Teams[1].Id]} | cues={match.Commentary!.Cues.Count} | chapters={match.Narrative!.Chapters.Count} | gameplayHash={signature.Hash}");
     return 0;
 }
 if (args is ["--director", var directorRuntime, var directorWork, var directorWitness])

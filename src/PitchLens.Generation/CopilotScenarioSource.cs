@@ -18,8 +18,11 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
     public Task<string> GenerateAsync(IProgress<string>? progress, CancellationToken cancellationToken) =>
         GenerateAsync(new MatchVariety().Next(), progress, cancellationToken);
     public Task<string> GenerateAsync(VarietyRequest request, IProgress<string>? progress, CancellationToken token) =>
-        PipelineAsync(cancellation => RequestAsync(Prompt + "\n" + request.Instructions, AuthoredMatchPrompt.Schema,
-            "paths", progress, cancellation), progress, token);
+        AuthoredGenerationPipeline.RunAsync(cancellation => RequestAsync(AuthoredMatchPrompt.For(request.Fixture ?? FixtureCatalog.Historical) +
+                "\n" + request.Instructions, AuthoredMatchPrompt.Schema,"paths",progress,cancellation),
+            (document,failure,cancellation)=>RequestAsync(AuthoredPathRefinement.Prompt(document,failure),
+                AuthoredPathRefinement.Schema,"correction",progress,cancellation),
+            (match,cancellation)=>GenerateNarrationAsync(match,progress,cancellation),progress,token,archive,request.Fixture);
     public async Task<string> RefinePreservedAsync(string rawPaths, IProgress<string>? progress, CancellationToken token)
     {
         if (archive is not null) await archive.SaveAsync("paths", rawPaths).ConfigureAwait(false);

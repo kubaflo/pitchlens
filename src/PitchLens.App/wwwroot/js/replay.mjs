@@ -35,7 +35,8 @@ export function keyboardAction(event) {
     return event.key === " " ? "toggle" : event.key === "ArrowLeft" ? "back" : event.key === "ArrowRight" ? "forward" : null;
 }
 export function goalState(scenario, time) {
-    const score = { arsenal: 0, "manchester-city": 0 };
+    const teams = scenario.teams ?? [{ id:"arsenal" },{ id:"manchester-city" }];
+    const score = Object.fromEntries(teams.map(t=>[t.id,0]));
     let celebration = null;
     for (const goal of scenario.goals || []) {
         if (goal.time > time) continue;

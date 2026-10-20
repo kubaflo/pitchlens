@@ -1,0 +1,20 @@
+{
+  "checkedOn": "2026-10-21",
+  "season": "2026/27",
+  "scope": "Six-club prototype pool, eleven selected players per club in illustrative roles; not actual starting XIs or official kits.",
+  "newSquadSources": [
+    {"club":"liverpool","source":"https://www.liverpoolfc.com/teams/mens-team","facts":"Selected11 names,shirt numbers,position groups from official serialized squad listing."},
+    {"club":"chelsea","source":"https://www.chelseafc.com/en/teams/men","facts":"Selected11 names,shirt numbers,position groups from official team data."},
+    {"club":"manchester-united","source":"https://www.manutd.com/en/teams/mens-team","facts":"Selected11 names,shirt numbers,position groups from official first-team cards."},
+    {"club":"tottenham-hotspur","source":"https://www.tottenhamhotspur.com/teams/mens/squad","facts":"Selected11 names,shirt numbers,position groups from official squad; on-loan section excluded."}
+  ],
+  "priorClubs": "Arsenal and Manchester City retain the previously verified2026-10-19 snapshot documented in README.",
+  "newCrestSources": [
+    {"club":"liverpool","source":"https://resources.premierleague.com/premierleague/badges/t14.svg","local":"images/liverpool_crest.svg"},
+    {"club":"chelsea","source":"https://resources.premierleague.com/premierleague/badges/t8.png","local":"images/chelsea_crest.png"},
+    {"club":"manchester-united","source":"https://resources.premierleague.com/premierleague/badges/t1.png","local":"images/manchester-united_crest.png"},
+    {"club":"tottenham-hotspur","source":"https://resources.premierleague.com/premierleague/badges/t6.png","local":"images/tottenham-hotspur_crest.png"}
+  ],
+  "rights": "Crests retain their owners' rights. User-reported permission for this independent prototype only, not endorsement or an open redistribution license.",
+  "display": "Club accent colours are illustrative display colours, not a claim about licensed kit designs. Fixture first team attacks right, second attacks left. Roles come from verified position groups; selected4-3-3 composition is illustrative."
+}

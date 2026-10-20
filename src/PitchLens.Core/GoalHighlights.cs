@@ -15,7 +15,7 @@ public static class GoalHighlights
         var actors = match.Events.Where(e => e.Time >= start && e.Time <= goal.Time)
             .SelectMany(e => new[] { e.ActorId, e.ReceiverId }).OfType<string>()
             .Append(match.Players.FirstOrDefault(p => p.TeamId != match.Player(goal.ActorId).TeamId &&
-                p.Id is "arsenal-raya" or "manchester-city-donnarumma")?.Id)
+                match.IsKeeper(p.Id))?.Id)
             .OfType<string>().Distinct().ToArray();
         return new GoalHighlight(goal.Id, start, shot.StartTime!.Value, goal.Time, end, actors);
     }).ToArray();

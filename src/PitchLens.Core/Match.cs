@@ -12,8 +12,8 @@ public readonly record struct Position(double X, double Y)
 }
 
 public sealed record Keyframe(double Time, Position Position);
-public sealed record Team(string Id, string Name);
-public sealed record Player(string Id, string TeamId, int Number, string Name, Trajectory Path);
+public sealed record Team(string Id, string Name, string? Abbreviation = null, string? Crest = null, string? Color = null);
+public sealed record Player(string Id, string TeamId, int Number, string Name, Trajectory Path, string? Role = null);
 public enum EventKind { Pass, Carry, Shot, Goal, Kickoff }
 public sealed record MatchEvent(string Id, double Time, int Order, EventKind Kind,
     string ActorId, string? ReceiverId = null, bool? Completed = null, double? StartTime = null);
@@ -100,6 +100,9 @@ public sealed class Match
         new(Duration, Teams, Players, Events, Ball, Possession, Story, cues, model, chapters, factsHash);
 
     public Player Player(string id) => Players.Single(p => p.Id == id);
+    public bool AttacksRight(string teamId) => Teams[0].Id == teamId;
+    public bool IsKeeper(string playerId) => Player(playerId).Role == "goalkeeper" ||
+        Player(playerId).Role is null && playerId is "arsenal-raya" or "manchester-city-donnarumma";
     public double ClampTime(double time) => double.IsFinite(time)
         ? Math.Clamp(time, 0, Duration) : throw new ArgumentOutOfRangeException(nameof(time));
     public string? OwnerAt(double time)

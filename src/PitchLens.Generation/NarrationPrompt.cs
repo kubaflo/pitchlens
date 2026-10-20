@@ -7,10 +7,13 @@ using PitchLens.Core;
 namespace PitchLens.Generation;
 
 public sealed record NarrationDocument(string FactsHash, CommentaryCue[] Cues, NarrativeChapter[] Chapters);
-public sealed record NarrationPlayer(string Id, string Name, string TeamId);
+public sealed record NarrationPlayer(string Id, string Name, string TeamId,
+    [property:JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingNull)] int? Number=null,
+    [property:JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingNull)] string? Role=null);
 public sealed record NarrationFact(string Id, double Time, double Start, string Kind, string ActorId, string? ReceiverId,
-    bool? Completed, MomentPoint[] Ball, double? CarryMetres, int ArsenalGoals, int CityGoals);
-public sealed record NarrationFacts(double Duration, NarrationPlayer[] Players, NarrationFact[] Events);
+    bool? Completed, MomentPoint[] Ball, double? CarryMetres, int HomeGoals, int AwayGoals);
+public sealed record NarrationFacts(double Duration, NarrationPlayer[] Players, NarrationFact[] Events,
+    [property:JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingNull)] Team[]? Clubs=null);
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow)]
@@ -92,13 +95,19 @@ public static class NarrationPrompt
             var score = Replay.At(match, e.Time).Score;
             return new NarrationFact(e.Id, e.Time, start, e.Kind.ToString().ToLowerInvariant(), e.ActorId, e.ReceiverId, e.Completed,
                 ball, e.Kind == EventKind.Carry ? match.Player(e.ActorId).Path.Measure(e.Time).Distance -
-                    match.Player(e.ActorId).Path.Measure(start).Distance : null, score["arsenal"], score["manchester-city"]);
+                    match.Player(e.ActorId).Path.Measure(start).Distance : null, score[match.Teams[0].Id], score[match.Teams[1].Id]);
         }).ToArray();
-        return JsonSerializer.Serialize(new NarrationFacts(match.Duration,
-            match.Players.Select(p => new NarrationPlayer(p.Id, p.Name, p.TeamId)).ToArray(), events), NarrationJsonContext.Default.NarrationFacts);
+        var json=JsonSerializer.Serialize(new NarrationFacts(match.Duration,
+            match.Players.Select(p => new NarrationPlayer(p.Id,p.Name,p.TeamId,IsHistorical(match)?null:p.Number,IsHistorical(match)?null:p.Role)).ToArray(), events,
+            match.Teams[0].Id=="arsenal"&&match.Teams[1].Id=="manchester-city"?null:match.Teams.ToArray()), NarrationJsonContext.Default.NarrationFacts);
+        return IsHistorical(match)?LegacyScores(json):json;
     }
+    internal static bool IsHistorical(Match match)=>match.Teams[0].Id=="arsenal"&&match.Teams[1].Id=="manchester-city";
+    internal static string LegacyScores(string json)=>json.Replace("\"homeGoals\":","\"arsenalGoals\":",StringComparison.Ordinal).Replace("\"awayGoals\":","\"cityGoals\":",StringComparison.Ordinal);
+    internal static string NormalizeScores(string json)=>json.Replace("\"arsenalGoals\":","\"homeGoals\":",StringComparison.Ordinal).Replace("\"cityGoals\":","\"awayGoals\":",StringComparison.Ordinal);
     public static string Hash(Match match) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(Facts(match))));
-    public static string For(Match match) => Instructions + "\nCopy factsHash: " + Hash(match) + "\nMeasured match facts:\n" + Facts(match);
+    public static string For(Match match) => Instructions + $"\nFixture: {match.Teams[0].Name} (home, attacksRIGHT) versus {match.Teams[1].Name} (away, attacksLEFT). Use supplied club/player identities and home/away scores only." +
+        "\nCopy factsHash: " + Hash(match) + "\nMeasured match facts:\n" + Facts(match);
     public static NarrationDocument Document(string json)
     {
         try

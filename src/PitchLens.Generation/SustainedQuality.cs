@@ -12,7 +12,7 @@ public static class SustainedQuality
         {
             Require(player.Path.Measure(300).MaxSpeed <= 8 + 1e-8, "Player exceeds 8 m/s.");
             if (StoryQuality.IsKeeper(player))
-                Require(player.Path.Frames.All(f => (player.TeamId == "arsenal" ? f.Position.X <= 18 : f.Position.X >= 87) &&
+                Require(player.Path.Frames.All(f => (match.AttacksRight(player.TeamId) ? f.Position.X <= 18 : f.Position.X >= 87) &&
                     f.Position.Y is >= 18 and <= 50), "Goalkeeper at wrong end/outside own goal area.");
         }
         for (double t = 0; t <= 300; t += 5)

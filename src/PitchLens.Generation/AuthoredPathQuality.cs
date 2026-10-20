@@ -32,9 +32,9 @@ public static class AuthoredPathQuality
         }
         foreach (var team in match.Teams)
         {
-            var outfield = match.Players.Where(p => p.TeamId == team.Id && !RegulationRoster.IsKeeper(p.Id)).ToArray();
-            double Line(string role) => outfield.Where(p => RegulationRoster.Players.Single(r => r.Id == p.Id).Role == role).Average(p => p.Path.At(0).X);
-            Require(team.Id == "arsenal" ? Line("defender") < Line("midfielder") && Line("midfielder") < Line("forward") :
+            var outfield = match.Players.Where(p => p.TeamId == team.Id && !match.IsKeeper(p.Id)).ToArray();
+            double Line(string role) => outfield.Where(p => p.Role == role).Average(p => p.Path.At(0).X);
+            Require(match.AttacksRight(team.Id) ? Line("defender") < Line("midfielder") && Line("midfielder") < Line("forward") :
                 Line("defender") > Line("midfielder") && Line("midfielder") > Line("forward"), "Initial illustrative lines must respect attacking direction.");
             Require(outfield.Count(p => StoryQuality.DirectionChanges(p.Path) >= 2) >= 6, "Too many straight-line paths; author recovery/support turns.");
             int BurstPlayers(double speed) => outfield.Count(p => p.Path.Frames.Zip(p.Path.Frames.Skip(1),
@@ -43,7 +43,7 @@ public static class AuthoredPathQuality
             Require(BurstPlayers(3) >= 4 && BurstPlayers(4) >= 2, "All-walking paths lack realistic individual running bursts.");
             Require(match.Events.Count(e => e.Kind == EventKind.Carry && match.Player(e.ActorId).TeamId == team.Id) >= 3,
                 "Both clubs need controlled carries.");
-            Require(match.Events.Where(e => match.Player(e.ActorId).TeamId == team.Id && !RegulationRoster.IsKeeper(e.ActorId))
+            Require(match.Events.Where(e => match.Player(e.ActorId).TeamId == team.Id && !match.IsKeeper(e.ActorId))
                 .Select(e => e.ActorId).Distinct().Count() >= 7, "New outfield players must participate, not decorate the old6v6 match.");
         }
         int synchronized = 0;
@@ -56,7 +56,7 @@ public static class AuthoredPathQuality
             Require(points.All(p => points.Count(q => p.DistanceTo(q) < 5) <= 5), $"Unrealistic player pile-up at {t}s.");
             foreach (var team in match.Teams)
             {
-                var outfield = match.Players.Where(p => p.TeamId == team.Id && !RegulationRoster.IsKeeper(p.Id)).ToArray();
+                var outfield = match.Players.Where(p => p.TeamId == team.Id && !match.IsKeeper(p.Id)).ToArray();
                 var shape = outfield.Select(p => p.Path.At(t)).ToArray();
                 var width = shape.Max(p => p.Y) - shape.Min(p => p.Y);
                 var depth = shape.Max(p => p.X) - shape.Min(p => p.X);

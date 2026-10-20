@@ -9,12 +9,13 @@ public sealed record AuthoredPlayer([property: JsonRequired] string Id, [propert
 public sealed record AuthoredMatchDocument([property: JsonRequired] double Duration,
     [property: JsonRequired] string Title, [property: JsonRequired] string InitialOwnerId,
     [property: JsonRequired] AuthoredPlayer[] Players, [property: JsonRequired] EventDocument[] Events,
-    [property: JsonRequired]     string[] PhaseKinds, CommentaryCue[]? Commentary = null, NarrationDocument? Narration = null);
+    [property: JsonRequired] string[] PhaseKinds, CommentaryCue[]? Commentary = null, NarrationDocument? Narration = null, MatchFixture? Fixture = null);
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow)]
 [JsonSerializable(typeof(AuthoredMatchDocument))]
 [JsonSerializable(typeof(MatchRosterPlayer[]))]
+[JsonSerializable(typeof(MatchFixture))]
 public partial class AuthoredJsonContext : JsonSerializerContext;
 
 public static class AuthoredMatchPlan
@@ -34,25 +35,28 @@ public static class AuthoredMatchPlan
         }
         catch (JsonException e) { throw new ScenarioValidationException($"Invalid authored-path JSON: {e.Message}", e); }
     }
-    public static Match Parse(string json, bool requireCommentary = true) => Build(Document(json), requireCommentary);
-    public static Match Build(AuthoredMatchDocument document, bool requireCommentary = true)
+    public static Match Parse(string json, bool requireCommentary = true, MatchFixture? expectedFixture = null) => Build(Document(json), requireCommentary, expectedFixture);
+    public static Match Build(AuthoredMatchDocument document, bool requireCommentary = true, MatchFixture? expectedFixture = null)
     {
+        var fixture=document.Fixture is null?FixtureCatalog.Historical:FixtureCatalog.RequireKnown(document.Fixture);
+        if(expectedFixture is not null && (fixture.Id!=expectedFixture.Id || !fixture.Players.SequenceEqual(expectedFixture.Players)))
+            throw new ScenarioValidationException("AI candidate switched the captured fixture or roster.");
         Require(document.Duration == 300, "Authored match must last 300 replay seconds.");
         Require(document.Title is "Pressure and Space" or "The Turning Tide" or "A Game of Transitions", "Use a neutral match title.");
         Require(document.Players is { Length: 22 } && document.Players.All(p => p is not null) &&
             document.Players.Select(p => p.Id).Distinct().Count() == 22, "All 22 unique verified players need explicit AI paths.");
-        Require(document.Players.All(p => RegulationRoster.Players.Any(r => r.Id == p.Id)), "Unknown 11v11 roster identity.");
+        Require(document.Players.All(p => fixture.Players.Any(r => r.Id == p.Id)), "Unknown 11v11 roster identity.");
         Require(document.Events is { Length: >= 45 and <= 90 } && document.Events.All(e => e is not null), "Expected 45-90 substantive events.");
         Require(document.PhaseKinds is { Length: 10 } && document.PhaseKinds.All(k =>
             k is "possession" or "turnover" or "counterattack" or "finish" or "response"), "Ten valid 30-second phase tags required.");
-        var players = RegulationRoster.Players.Select(r =>
+        var players = fixture.Players.Select(r =>
         {
             var entry = document.Players.Single(p => p.Id == r.Id);
             Require(entry.Frames is { Length: >= 31 and <= 81 } && entry.Frames.All(f => f is { Length: 3 }),
                 $"Expected 31-81 explicit [time,x,y] knots for {r.Id}.");
             // Every knot is copied from the model; no solver, role offsets or support-path expansion.
             return new Player(r.Id, r.TeamId, r.Number, r.Name,
-                new(entry.Frames.Select(f => new Keyframe(f[0], new(f[1], f[2])))));
+                new(entry.Frames.Select(f => new Keyframe(f[0], new(f[1], f[2])))),r.Role);
         }).ToArray();
         Require(players.Any(p => p.Id == document.InitialOwnerId), "Unknown initial owner.");
         Require(document.Events.All(e => e.Id is { Length: >= 1 and <= 40 } &&
@@ -69,7 +73,7 @@ public static class AuthoredMatchPlan
         try
         {
             var possession = new List<PossessionChange> { new(0, document.InitialOwnerId) };
-            var skeleton = new Match(300, RegulationRoster.Teams, players, events,
+            var skeleton = new Match(300, fixture.Teams, players, events,
                 new([new(0, new(52.5, 34)), new(300, new(52.5, 34))]), possession);
             string? owner = document.InitialOwnerId;
             double lastEnd = 0;
@@ -86,7 +90,7 @@ public static class AuthoredMatchPlan
                 {
                     Require(waitingGoal is not null && e.Time >= waitingGoal.Time + 3 &&
                         skeleton.Player(e.ActorId).TeamId != skeleton.Player(waitingGoal.ActorId).TeamId &&
-                        !RegulationRoster.IsKeeper(e.ActorId) && e.StartTime is null, "Goal needs an opposing outfield restart after >=3s.");
+                        !fixture.IsKeeper(e.ActorId) && e.StartTime is null, "Goal needs an opposing outfield restart after >=3s.");
                     Require(skeleton.Player(e.ActorId).Path.At(e.Time).DistanceTo(new(52.5, 34)) < .001,
                         "AI-authored kickoff path must reach the centre; it is not auto-corrected.");
                     owner = e.ActorId; possession.Add(new(e.Time, owner)); waitingGoal = null; lastEnd = e.Time;
@@ -114,15 +118,15 @@ public static class AuthoredMatchPlan
                 if (flight is not null)
                 {
                     var from = skeleton.Player(flight.ActorId).Path.At(flight.StartTime!.Value);
-                    var to = flight.ReceiverId is null ? Goal(skeleton.Player(flight.ActorId).TeamId) : skeleton.Player(flight.ReceiverId).Path.At(flight.Time);
+                    var to = flight.ReceiverId is null ? Goal(skeleton,skeleton.Player(flight.ActorId).TeamId) : skeleton.Player(flight.ReceiverId).Path.At(flight.Time);
                     return Position.Lerp(from, to, (time - flight.StartTime.Value) / (flight.Time - flight.StartTime.Value));
                 }
                 var held = possession.Last(p => p.Time <= time).PlayerId;
                 if (held is not null) return skeleton.Player(held).Path.At(time);
                 var goal = events.Last(e => e.Kind == EventKind.Goal && e.Time <= time);
                 var restart = events.FirstOrDefault(e => e.Kind == EventKind.Kickoff && e.Time > goal.Time);
-                return restart is null ? Goal(skeleton.Player(goal.ActorId).TeamId) :
-                    Position.Lerp(Goal(skeleton.Player(goal.ActorId).TeamId), new(52.5, 34), (time - goal.Time) / (restart.Time - goal.Time));
+                return restart is null ? Goal(skeleton,skeleton.Player(goal.ActorId).TeamId) :
+                    Position.Lerp(Goal(skeleton,skeleton.Player(goal.ActorId).TeamId), new(52.5, 34), (time - goal.Time) / (restart.Time - goal.Time));
             }
             var times = players.SelectMany(p => p.Path.Frames.Select(f => f.Time)).Concat(events.Select(e => e.Time))
                 .Concat(possession.Select(p => p.Time)).Distinct().Order();
@@ -145,14 +149,14 @@ public static class AuthoredMatchPlan
         }
         catch (ArgumentException e) { throw new ScenarioValidationException($"Invalid AI-authored match: {e.Message}", e); }
     }
-    private static Position Goal(string teamId) => new(teamId == "arsenal" ? 105 : 0, 34);
+    private static Position Goal(Match match,string teamId) => new(match.AttacksRight(teamId) ? 105 : 0, 34);
     private static void ValidateOnside(Match match, MatchEvent pass)
     {
         var actor = match.Player(pass.ActorId);
         var receiver = match.Player(pass.ReceiverId!).Path.At(pass.StartTime!.Value);
         var opponents = match.Players.Where(p => p.TeamId != actor.TeamId).Select(p => p.Path.At(pass.StartTime.Value).X).Order().ToArray();
         var ball = actor.Path.At(pass.StartTime.Value);
-        Require(actor.TeamId == "arsenal" ? receiver.X <= Math.Max(52.5, Math.Max(ball.X, opponents[^2])) + 1.5
+        Require(match.AttacksRight(actor.TeamId) ? receiver.X <= Math.Max(52.5, Math.Max(ball.X, opponents[^2])) + 1.5
             : receiver.X >= Math.Min(52.5, Math.Min(ball.X, opponents[1])) - 1.5, $"Obvious offside receiver at {pass.Id}.");
     }
 }

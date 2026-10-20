@@ -6,8 +6,8 @@ const smooth = value => { const t = Math.max(0, Math.min(1, value)); return t * 
 export function goalCameraView(scenario, goal) {
     const start = goal.buildUpStart ?? Math.max(0, goal.time - 10);
     const participants = scenario.players.filter(p => (goal.playerIds ?? [goal.scorerId]).includes(p.id));
-    const points = [{ x: goal.goalX ?? (goal.teamId === "arsenal" ? 105 : 0), y: 30.34 },
-        { x: goal.goalX ?? (goal.teamId === "arsenal" ? 105 : 0), y: 37.66 }];
+    const goalX = goal.goalX ?? (goal.teamId === (scenario.teams?.[0]?.id ?? "arsenal") ? 105 : 0);
+    const points = [{ x: goalX, y: 30.34 }, { x: goalX, y: 37.66 }];
     for (const player of participants) {
         points.push(at(player.frames, start), at(player.frames, goal.time));
         points.push(...player.frames.filter(f => f.time >= start && f.time <= goal.time));
