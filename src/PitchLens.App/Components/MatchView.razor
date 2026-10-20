@@ -53,7 +53,7 @@
         </main>
         @if (Session.FilmFrame is { } filmFrame)
         {
-            <div class="film-transport"><button class="button" @onclick='() => Session.FilmCommand("restart")'>Restart film</button><button class="button purple" @onclick='() => Session.FilmCommand("toggle")'>@(Session.FilmPlaying ? "Pause film" : "Play film")</button><input aria-label="Film time in wall seconds" type="range" min="0" max="@filmFrame.Duration" step="0.1" value="@filmFrame.FilmTime" @onchange="FilmSeek" /><button class="button" @onclick='() => Session.FilmCommand("exit")'>Return to paused match</button><small>Film clock is separate. Player lenses and main replay controls are unavailable in film.</small></div>
+            <div class="film-transport"><button class="button" @onclick='() => Session.FilmCommand("restart")'>Restart film</button><button class="button purple" @onclick='() => Session.FilmCommand("toggle")'>@(Session.FilmPlaying ? "Pause film" : "Play film")</button><input aria-label="Film time in wall seconds" type="range" min="0" max="@filmFrame.Duration" step="0.1" value="@filmFrame.FilmTime" @onchange="FilmSeek" />@if (filmFrame.Holding) { <button class="button" title="Leave the film and pause the match at this scene's completed focus event." @onclick="InspectFilmScene">Inspect this scene</button> }<button class="button" @onclick='() => Session.FilmCommand("exit")'>Return to paused match</button><small>@(filmFrame.FilmTime >= filmFrame.Duration ? "Film complete. Restart or return to your paused match." : "Film clock is separate. Scene evidence unlocks at each freeze frame; player lenses require leaving film.")</small></div>
         }
         <footer class="transport">
             <fieldset class="match-controls" disabled="@Session.FilmActive">
@@ -202,6 +202,8 @@
     private string? error;
     private string? evidenceNotice;
     private FilmPlan? loadedFilm;
+    private double lastFilmTime = double.NaN;
+    private bool lastFilmPlaying;
     private long loadedRevision;
     private PopupRequest? pendingPopup;
     private bool captionsEnabled = true;
@@ -244,7 +246,7 @@
         {
             using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(250));
             while (await timer.WaitForNextTickAsync(lifetime.Token))
-                if (!disposed && Session.Active && (frame?.Playing == true || Session.FilmPlaying)) await InvokeAsync(() => Refresh(false));
+                if (!disposed && Session.Active && (frame?.Playing == true || FilmNeedsRefresh())) await InvokeAsync(() => Refresh(false));
         }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
     }
@@ -256,6 +258,8 @@
         view = next;
         var current = next.Frame;
         frame = current;
+        if (Session.FilmFrame is { } sampledFilm) { lastFilmTime = sampledFilm.FilmTime; lastFilmPlaying = Session.FilmPlaying; }
+        else { lastFilmTime = double.NaN; lastFilmPlaying = false; }
         try
         {
             if (module is not null)
@@ -327,6 +331,17 @@
     {
         if (double.TryParse(e.Value?.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var value))
             Session.FilmCommand("seek", value);
+    }
+    private bool FilmNeedsRefresh() => Session.FilmFrame is { } current &&
+        (Session.FilmPlaying || current.FilmTime != lastFilmTime || Session.FilmPlaying != lastFilmPlaying);
+    private async Task InspectFilmScene()
+    {
+        try
+        {
+            var selected = Session.CurrentFilmEvidence();
+            await InspectEvidence(selected.Evidence, selected.EventId);
+        }
+        catch (InvalidOperationException e) { evidenceNotice = e.Message; StateHasChanged(); }
     }
     private async Task PreviewDirector()
     {

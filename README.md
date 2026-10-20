@@ -59,6 +59,11 @@ targets/lenses and main replay controls are explicitly unavailable in film,
 rather than pointing at wrong coordinates. Evidence navigation, if invoked,
 exits the film and pauses at the exact canonical event through the existing
 revision guard. Film plans cross interop once per entry, not every frame.
+**Inspect this scene** appears only during the freeze hold, after the scene's
+evidence has completed. It leaves film and opens the exact canonical focus event
+as pinned evidence; it cannot expose the upcoming finish during moving footage.
+The timer delivers one final end-state render at the measured duration even if
+the film clock has already stopped, then stops sending paused/end snapshots.
 
 Busy reopen shares the pending request; exact Fresh snapshot edits can be reused
 with an honest Cached label. Invalid output, cancellation, timeout or stale

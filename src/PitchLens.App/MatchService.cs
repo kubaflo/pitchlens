@@ -10,6 +10,7 @@ public sealed partial class MatchService : IDisposable
     private readonly object gate = new();
     private readonly ReplayPresentation presentation = new(NarrationRecording.Create(), new MonotonicClock());
     private readonly GenerationService generation;
+    private readonly IMonotonicClock filmClock = new MonotonicClock();
     private readonly Func<IProgress<string>, CancellationToken, Task> checkConnection;
     public RequestActivity GenerationActivity { get; } = new();
     public RequestActivity ConnectionActivity { get; } = new();
@@ -49,11 +50,12 @@ public sealed partial class MatchService : IDisposable
     public Match Match => presentation.Match;
 
     public MatchService(IScenarioSource scenarios, IMomentSource moments, Func<IProgress<string>, CancellationToken, Task> connection,
-        IDirectorSource? director = null)
+        IDirectorSource? director = null, IMonotonicClock? filmClock = null)
     {
         generation = new(scenarios, presentation.Match, ScenarioOrigin.RecordedSdkExample, AuthoredMatchRecording.Model);
         Explainer = new(moments);
         Director = new(director ?? new UnavailableDirectorSource());
+        if (filmClock is not null) this.filmClock = filmClock;
         checkConnection = connection;
         Initialize();
     }
@@ -358,7 +360,7 @@ public sealed partial class MatchService : IDisposable
                 throw new InvalidOperationException("Finish the active request before watching a film.");
             var current = Director.Current ?? throw new InvalidOperationException("Create a valid film first.");
             if (current.Evidence.Revision != presentation.Revision) throw new InvalidOperationException("Film belongs to a previous match.");
-            presentation.Pause(); film = new(current.Plan, new MonotonicClock()); film.Play();
+            presentation.Pause(); film = new(current.Plan, filmClock); film.Play();
         }
         NotifyChanged();
     }
@@ -388,6 +390,18 @@ public sealed partial class MatchService : IDisposable
             }
         }
         NotifyChanged();
+    }
+    public (MomentEvidence Evidence, string EventId) CurrentFilmEvidence()
+    {
+        lock (gate)
+        {
+            var frame = film?.Frame;
+            if (film is null || frame is null || !frame.Holding || Director.Current is null)
+                throw new InvalidOperationException("Scene evidence is available at its freeze frame, after the recorded actions complete.");
+            var scene = film.Plan.Scenes[frame.SceneIndex];
+            var evidence = MomentEvidence.Capture(presentation.Match, presentation.Revision, scene.SourceEnd, scene.FocusEventId, scene.EvidenceIds);
+            return (evidence, scene.FocusEventId);
+        }
     }
     private sealed class UnavailableDirectorSource : IDirectorSource
     {
