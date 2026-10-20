@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-const { initialize, loadScenario, setClock, diagnostics, dispose, openPopup, closePopup, setCaptionsEnabled, setEvidence } =
+const { initialize, loadScenario, setClock, diagnostics, dispose, openPopup, closePopup, setCaptionsEnabled, setEvidence, loadFilm, setFilmClock } =
     await import(process.env.PITCH_TEST_RENDERER || new URL("../../src/PitchLens.App/wwwroot/js/pitch.mjs", import.meta.url));
 import { at } from "../../src/PitchLens.App/wwwroot/js/replay.mjs";
 import { fitView, ARENA } from "../../src/PitchLens.App/wwwroot/js/viewport.mjs";
@@ -12,7 +12,7 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
     const native = [], callbacks = new Map(), documentHandlers = new Map(), observers = [];
     let wall = 0, nextFrame = null, canvasReads = 0, cardReads = 0;
     const caption = { hidden: true, textContent: "", setAttribute() {}, set innerHTML(value) { throw new Error("Model text must not be parsed as HTML"); } };
-    const goalNodes = Object.fromEntries(["goal-banner", "goal-title", "goal-detail", "goal-team", "goal-score", "goal-crest", "goal-replay-tag", "match-score", "evidence-view-tag"].map(id => [id, {
+    const goalNodes = Object.fromEntries(["goal-banner", "goal-title", "goal-detail", "goal-team", "goal-score", "goal-crest", "goal-replay-tag", "match-score", "evidence-view-tag", "film-position", "film-insight"].map(id => [id, {
         hidden: true, textContent: "", attributes: {}, style: { setProperty(name, value) { this[name] = value; } },
         setAttribute(name, value) { this.attributes[name] = value; }, getAttribute(name) { return this.attributes[name]; }
     }]));
@@ -327,6 +327,48 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         setClock(JSON.stringify({ revision: 3, sequence: ++sequence, time: 0, playing: false, rate: 5 }));
         assert.equal(goalNodes["goal-banner"].hidden, true);
         assert.equal(goalNodes["match-score"].textContent, "0 : 0");
+        const edit = { revision: 3, factsHash: "test-edit", scenes: [
+            { sourceStart: 39, sourceEnd: 49, rate: 1, holdSeconds: 4, camera: "finish", focusEventId: goalClip.goals[0].id, text: "The recorded finish." },
+            { sourceStart: 59, sourceEnd: 65, rate: .5, holdSeconds: 3, camera: "tactical", focusEventId: "later", text: "The response." }
+        ] };
+        loadFilm(JSON.stringify(edit)); setFilmClock(9, false, ++sequence, 3);
+        assert.equal(diagnostics().renderTime, 48, "film source comes from the film clock, not base5x/native main position");
+        assert.equal(goalNodes["match-score"].textContent, "0 : 0");
+        assert.equal(goalNodes["film-insight"].hidden, true, "finish narrative cannot leak into setup footage");
+        assert.equal(layer.hidden, true, "player interaction is explicitly unavailable in film");
+        const filmNotifications = native.length;
+        callbacks.get("pointerdown")({ clientX: rect.left + 100, clientY: rect.top + 100 });
+        layer.children[0].click();
+        assert.equal(native.length, filmNotifications);
+        setFilmClock(10, false, ++sequence, 3);
+        assert.equal(diagnostics().renderTime, 49);
+        assert.equal(goalNodes["match-score"].textContent, "1 : 0");
+        assert.equal(goalNodes["film-insight"].textContent, "The recorded finish.");
+        assert.equal(goalNodes["film-insight"].hidden, false);
+        assert.equal(goalNodes["goal-replay-tag"].hidden, true, "film never recursively invokes the automatic goal replay");
+        assert.match(goalNodes["film-position"].textContent, /FREEZE/);
+        for (const density of [1, 2]) {
+            window.devicePixelRatio = density; observation();
+            assert.equal(diagnostics().renderTime, 49);
+            const field = diagnostics().viewport.field, rasterX = canvas.width / rect.width, rasterY = canvas.height / rect.height;
+            const shirtLabels = context.labels.filter(label => /^\d+$/.test(label.text));
+            for (const [i, p] of [...goalClip.players].sort((a,b)=>a.id<b.id?1:-1).entries()) {
+                const actual = at(p.frames,49), label = shirtLabels[i];
+                assert.ok(Math.abs(label.x/rasterX - field.left - actual.x*field.scale)<1e-8);
+                assert.ok(Math.abs(label.y/rasterY - field.top - actual.y*field.scale)<1e-8);
+            }
+            assert.equal(layer.hidden,true);
+        }
+        setFilmClock(14, false, ++sequence, 3);
+        setFilmClock(0, false, sequence - 1, 3);
+        assert.equal(diagnostics().renderTime, 59, "exact cut enters the next authored source clip");
+        assert.equal(goalNodes["film-insight"].hidden, true);
+        motion.matches = true; motionHandlers.get("change")();
+        assert.equal(diagnostics().viewport.view, ARENA);
+        motion.matches = false; motionHandlers.get("change")();
+        loadFilm(null);
+        assert.equal(layer.hidden, false);
+        assert.equal(diagnostics().renderTime, 0, "exiting film restores canonical source snapshot");
         dispose();
         assert.equal(caption.hidden, true);
         assert.equal(layer.children.length, 0);

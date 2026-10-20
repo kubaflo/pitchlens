@@ -15,6 +15,90 @@ starting XIs, match results, athlete performance or a season dataset. We chose
 could not be clarified. PitchLens is independent and unaffiliated with the league
 or either club; submission remains deferred.
 
+## Director's Cut / In-app film
+
+**Director's Cut** is a direct, usage-consuming action that asks exact
+`gpt-6.1-sol` to make an editorial edit of the observed synthetic match.
+It requires an observed goal, at least a minute of footage and twelve completed
+events; otherwise it is disabled with an honest prerequisite label.
+It captures immutable scenario/revision/cutoff facts, pauses the main match and
+shows the existing stage/elapsed/Cancel card, including when the dialog closes.
+One bounded request selects four to six purposeful scenes, exact source clips,
+half-speed or normal-speed footage, freeze holds, evidence and connecting text.
+It does not generate another match or add a response to the two/three-response
+match-generation pipeline. Tools remain disabled for editorial planning.
+
+This milestone is an **interactive in-app 2D film**, not MP4 export, audio/TTS,
+photorealistic video, a multi-agent system or a live-match claim. Personalized
+editions and downloadable video remain deferred. No new provider, cloud service,
+language or CV pipeline is included.
+
+The validated plan must measure **45–60 wall seconds**:
+`sum((sourceEnd-sourceStart)/rate + holdSeconds)`. Each clip spans 2–12 source
+seconds, each hold 2–6 wall seconds; rates are exactly 0.5 or 1. Scene focus
+events are unique, clips have chronological source starts, and each scene ends
+at its exact observed focus completion. Every cited event lies inside that clip
+and completes before its explanation is revealed. The model cannot supply code,
+HTML, coordinates, invented numerical metrics or arbitrary camera instructions.
+Hash/revision/cutoff, source bounds, evidence and plain-text validation are
+strict; they do not certify all prose interpretations as true.
+
+The **FILM** clock is explicitly separate from **SOURCE** replay time. A native
+monotonic film clock maps cuts, rates and holds to recorded positions; sequenced
+revision-checked packets project the same map between snapshots. Match 3x/5x and
+automatic goal highlight windows are never multiplied into film time. The shared
+pitch renderer/camera/viewport draws source positions, source-as-of score/CC
+and narrative facts; the film's connecting sentence and route illumination
+appear only in its final freeze hold, not earlier setup footage. Finish cameras
+do not recursively start automatic goal replays. Reduced motion keeps the
+tactical camera. The film has pause, seek, restart and end controls.
+
+The main match stays paused; **Return to paused match** restores its unchanged
+position, selected speed and player selection without autoplay. Player hit
+targets/lenses and main replay controls are explicitly unavailable in film,
+rather than pointing at wrong coordinates. Evidence navigation, if invoked,
+exits the film and pauses at the exact canonical event through the existing
+revision guard. Film plans cross interop once per entry, not every frame.
+
+Busy reopen shares the pending request; exact Fresh snapshot edits can be reused
+with an honest Cached label. Invalid output, cancellation, timeout or stale
+revision cannot replace the match or an earlier valid film. There are no hidden
+retries, model fallbacks, tick/seek/mode-triggered paid calls or fixture-as-fresh
+fallbacks. Response budget is 270 seconds plus bounded SDK cleanup.
+
+### Recorded Director preview / No AI call
+
+The one authorized editorial integration request returned a validated **58s**
+edit with **four scenes**. Exact unedited plan:
+`Resources/recorded_director.json`, SHA-256
+`6df8518fa9a5b4fabce89ad07e2014d2a376613c52d0a1346b137670ae97c676`.
+Observed facts hash:
+`6c912d0f09c54d9f297b70d910f16e4ef03a57866a670e030092426537e90bfe`,
+revision 1, cutoff 300s, unchanged 22 players/805 knots/90 events.
+One SDK Send, zero initial-plan/narration/correction/retry requests; internal
+provider inference-turn count was not measured. Raw prompt/facts/schema/response
+were preserved in session-only owner-readable witnesses before validation.
+
+For **no-paid native review**, seek the matching startup recording to 300s,
+open Settings → **Recorded Director's Cut demo / No AI call**, then **Watch
+recorded film / No AI call**. This is explicitly **Recorded SDK / Not fresh**,
+never substituted for the normal Director action. It is unavailable on another
+scene or before that observed cutoff. The selected Split Signal logo is retained.
+
+| Film wall interval | Actual source footage | Freeze hold | Local score after finish |
+|---|---|---|---|
+| 0–12s | 69–78s at 1x | 9–12s | 0:0 |
+| 12–30s | 79–86s at 0.5x | 26–30s | 1:0 |
+| 30–43s | 152–162s at 1x | 40–43s | 1:0 |
+| 43–58s | 165–176s at 1x | 54–58s | 1:1 |
+
+The AI selected the switch of play, wide-to-central opener, changed possession
+and opposing equalizer. These are editorial AI choices, not a deterministic
+goal playlist. The experience maps the rules' observed ingest → interpretation →
+explanation → broadcast rendering path without promising eligibility or a win.
+Native visual acceptance is separate from headless timeline/renderer tests and
+successful real SDK output; no app launch is implied by a signed build.
+
 ## Explain this moment
 
 Play to an event, then click **Explain this moment**. That single explicit action

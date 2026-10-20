@@ -8,12 +8,18 @@ public sealed partial class MatchService
     {
         generation = new(new NativeSource(this), presentation.Match, ScenarioOrigin.RecordedSdkExample, AuthoredMatchRecording.Model);
         Explainer = new(new NativeMomentSource(this));
+        Director = new(new NativeDirectorSource(this));
         checkConnection = (progress, token) => new NativeSource(this).CheckAsync(progress, token);
         Initialize();
     }
     private static string Executable(MatchService owner) => string.IsNullOrWhiteSpace(owner.CliOverride)
         ? Path.Combine(Foundation.NSBundle.MainBundle.ResourcePath ?? throw new CopilotGenerationException("App resources missing."),
             "CopilotRuntime", "prebuilds", "darwin-arm64", "copilot-runtime") : owner.CliOverride.Trim();
+    private sealed class NativeDirectorSource(MatchService owner) : IDirectorSource
+    {
+        public Task<string> CreateAsync(DirectorEvidence evidence, IProgress<string>? progress, CancellationToken token) =>
+            Task.Run(() => new CopilotScenarioSource(Executable(owner), FileSystem.AppDataDirectory).GenerateDirectorAsync(evidence, progress, token), token);
+    }
 
     private sealed class NativeMomentSource(MatchService owner) : IMomentSource
     {

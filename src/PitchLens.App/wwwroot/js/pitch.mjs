@@ -2,6 +2,7 @@ import { ReplayEngine, at, keyboardAction } from "./replay.mjs";
 import { broadcastFrame, prepareBroadcast, netPoints } from "./broadcast.mjs";
 import { PopupHost } from "./popups.mjs";
 import { pinnedEvidence, evidenceVisible, drawEvidence } from "./evidence.mjs";
+import { FilmProjection } from "./director.mjs";
 import { ARENA, viewportMap, backgroundTransform, applyField, fieldToViewport, pointerInDrawnViewport } from "./viewport.mjs";
 
 let engine, canvas, viewport, context, background, observer, reference, frameId = null;
@@ -10,6 +11,7 @@ let popups = null, lensPlayerId = null, canvasBox = null, geometryHandler = null
 let map = null, wideMap = null, markerSize = null;
 let playerLayer = null;
 let evidence = null;
+let film = null;
 let reducedMotion = false, motionQuery = null, motionHandler = null, lastClockTime = 0;
 const playerTargets = new Map();
 const now = () => performance.now();
@@ -39,12 +41,27 @@ export function initialize(element, dotnet) {
     observer = new ResizeObserver(resize); observer.observe(viewport);
     window.addEventListener("resize", resize);
     pointerHandler = event => {
+        if (film) return;
         const box = canvas.getBoundingClientRect();
         const point = map && pointerInDrawnViewport(map, box, event.clientX, event.clientY);
         if (point) engine?.select(point.x, point.y, map.width, map.height, now(), map.field);
     };
     canvas.addEventListener("pointerdown", pointerHandler);
-    visibilityHandler = () => { if (document.hidden) { playerLayer.hidden = true; popups?.hidePlayer(true); engine?.hide(now()); stop(); } else { cacheGeometry(); draw(); } };
+    visibilityHandler = () => {
+        if (document.hidden) {
+            playerLayer.hidden = true; popups?.hidePlayer(true);
+            if (film) {
+                const time = film.frame(now()).filmTime; film.apply(time, false, now());
+                reference?.invokeMethodAsync("FilmHidden").catch(error => {
+                    console.error("Film visibility synchronization failed", error);
+                    const banner = document.getElementById("blazor-error-ui");
+                    if (banner) { banner.textContent = "Film paused; visibility synchronization failed. Return to the match."; banner.style.display = "block"; }
+                });
+            }
+            else engine?.hide(now());
+            stop();
+        } else { cacheGeometry(); draw(); }
+    };
     document.addEventListener("visibilitychange", visibilityHandler);
     keyboardHandler = event => {
         if (document.querySelector?.("dialog[open][aria-modal='true']")) return;
@@ -118,11 +135,18 @@ function circle(c, x, y, radius, fill, stroke) {
 function draw() {
     stop();
     if (!engine?.scenario || !canvas || !width || !height || document.hidden) return;
-    const clockTime = engine.frame(now());
+    const filmFrame = film?.frame(now());
+    const clockTime = filmFrame?.sourceTime ?? engine.frame(now());
     lastClockTime = clockTime;
     const pinned = evidenceVisible(evidence, engine.clock, clockTime);
     if (!pinned) evidence = null;
-    const broadcast = broadcastFrame(engine.scenario, clockTime, !pinned && engine.clock.highlightsEnabled && !reducedMotion);
+    let broadcast = broadcastFrame(engine.scenario, clockTime, !film && !pinned && engine.clock.highlightsEnabled && !reducedMotion);
+    if (filmFrame) {
+        const goal = engine.scenario.goals.find(g => g.id === filmFrame.scene.focusEventId);
+        broadcast = { ...broadcast, time: clockTime, phase: filmFrame.holding ? "reaction" : "shot",
+            view: !reducedMotion && filmFrame.scene.camera === "finish" && goal ? goal.cameraView : ARENA,
+            replay: false, deadBall: false, contact: goal && filmFrame.holding ? { goal, age: 0 } : null };
+    }
     const time = broadcast.time;
     engine.lastDrawTime = time; // Hit testing and following lenses use the actual replay camera, not a future live position.
     const following = popups?.floating?.id === "player-dialog";
@@ -134,6 +158,10 @@ function draw() {
     c.setTransform(...backgroundTransform(wideMap, map)); c.drawImage(background, 0, 0);
     applyField(c, map);
     if (pinned) drawEvidence(c, evidence.fact);
+    if (filmFrame?.holding) {
+        const points = engine.scenario.ball.filter(p => p.time >= filmFrame.scene.sourceStart && p.time <= clockTime);
+        drawEvidence(c, { ball: [at(engine.scenario.ball, filmFrame.scene.sourceStart), ...points, at(engine.scenario.ball, clockTime)] });
+    }
     const evidenceTag = document.getElementById("evidence-view-tag");
     if (evidenceTag) {
         evidenceTag.hidden = !pinned;
@@ -195,8 +223,12 @@ function draw() {
         if (visible) popups.follow({ x: canvasBox.left + local.x * scaleX, y: canvasBox.top + local.y * scaleY },
                 canvasBox, Math.max(12, 2.8 * map.field.scale * Math.max(scaleX, scaleY)) + 12);
     }
-    playerLayer.hidden = false;
-    if (engine.clock.playing && clockTime < engine.clock.duration) frameId = requestAnimationFrame(draw);
+    playerLayer.hidden = !!film;
+    const filmLabel = document.getElementById("film-position"), filmText = document.getElementById("film-insight");
+    if (filmLabel && filmFrame) filmLabel.textContent = `FILM ${filmFrame.filmTime.toFixed(1)} / ${filmFrame.duration.toFixed(1)}s · SOURCE ${clockTime.toFixed(1)}s · ${filmFrame.holding ? "FREEZE / EVIDENCE" : `RECORDED FOOTAGE ${filmFrame.scene.rate}x`}`;
+    if (filmText) { filmText.hidden = !filmFrame?.holding; filmText.textContent = filmFrame?.holding ? filmFrame.scene.text : ""; }
+    if (film ? film.playing && filmFrame.filmTime < filmFrame.duration : engine.clock.playing && clockTime < engine.clock.duration)
+        frameId = requestAnimationFrame(draw);
 }
 function clearPlayerTargets() {
     for (const { button, activate } of playerTargets.values()) button.removeEventListener("click", activate);
@@ -215,6 +247,7 @@ function buildPlayerTargets() {
         button.setAttribute("aria-controls", "player-dialog");
         button.style.zIndex = String(engine.drawPlayers.findIndex(player => player.id === p.id) + 1);
         const activate = () => {
+            if (film) return;
             if (engine?.scenario?.revision !== revision) return;
             button.focus({ preventScroll: true });
             engine.selectPlayer(p.id);
@@ -226,6 +259,7 @@ function buildPlayerTargets() {
 }
 export function loadScenario(json) {
     if (engine?.load(JSON.parse(json), now())) {
+        film = null;
         evidence = null;
         prepareBroadcast(engine.scenario);
         lastClockTime = 0;
@@ -254,7 +288,7 @@ function updateTransport(time, broadcast = broadcastFrame(engine.scenario, time,
     const pace = document.getElementById("effective-speed");
     if (pace) {
         const active = engine.clock.highlightsEnabled && engine.clock.windows.some(w => w.start <= time && time < w.end);
-        const label = active ? `Highlight ${engine.clock.effectiveRate(now())}x · base ${engine.clock.rate}x` : `${engine.clock.rate}x`;
+        const label = film ? `Match ${engine.clock.rate}x saved` : active ? `Highlight ${engine.clock.effectiveRate(now())}x · base ${engine.clock.rate}x` : `${engine.clock.rate}x`;
         if (pace.textContent !== label) pace.textContent = label;
     }
     const banner = document.getElementById("goal-banner");
@@ -297,11 +331,27 @@ export function openPopup(id, selectedId = engine?.selectedId) {
     draw();
 }
 export function closePopup(id) { popups?.close(id); }
+export function loadFilm(json) {
+    if (!json) { film = null; draw(); return; }
+    const plan = JSON.parse(json);
+    if (plan.revision !== engine.scenario.revision) throw new Error("Film belongs to a different scene.");
+    film = new FilmProjection(plan);
+    popups?.close("player-dialog", false); popups?.close("roster-dialog", false);
+    draw();
+}
+export function setFilmClock(position, playing, sequence, revision) {
+    if (!film) throw new Error("No film loaded.");
+    if (!Number.isSafeInteger(sequence) || revision !== engine.scenario.revision) throw new Error("Invalid film clock packet.");
+    if (sequence <= film.sequence) return;
+    film.sequence = sequence;
+    film.apply(position, playing, now()); draw();
+}
 export function setEvidence(revision, json) {
     evidence = pinnedEvidence(revision, json, engine.clock);
     draw();
 }
 export function dispose() {
+    film = null;
     evidence = null;
     const evidenceTag = document.getElementById("evidence-view-tag");
     if (evidenceTag) { evidenceTag.hidden = true; evidenceTag.textContent = ""; }

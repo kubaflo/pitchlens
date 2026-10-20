@@ -2,6 +2,35 @@ using PitchLens.Core;
 using PitchLens.Generation;
 using GitHub.Copilot;
 
+if (args is ["--director", var directorRuntime, var directorWork, var directorWitness])
+{
+    var observed = DirectorEvidence.Capture(NarrationRecording.Create(), 1, 300);
+    Directory.CreateDirectory(directorWitness);
+    async Task SaveDirectorWitness(string name, string content)
+    {
+        var options = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Options = FileOptions.Asynchronous };
+        if (!OperatingSystem.IsWindows()) options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        await using var stream = new FileStream(Path.Combine(directorWitness, name), options);
+        await using var writer = new StreamWriter(stream);
+        await writer.WriteAsync(content);
+    }
+    await SaveDirectorWitness("request.txt", DirectorPrompt.For(observed));
+    await SaveDirectorWitness("facts.json", observed.Json);
+    await SaveDirectorWitness("schema.json", DirectorPrompt.Schema);
+    using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(270));
+    try
+    {
+        var directorSource = new CopilotScenarioSource(directorRuntime, directorWork, Path.Combine(directorWitness, "raw-responses"));
+        var raw = await directorSource.GenerateDirectorAsync(observed, new Progress<string>(Console.WriteLine), deadline.Token);
+        await SaveDirectorWitness("response.json", raw);
+        var plan = observed.Validate(raw);
+        await SaveDirectorWitness("validated.json", raw);
+        Console.WriteLine($"LIVE DIRECTOR VALIDATED | model={CopilotScenarioSource.Model} | factsHash={observed.Hash} | cutoff={observed.Cutoff} | scenes={plan.Scenes.Length} | wallSeconds={FilmTimeline.Duration(plan)} | SDK Send requests=1 | match plan requests=0");
+        return 0;
+    }
+    catch (Exception e) when (e is ScenarioValidationException or CopilotGenerationException or OperationCanceledException or IOException)
+    { Console.Error.WriteLine($"DIRECTOR NOT VERIFIED: {e.Message}. No retry or repair."); return 1; }
+}
 if (args is ["--narration", var narrationRuntime, var narrationWork, var narrationWitness])
 {
     var immutableMatch = AuthoredMatchRecording.Create();

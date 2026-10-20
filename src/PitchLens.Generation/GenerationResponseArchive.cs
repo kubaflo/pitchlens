@@ -7,7 +7,7 @@ public sealed class GenerationResponseArchive(string directory)
     private readonly string requestId = Guid.NewGuid().ToString("N");
     public async Task SaveAsync(string stage, string response)
     {
-        if (stage is not ("paths" or "correction" or "corrected" or "commentary" or "validated"))
+        if (stage is not ("paths" or "correction" or "corrected" or "commentary" or "validated" or "director"))
             throw new ArgumentException("Unknown generation artifact stage.", nameof(stage));
         if (response.Length > 1_000_000)
             throw new CopilotGenerationException("Model response exceeded the bounded diagnostic archive limit. Previous match kept.");

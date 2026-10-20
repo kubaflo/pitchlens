@@ -1,0 +1,51 @@
+{
+  "factsHash": "6c912d0f09c54d9f297b70d910f16e4ef03a57866a670e030092426537e90bfe",
+  "revision": 1,
+  "cutoff": 300,
+  "scenes": [
+    {
+      "id": "switch-the-point",
+      "sourceStart": 69,
+      "sourceEnd": 78,
+      "rate": 1,
+      "holdSeconds": 3,
+      "camera": "tactical",
+      "focusEventId": "e24",
+      "evidenceIds": ["e22", "e23", "e24"],
+      "text": "Arsenal move from the left flank through the middle to the right, changing the point of attack."
+    },
+    {
+      "id": "wide-to-central-payoff",
+      "sourceStart": 79,
+      "sourceEnd": 86,
+      "rate": 0.5,
+      "holdSeconds": 4,
+      "camera": "finish",
+      "focusEventId": "e28",
+      "evidenceIds": ["e25", "e26", "e27", "e28"],
+      "text": "A wide carry and a square pass precede the central finish that gives Arsenal the lead."
+    },
+    {
+      "id": "possession-changes-direction",
+      "sourceStart": 152,
+      "sourceEnd": 162,
+      "rate": 1,
+      "holdSeconds": 3,
+      "camera": "tactical",
+      "focusEventId": "e49",
+      "evidenceIds": ["e47", "e48", "e49"],
+      "text": "City collect the misplaced pass, advance along the left and bring possession into midfield."
+    },
+    {
+      "id": "answer-through-the-flank",
+      "sourceStart": 165,
+      "sourceEnd": 176,
+      "rate": 1,
+      "holdSeconds": 4,
+      "camera": "finish",
+      "focusEventId": "e55",
+      "evidenceIds": ["e51", "e52", "e53", "e54", "e55"],
+      "text": "City echo the flank to centre route as Doku and Cherki connect before Haaland scores the equalizer."
+    }
+  ]
+}

@@ -14,17 +14,19 @@
             <button class="synthetic-badge" @onclick='() => Open("settings-dialog")'>Synthetic match · @($"{match.Players.Count / 2}v{match.Players.Count / 2}")</button>
             <div class="actions">
                 @if (Session.Generating) { <button class="button ghost" id="cancel-generation" @onclick="Session.Cancel">Cancel creation</button> }
-                <button id="generate-match" class="button mint" @onclick='() => Open("generation-dialog")'>@(Session.Generating ? "Creating…" : "New match")</button>
+                <button id="generate-match" class="button mint" disabled="@(Session.FilmActive || Session.Director.Busy)" @onclick='() => Open("generation-dialog")'>@(Session.Generating ? "Creating…" : "New match")</button>
             </div>
         </header>
         <div class="persistent-activities">
             <RequestActivityView Activity="Session.Explainer.Activity" Title="Sol · Explain this moment" Budget="270s response budget · Up to 6 read-only tool calls · Bounded cleanup" Cancel="Session.Explainer.Cancel" />
             <RequestActivityView Activity="Session.GenerationActivity" Title="Sol · Creating your match" Budget="15-minute total budget · Up to 3 model responses · No fallback" Cancel="Session.Cancel" />
             <RequestActivityView Activity="Session.ConnectionActivity" Title="SDK connection check · No AI request" Budget="45-second check · No generation or model usage" Cancel="Session.CancelConnection" />
+            <RequestActivityView Activity="Session.Director.Activity" Title="Sol · Director's Cut" Budget="One editorial request · 270s response budget · Bounded cleanup" Cancel="Session.Director.Cancel" />
         </div>
         <div class="page-heading">
             <div><span class="eyebrow">Matchday / Synthetic 11v11</span><h1>Arsenal <span class="fixture-versus">v</span> City</h1></div>
-            <div class="actions"><button class="button purple" disabled="@(!Session.CanExplainCurrent)" title="Uses Copilot usage. Requires an observed event; unavailable during match creation or an SDK connection check." aria-label="Explain this moment. Uses Copilot usage." @onclick="OpenMoment">Explain this moment</button><button id="players-button" class="button" @onclick='() => Open("roster-dialog")'>Players</button><button class="button purple" @onclick='() => Open("story-dialog")'>Match story</button></div>
+            <div class="actions"><button class="button purple" disabled="@(!Session.CanExplainCurrent)" title="Uses Copilot usage. Requires an observed event; unavailable during match creation or an SDK connection check." aria-label="Explain this moment. Uses Copilot usage." @onclick="OpenMoment">Explain this moment</button><button id="players-button" class="button" disabled="@Session.FilmActive" @onclick='() => Open("roster-dialog")'>Players</button><button class="button purple" disabled="@Session.FilmActive" @onclick='() => Open("story-dialog")'>Match story</button></div>
+            <button class="button" disabled="@(!Session.CanDirect)" title="Uses Copilot usage. Needs an observed goal and at least a minute of evidence." aria-label="Director's Cut. Uses Copilot usage." @onclick="OpenDirector">Director's Cut</button>
         </div>
         <section class="score-strip" aria-label="Synthetic match score">
             <div class="team"><img src="images/arsenal_crest.png" alt="Arsenal crest" /><strong>Arsenal</strong></div>
@@ -45,10 +47,16 @@
                 <div id="goal-replay-tag" class="goal-replay-tag" hidden aria-live="off"><span></span> GOAL REPLAY <small>Back live at kickoff</small></div>
                 <div id="evidence-view-tag" class="goal-replay-tag" hidden aria-live="off"></div>
                 <div id="commentary-caption" class="commentary-caption" hidden aria-label="AI commentator subtitles" aria-live="off"></div>
+                @if (Session.FilmActive) { <div class="film-heading"><span>DIRECTOR'S CUT · SYNTHETIC IN-APP FILM · @(Session.Director.Current?.Fresh == true ? Session.Director.Current.Cached ? "CACHED SDK EDIT" : "FRESH SDK EDIT" : "RECORDED SDK / NOT FRESH")</span><strong id="film-position"></strong><p id="film-insight" hidden></p></div> }
             </div>
-            <div class="pitch-caption"><span>Click a shirt. Get the player lens.</span><span>@(match.Narrative is null ? frame.Explanations.LastOrDefault()?.Text ?? "Play to reveal the story." : frame.Story.LastOrDefault()?.Heading ?? "The story unfolds as you watch.")</span></div>
+            <div class="pitch-caption"><span>@(Session.FilmActive ? "Film view · Return to the paused match for player lenses." : "Click a shirt. Get the player lens.")</span><span>@(match.Narrative is null ? frame.Explanations.LastOrDefault()?.Text ?? "Play to reveal the story." : frame.Story.LastOrDefault()?.Heading ?? "The story unfolds as you watch.")</span></div>
         </main>
+        @if (Session.FilmFrame is { } filmFrame)
+        {
+            <div class="film-transport"><button class="button" @onclick='() => Session.FilmCommand("restart")'>Restart film</button><button class="button purple" @onclick='() => Session.FilmCommand("toggle")'>@(Session.FilmPlaying ? "Pause film" : "Play film")</button><input aria-label="Film time in wall seconds" type="range" min="0" max="@filmFrame.Duration" step="0.1" value="@filmFrame.FilmTime" @onchange="FilmSeek" /><button class="button" @onclick='() => Session.FilmCommand("exit")'>Return to paused match</button><small>Film clock is separate. Player lenses and main replay controls are unavailable in film.</small></div>
+        }
         <footer class="transport">
+            <fieldset class="match-controls" disabled="@Session.FilmActive">
             <button id="restart" class="button" @onclick='() => Command("restart")'>Restart</button>
             <button id="play-pause" class="button purple play" aria-keyshortcuts="Space" @onclick="Toggle">@(snapshot.Time >= match.Duration ? "Replay match" : frame.Playing ? "Pause" : "Play")</button>
             <label class="scrub-label" for="timeline">Replay<span class="scrub-track"><input id="timeline" type="range" min="0" max="@match.Duration" step="0.1" @onchange="TimelineChanged" aria-label="Replay time in seconds" />@foreach (var goal in snapshot.Events.Where(e => e.Kind == EventKind.Goal)) { <button class="goal-tick" style="left:@((goal.Time / match.Duration * 100).ToString(System.Globalization.CultureInfo.InvariantCulture))%" aria-label="Watch @match.Player(goal.ActorId).Name goal at @goal.Time seconds" @onclick="() => WatchGoal(goal.Id)">●</button> }</span></label>
@@ -57,6 +65,7 @@
             <output id="effective-speed" class="effective-speed" aria-label="Effective replay pace"></output>
             <button class="button cc-button" aria-label="AI commentator subtitles" aria-pressed="@(captionsEnabled ? "true" : "false")" disabled="@(match.Commentary is null)" @onclick="ToggleCaptions">CC</button>
             <button class="text-button" @onclick='() => Open("settings-dialog")'>Settings</button>
+            </fieldset>
         </footer>
         @if (Session.Generating)
         {
@@ -131,6 +140,24 @@
                 <details class="caption"><summary>Request limits & data handling</summary><p>Exact @CopilotScenarioSource.Model, up to six read-only evidence calls, one response for both modes. Response budget 270 seconds plus bounded SDK cleanup. No automatic retries or fallback. Raw responses are not automatically logged. Invalid output keeps the earlier answer.</p></details>
             </div>
         </dialog>
+        <dialog id="director-dialog" aria-labelledby="director-title">
+            <header class="dialog-head"><div><span class="eyebrow">AI editorial / Observed footage</span><h2 id="director-title">Director's Cut</h2></div><button class="close" data-close-popup>Close</button></header>
+            <div class="dialog-body">
+                <RequestActivityView Activity="Session.Director.Activity" Title="Sol is directing your film" Budget="One request · 270s response budget · No automatic retries" Cancel="Session.Director.Cancel" />
+                <p>@Session.DirectorNotice</p><p role="status">@Session.Director.Status</p>
+                @if (Session.Director.Current is { } directed)
+                {
+                    <span class="source-pill">@(directed.Fresh ? directed.Cached ? "Cached SDK edit / Exact snapshot" : "Fresh SDK edit" : "Recorded SDK edit / Not fresh")</span>
+                    @if (Session.Director.Busy || Session.Director.Activity.Snapshot.Stage is RequestStage.Failed or RequestStage.Cancelled)
+                    { <strong>Earlier valid film · latest request has not replaced it</strong> }
+                    <p>@FilmTimeline.Duration(directed.Plan).ToString("0.0")s film · @directed.Plan.Scenes.Length scenes · Observed through @directed.Evidence.Cutoff.ToString("0.0")s</p>
+                    <button class="button mint" disabled="@(Session.Director.Busy || Session.Explainer.Busy || Session.Generating || Session.CheckingConnection)" @onclick="WatchFilm">Watch in-app film</button>
+                }
+                @if (!Session.Director.Busy && Session.Director.Activity.Snapshot.Stage is RequestStage.Failed or RequestStage.Cancelled)
+                { <button class="button" @onclick="RetryDirector" title="Uses Copilot usage">Retry editorial request</button> }
+                <p class="caption">Not MP4, audio or real video. Actual synthetic match positions; AI selects clips and explains observed evidence. Main match remains paused and unchanged. Exit returns to its saved position/speed/selection.</p>
+            </div>
+        </dialog>
         <dialog id="generation-dialog" aria-labelledby="generation-title">
             <header class="dialog-head"><div><span class="eyebrow">Copilot SDK</span><h2 id="generation-title">Create a new match.</h2><span class="caption">A real generation request, not a scripted preview.</span></div><button class="close" data-close-popup>Close</button></header>
             <div class="dialog-body">
@@ -156,6 +183,7 @@
                 <button class="button" aria-pressed="@(frame.HighlightsEnabled ? "true" : "false")" @onclick="ToggleGoalReplays">Goal highlights: @(frame.HighlightsEnabled ? "On" : "Off")</button>
                 <p class="caption">Highlights use a contextual 2D camera and readable 1x buildup/finish/replay pace, then restore your selected speed at kickoff. The native clock owns both rates. Reduced motion keeps the tactical camera and suppresses extra effects.</p>
                 <p>Space plays or pauses; Left/Right seek one second outside form controls. Player lens and roster preserve playback. Story, settings and creation pause replay.</p>
+                <details><summary>Recorded Director's Cut demo · No AI call</summary><p>A real Sol-authored58second edit of the startup recording. Requires that matching scene observed through300s (seek to the end to preview). Clearly labelled Recorded SDK / Not fresh; the main Director action still requests a new edit.</p><button class="button" disabled="@(Session.Director.Busy || Session.Explainer.Busy || Session.Generating || Session.CheckingConnection || Session.FilmActive || !DirectorRecording.Available(match, frame.Revision, snapshot.Time))" @onclick="PreviewDirector">Watch recorded film · No AI call</button></details>
                 <details><summary>Advanced generation setup</summary><p>New requests use @CopilotScenarioSource.Model. Normal Copilot login and model access are required.</p><label for="cli">Compatible runtime override</label><input id="cli" placeholder="Bundled runtime (leave blank)" @bind="Session.CliOverride" disabled="@(Session.Generating || Session.CheckingConnection || Session.Explainer.Busy)" /><button class="button" @onclick="Session.CheckConnectionAsync" disabled="@(Session.Generating || Session.CheckingConnection || Session.Explainer.Busy)">Check SDK connection (no generation)</button><p role="status">@Session.ConnectionStatus</p></details>
             </div>
         </dialog>
@@ -173,6 +201,7 @@
     private bool disposed;
     private string? error;
     private string? evidenceNotice;
+    private FilmPlan? loadedFilm;
     private long loadedRevision;
     private PopupRequest? pendingPopup;
     private bool captionsEnabled = true;
@@ -215,7 +244,7 @@
         {
             using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(250));
             while (await timer.WaitForNextTickAsync(lifetime.Token))
-                if (!disposed && Session.Active && frame?.Playing == true) await InvokeAsync(() => Refresh(false));
+                if (!disposed && Session.Active && (frame?.Playing == true || Session.FilmPlaying)) await InvokeAsync(() => Refresh(false));
         }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
     }
@@ -237,6 +266,13 @@
                     await module.InvokeVoidAsync("loadScenario", WebContracts.Scenario(current.Match, current.Revision));
                 }
                 await module.InvokeVoidAsync("setClock", WebContracts.Clock(current));
+                if (Session.FilmFrame is { } filmFrame && Session.Director.Current is { } directed)
+                {
+                    if (!ReferenceEquals(loadedFilm, directed.Plan))
+                    { await module.InvokeVoidAsync("loadFilm", JsonSerializer.Serialize(directed.Plan, WebJsonContext.Default.FilmPlan)); loadedFilm = directed.Plan; }
+                    await module.InvokeVoidAsync("setFilmClock", filmFrame.FilmTime, Session.FilmPlaying, current.Sequence, current.Revision);
+                }
+                else if (loadedFilm is not null) { loadedFilm = null; await module.InvokeVoidAsync("loadFilm", (string?)null); }
             }
             StateHasChanged();
         }
@@ -273,6 +309,30 @@
         await Session.ExplainCurrentMomentAsync();
     }
     private Task RetryMoment() => Session.ExplainCurrentMomentAsync(retry: true);
+    private async Task OpenDirector()
+    {
+        var allowed = Session.CanDirect;
+        Open("director-dialog");
+        await Session.DirectCurrentAsync();
+        if (allowed && !Session.FilmActive && !Session.Director.Busy && Session.Director.Current is not null && Session.Director.Activity.Snapshot.Stage == RequestStage.Complete)
+            await WatchFilm();
+    }
+    private Task RetryDirector() => Session.DirectCurrentAsync(retry: true);
+    private async Task WatchFilm()
+    {
+        Session.WatchDirector();
+        if (module is not null) await module.InvokeVoidAsync("closePopup", "director-dialog");
+    }
+    private void FilmSeek(ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var value))
+            Session.FilmCommand("seek", value);
+    }
+    private async Task PreviewDirector()
+    {
+        Session.PreviewRecordedDirector();
+        if (module is not null) await module.InvokeVoidAsync("closePopup", "settings-dialog");
+    }
     private async Task InspectEvidence(MomentEvidence captured, string id)
     {
         var evidence = captured.Resolve(id);
@@ -326,6 +386,12 @@
     [JSInvokable] public Task PageHidden(double time, long revision) => InvokeAsync(() => Session.Freeze(time, revision));
     [JSInvokable] public Task KeyboardCommand(string command) => InvokeAsync(() =>
     {
+        if (Session.FilmActive)
+        {
+            if (command == "toggle") Session.FilmCommand("toggle");
+            else if (Session.FilmFrame is { } filmFrame) Session.FilmCommand("seek", filmFrame.FilmTime + (command == "back" ? -1 : 1));
+            return;
+        }
         switch (command)
         {
             case "toggle": Toggle(); break;
@@ -334,6 +400,7 @@
             default: throw new ArgumentException("Unknown keyboard command.");
         }
     });
+    [JSInvokable] public Task FilmHidden() => InvokeAsync(() => { if (Session.FilmPlaying) Session.FilmCommand("toggle"); });
     public async ValueTask DisposeAsync()
     {
         disposed = true;
@@ -341,6 +408,7 @@
         Session.Command("pause");
         Session.Cancel();
         Session.Explainer.Cancel();
+        Session.Director.Cancel();
         lifetime.Cancel();
         try
         {

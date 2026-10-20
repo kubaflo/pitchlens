@@ -32,6 +32,8 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
         RequestAsync(CommentaryPrompt.For(match), CommentaryPrompt.Schema, "commentary", progress, cancellationToken);
     public Task<string> GenerateNarrationAsync(Match match, IProgress<string>? progress, CancellationToken cancellationToken) =>
         RequestAsync(NarrationPrompt.For(match), NarrationPrompt.Schema, "commentary", progress, cancellationToken);
+    public Task<string> GenerateDirectorAsync(DirectorEvidence evidence, IProgress<string>? progress, CancellationToken token) =>
+        RequestAsync(DirectorPrompt.For(evidence), DirectorPrompt.Schema, "director", progress, token);
     internal CopilotClient CreateClient()
     {
         if (!Path.IsPathFullyQualified(cliPath) || !File.Exists(cliPath))
@@ -95,9 +97,12 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
             var client = CreateClient();
             await using var owner = new BoundedClient(client, () => progress?.Report("Cleaning up the owned SDK runtime…"));
             await ConnectAsync(client, progress, value => stage = value, cancellationToken).ConfigureAwait(false);
-            progress?.Report(responseStage == "correction"
-                ? $"AI refining rejected paths with {Model} (one correction maximum; events unchanged)…"
-                : $"Generating synthetic match content with {Model}…");
+            progress?.Report(responseStage switch
+            {
+                "correction" => $"AI refining rejected paths with {Model} (one correction maximum; events unchanged)…",
+                "director" => $"Preparing one {Model} editorial request from observed footage…",
+                _ => $"Generating synthetic match content with {Model}…"
+            });
             stage = "session";
             progress?.Report("Creating the Copilot SDK session…");
             var session = await client.CreateSessionAsync(CreateSessionConfig(), cancellationToken).ConfigureAwait(false);
@@ -109,6 +114,7 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
                 {
                     "correction" => "Sol is refining player paths (one correction maximum)…",
                     "commentary" => "Sol is composing contextual narration and match story…",
+                    "director" => "Sol is choosing clips, evidence and pacing for Director's Cut…",
                     _ => "Sol is authoring all 22 player paths and match events…"
                 });
                 var response = await session.SendAndWaitAsync(new MessageOptions

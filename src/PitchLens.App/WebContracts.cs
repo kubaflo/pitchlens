@@ -17,6 +17,7 @@ public sealed record WebClock(long Revision, long Sequence, double Time, bool Pl
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(WebScenario))]
 [JsonSerializable(typeof(WebClock))]
+[JsonSerializable(typeof(FilmPlan))]
 public partial class WebJsonContext : JsonSerializerContext;
 
 public static class WebContracts
