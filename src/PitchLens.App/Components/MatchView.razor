@@ -38,7 +38,7 @@
         @if (evidenceNotice is not null) { <div class="request-status" role="status">@evidenceNotice</div> }
         @if (Session.MomentIntentNotice is { } momentNotice) { <div class="request-status" role="status">@momentNotice</div> }
         <MatchLenses Match="match" SelectedId="@frame.SelectedId" Options="lensOptions" View="lensView" Focus="storyFocus"
-            FavoriteNotice="@favoriteNotice" FilmActive="Session.FilmActive" OptionsChanged="SetLensOptions"
+            FavoriteNotice="@favoriteNotice" FilmActive="Session.FilmActive" Revision="frame.Revision" OptionsChanged="SetLensOptions"
             SelectedPlayer="SelectLensPlayer" FocusSelected="SetStoryFocus" Replay="ReplayConnection" />
         <main class="matchday-stage">
             <div class="pitch-slot">

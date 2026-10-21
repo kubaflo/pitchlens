@@ -26,7 +26,9 @@ namespace PitchLens.Core.Tests
             await using var renderer=new HtmlRenderer(services,services.GetRequiredService<ILoggerFactory>());
             var root=await renderer.Dispatcher.InvokeAsync(()=>renderer.RenderComponentAsync<Page>());
             Assert.Null(capture.Page!.LensViewForTest);
-            Assert.Contains("My match",await renderer.Dispatcher.InvokeAsync(root.ToHtmlString));
+            var initial=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
+            Assert.Contains("Analysis",initial);Assert.DoesNotContain("My match story focus",initial);
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ToggleForAnalysisTest());
             await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ModeForLensTest(PitchLensMode.Connections));
             await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.RangeForLensTest(ObservedRange.MatchSoFar));
             await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ClubForLensTest(native.Match.Teams[1].Id));
@@ -80,6 +82,7 @@ namespace PitchLens.Core.Tests
             var capture=new Capture();using var services=Services(native,capture);
             await using var renderer=new HtmlRenderer(services,services.GetRequiredService<ILoggerFactory>());
             var root=await renderer.Dispatcher.InvokeAsync(()=>renderer.RenderComponentAsync<Page>());
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ToggleForAnalysisTest());
             await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ModeForLensTest(PitchLensMode.Connections));
             await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ClubForLensTest(away));
             var lens=capture.Page!.LensViewForTest!;
@@ -96,6 +99,75 @@ namespace PitchLens.Core.Tests
             Assert.DoesNotContain("My match / Arsenal",html);Assert.DoesNotContain("My match / Manchester City",html);
             Assert.Equal(1,source.Calls);Assert.Equal(0,forbidden.Calls); // Only one offline fixture delivery; every lens action is local.
         }
+        [Theory]
+        [InlineData(PitchLensMode.Movement,false)]
+        [InlineData(PitchLensMode.Connections,false)]
+        [InlineData(PitchLensMode.Movement,true)]
+        [InlineData(PitchLensMode.Connections,true)]
+        public async Task Analysis_is_collapsed_with_active_lens_and_open_close_preserves_replay_focus_window_and_selection(PitchLensMode mode,bool otherFixture)
+        {
+            var forbidden=new MatchLensTests.Forbidden();var clock=new Clock();
+            var source=new LocalFixture(FixtureTests.Json(FixtureCatalog.Create("liverpool","chelsea")));
+            using var native=new MatchService(otherFixture?source:forbidden,forbidden,(_,_)=>throw new InvalidOperationException("No SDK"),forbidden,replayClock:clock);
+            if(otherFixture)await native.GenerateAsync();
+            await native.ChooseModeAsync(SessionMode.Test,false);
+            native.Command("seek",150);native.Command("highlights",0);native.Command("rate",3);native.Command("play");
+            var capture=new Capture();using var services=Services(native,capture);
+            await using var renderer=new HtmlRenderer(services,services.GetRequiredService<ILoggerFactory>());
+            var root=await renderer.Dispatcher.InvokeAsync(()=>renderer.RenderComponentAsync<Page>());
+            // Load an active selection before ever opening the disclosure.
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ModeForLensTest(mode));
+            Assert.False(capture.Controls!.AnalysisOpenForTest);
+            var html=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
+            Assert.Contains("aria-expanded=\"false\"",html);Assert.Contains("aria-controls=\"analysis-panel\"",html);
+            Assert.Contains("class=\"analysis-panel\" hidden",html);
+            Assert.DoesNotContain("Lens observed window",html);Assert.DoesNotContain("My match story focus",html);
+            Assert.DoesNotContain("hottest cell",html);Assert.DoesNotContain("class=\"lens-summary\"",html);
+            Assert.Contains("id=\"commentary-caption\"",html);Assert.Contains("id=\"play-pause\"",html);
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Controls.ToggleForAnalysisTest());
+            html=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
+            Assert.Contains("aria-expanded=\"true\"",html);Assert.Contains("id=\"analysis-panel\"",html);
+            Assert.Contains("Lens observed window",html);Assert.Contains("My match story focus",html);
+            Assert.Contains("Source details",html);Assert.Contains("<summary>Explore",html);
+            var player=native.Match.Players.First(p=>p.TeamId==native.Match.Teams[0].Id);
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Controls.FocusForLensTest("player:"+player.Id));
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Controls.RangeForLensTest(ObservedRange.MatchSoFar));
+            if(mode==PitchLensMode.Movement)await renderer.Dispatcher.InvokeAsync(()=>capture.Controls.CellForLensTest(8));
+            else await renderer.Dispatcher.InvokeAsync(()=>capture.Controls.EdgeForLensTest(capture.Page!.LensViewForTest!.Edges[0].Id));
+            var focus=capture.Controls.Focus;
+            var options=capture.Controls.Options;
+            Assert.NotNull(capture.Page);
+            var playing=native.Sample(true)!.Frame;
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Controls.ToggleForAnalysisTest());
+            Assert.False(capture.Controls.AnalysisOpenForTest);
+            Assert.Equal(options,capture.Controls.Options);Assert.Equal(focus,capture.Controls.Focus);
+            Assert.Equal(player.Id,native.Sample(true)!.Frame.SelectedId);
+            Assert.Equal(playing.Snapshot.Time,native.Sample(true)!.Frame.Snapshot.Time);Assert.True(native.Sample(true)!.Frame.Playing);
+            for(var tick=1;tick<=4;tick++)
+            {
+                clock.Seconds=tick*.25;
+                await renderer.Dispatcher.InvokeAsync(()=>capture.Page.RefreshForLensTest());
+                Assert.False(capture.Controls.AnalysisOpenForTest);
+                Assert.Equal(options,capture.Controls.Options);
+            }
+            Assert.Equal(153,native.Sample(true)!.Frame.Snapshot.Time);
+            native.Command("seek",100);await renderer.Dispatcher.InvokeAsync(()=>capture.Page.RefreshForLensTest());
+            Assert.False(capture.Controls.AnalysisOpenForTest);
+            Assert.Equal(mode.ToString().ToLowerInvariant(),capture.Page.LensViewForTest!.Mode);
+            Assert.Equal(ObservedRange.MatchSoFar,capture.Controls.Options.Range);
+            Assert.Equal(player.Id,native.Sample(true)!.Frame.SelectedId);Assert.Equal(focus,capture.Controls.Focus);
+            html=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
+            Assert.Contains("class=\"analysis-panel\" hidden",html);
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Controls.ToggleForAnalysisTest());
+            Assert.True(capture.Controls.AnalysisOpenForTest);
+            html=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
+            Assert.Contains("My match story focus",html);
+            Assert.DoesNotContain("<details class=\"lens-data\" open",html); // Closing outer analysis cannot reopen nested exploration.
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Controls.ModeForLensTest(PitchLensMode.Off));
+            Assert.Null(capture.Page.LensViewForTest);Assert.Equal(focus,capture.Controls.Focus);
+            Assert.Equal(3,native.Sample(true)!.Frame.Rate);Assert.True(native.Sample(true)!.Frame.Playing);
+            Assert.Equal(otherFixture?1:0,source.Calls);Assert.Equal(0,forbidden.Calls);
+        }
         [Fact]
         public async Task Director_hides_and_restores_lenses_and_new_fixture_resets_missing_favorite_with_explicit_notice()
         {
@@ -105,12 +177,17 @@ namespace PitchLens.Core.Tests
             var capture=new Capture();using var services=Services(native,capture);
             await using var renderer=new HtmlRenderer(services,services.GetRequiredService<ILoggerFactory>());
             var root=await renderer.Dispatcher.InvokeAsync(()=>renderer.RenderComponentAsync<Page>());
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ToggleForAnalysisTest());
             await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ModeForLensTest(PitchLensMode.Movement));
             await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.FocusForLensTest("club:arsenal"));
             native.PreviewRecordedDirector();native.WatchDirector();
             await renderer.Dispatcher.InvokeAsync(()=>capture.Page!.RefreshForLensTest());
             Assert.Null(capture.Page!.LensViewForTest);
             var html=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
+            Assert.Contains("aria-expanded=\"false\"",html);
+            Assert.Contains("class=\"analysis-panel\" hidden",html);
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ToggleForAnalysisTest());
+            html=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
             Assert.Contains("hidden during Director",html);
             Assert.Contains("<fieldset disabled",html);
             native.FilmCommand("exit");await renderer.Dispatcher.InvokeAsync(()=>capture.Page.RefreshForLensTest());
@@ -120,6 +197,10 @@ namespace PitchLens.Core.Tests
             await renderer.Dispatcher.InvokeAsync(()=>capture.Page.RefreshForLensTest());
             Assert.Equal(2,capture.Page.LensViewForTest!.Window.Revision);
             Assert.Equal(0,capture.Page.LensViewForTest.Window.Cutoff);
+            html=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
+            Assert.Contains("aria-expanded=\"false\"",html);
+            Assert.Contains("class=\"analysis-panel\" hidden",html);
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ToggleForAnalysisTest());
             html=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
             Assert.Contains("previous favorite is not in this match",html);
             Assert.Contains("All observed stories",html);
@@ -160,6 +241,8 @@ namespace PitchLens.Core.Tests.Components
     }
     public partial class MatchLenses
     {
+        public void ToggleForAnalysisTest(){ToggleAnalysis();StateHasChanged();}
+        public bool AnalysisOpenForTest=>analysisOpen;
         public Task ModeForLensTest(PitchLensMode mode)=>SetMode(mode);
         public Task RangeForLensTest(ObservedRange range)=>WindowChanged(new(){Value=range.ToString()});
         public Task ClubForLensTest(string id)=>ClubChanged(new(){Value=id});

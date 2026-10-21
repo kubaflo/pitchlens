@@ -1,4 +1,11 @@
 <section class="match-lenses" aria-label="Match lenses and personal story">
+    <button class="analysis-toggle" aria-expanded="@(analysisOpen?"true":"false")" aria-controls="analysis-panel" @onclick="ToggleAnalysis">
+        <span>Analysis</span><small>@(FilmActive?"Unavailable in film":Options.Mode==PitchLensMode.Off?"Optional":Options.Mode.ToString())</small><span aria-hidden="true">@(analysisOpen?"−":"+")</span>
+    </button>
+    <div id="analysis-panel" class="analysis-panel" hidden="@(!analysisOpen)" role="region" aria-label="Optional match analysis">
+    @if(analysisOpen)
+    {
+    @if(FilmActive){<p class="lens-notice">Match lenses are hidden during Director's Cut. Return to the paused match to inspect its history.</p>}
     <fieldset disabled="@FilmActive">
         <div class="lens-controls">
             <span class="eyebrow">Match lenses</span>
@@ -21,12 +28,12 @@
         </div>
         @if(FavoriteNotice is not null){<p class="lens-notice" role="status">@FavoriteNotice</p>}
         @if(Focus.Kind!=StoryFocusKind.All){<p class="lens-notice">My match filters story evidence, not AI wording. All observed goals from both clubs stay visible. Score and CC are unchanged.</p>}
-        @if(FilmActive){<p class="lens-notice">Match lenses are hidden during Director's Cut. Return to the paused match to inspect its history.</p>}
-        else if(View is { } lens)
+        @if(!FilmActive&&View is { } lens)
         {
             <div class="lens-summary">
                 <strong>@(lens.Mode=="connections"?"Historical connections":"Time-weighted movement")</strong>
-                <span>@lens.Window.Start.ToString("0.0")–@lens.Window.Cutoff.ToString("0.0")s · @Match.Teams[0].Abbreviation v @Match.Teams[1].Abbreviation · revision @lens.Window.Revision</span>
+                <span>@lens.Window.Start.ToString("0.0")–@lens.Window.Cutoff.ToString("0.0")s</span>
+                <details class="lens-provenance"><summary>Source details</summary><p>@Match.Teams[0].Name v @Match.Teams[1].Name · revision @lens.Window.Revision · Observed synthetic source window @lens.Window.Start.ToString("0.0")–@lens.Window.Cutoff.ToString("0.0")s. Original local measurements, no AI request.</p></details>
                 @if(lens.Mode=="connections")
                 {
                     <span>@lens.CompletedPasses completed passes · @lens.InterceptedAttempts intercepted attempts excluded</span>
@@ -65,6 +72,8 @@
             </div>
         }
     </fieldset>
+    }
+    </div>
 </section>
 
 @code {
@@ -74,11 +83,21 @@
     [Parameter] public PitchLensView? View{get;set;}
     [Parameter] public StoryFocus Focus{get;set;}=new();
     [Parameter] public bool FilmActive{get;set;}
+    [Parameter] public long Revision{get;set;}
     [Parameter] public string? FavoriteNotice{get;set;}
     [Parameter] public EventCallback<LensOptions> OptionsChanged{get;set;}
     [Parameter] public EventCallback<string> SelectedPlayer{get;set;}
     [Parameter] public EventCallback<StoryFocus> FocusSelected{get;set;}
     [Parameter] public EventCallback<(PitchLensView View,string EdgeId)> Replay{get;set;}
+    private bool analysisOpen;
+    private long shownRevision;
+    private bool wasFilmActive;
+    protected override void OnParametersSet()
+    {
+        if(shownRevision!=Revision||FilmActive!=wasFilmActive)analysisOpen=false;
+        shownRevision=Revision;wasFilmActive=FilmActive;
+    }
+    private void ToggleAnalysis()=>analysisOpen=!analysisOpen;
     private string FocusValue=>Focus.Kind switch{StoryFocusKind.Club=>"club:"+Focus.Id,StoryFocusKind.Player=>"player:"+Focus.Id,_=>"all"};
     private Task SetMode(PitchLensMode mode)=>OptionsChanged.InvokeAsync(Options with{Mode=mode,EdgeId=null,Cell=null});
     private Task WindowChanged(ChangeEventArgs e)=>Enum.TryParse<ObservedRange>(e.Value?.ToString(),out var range)&&Enum.IsDefined(range)

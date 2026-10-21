@@ -77,8 +77,19 @@ controlled tests. Native visual/readability acceptance remains user-operated.
 
 ## Match lenses / My match
 
-The pitch stays primary. **Match lenses** is off by default; choose
-**Connections** or **Movement**, then **Last 60s** or **Match so far**.
+The pitch stays primary. **Analysis** is collapsed by default, even with an
+active lens. Open it to choose **Connections** or **Movement**, then **Last 60s**
+or **Match so far**, set **My match**, or inspect optional statistics.
+Closing Analysis removes its controls and statistics from the page and keyboard/
+accessibility navigation without turning off the overlay, changing selection,
+pausing or resetting the match. Only a compact active-mode hint and the pitch's
+historical/seconds legend remain. Choose **Off** inside Analysis to clear the
+overlay. Source/revision information and detailed tables sit behind nested
+disclosures; the expanded panel is height-bounded so the pitch remains visible.
+Replay samples and seeks never reopen a closed panel. Fixture and Director
+transitions close it without clearing the selected lens/window/focus preferences.
+Ongoing AI activity, cancellation and errors remain outside this optional panel.
+**Match lenses** itself is off by default.
 These are original local measurements of the existing synthetic replay, not
 new AI output, real athlete analytics or additional model requests. They work
 in Test and Live without SDK usage. No speech, new provider, chart package,
