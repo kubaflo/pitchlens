@@ -4,17 +4,20 @@ namespace PitchLens.Core.Tests;
 
 public sealed class GenerationResponseArchiveTests
 {
-    [Fact]
-    public async Task Raw_invalid_output_is_preserved_exactly_for_offline_validation_without_logging_requests()
+    [Theory]
+    [InlineData("paths")]
+    [InlineData("phase-correction")]
+    [InlineData("phase-correction-request")]
+    public async Task Raw_invalid_output_is_preserved_exactly_for_offline_validation_without_logging_requests(string stage)
     {
         var directory = Path.Combine(Path.GetTempPath(), "pitchlens-response-test-" + Guid.NewGuid().ToString("N"));
         try
         {
             const string invalid = "```json\n{\"duration\":300,\"players\":[]}\n```";
             var archive = new GenerationResponseArchive(directory);
-            await archive.SaveAsync("paths", invalid);
+            await archive.SaveAsync(stage, invalid);
             var path = Assert.Single(Directory.GetFiles(directory));
-            Assert.EndsWith("-paths.json", path);
+            Assert.EndsWith("-"+stage+".json", path);
             Assert.Equal(invalid, await File.ReadAllTextAsync(path));
             Assert.Throws<ScenarioValidationException>(() => AuthoredMatchPlan.Parse(invalid));
             Assert.Equal(invalid, await File.ReadAllTextAsync(path));

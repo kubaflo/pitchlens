@@ -66,7 +66,8 @@ public static class AuthoredGenerationPipeline
         Func<CancellationToken, Task<string>> generatePaths,
         Func<AuthoredMatchDocument, AuthoredPathValidationException, CancellationToken, Task<string>> refinePaths,
         Func<Match, CancellationToken, Task<string>> generateCommentary,
-        IProgress<string>? progress, CancellationToken token, GenerationResponseArchive? archive = null, MatchFixture? fixture = null)
+        IProgress<string>? progress, CancellationToken token, GenerationResponseArchive? archive = null, MatchFixture? fixture = null,
+        Func<AuthoredMatchDocument, AuthoredPhaseValidationException, CancellationToken, Task<string>>? refinePhases = null)
     {
         var raw = await generatePaths(token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
@@ -82,6 +83,21 @@ public static class AuthoredGenerationPipeline
         Match match;
         progress?.Report("Validating all 22 AI-authored paths and events…");
         try { match = AuthoredMatchPlan.Build(document, requireCommentary: false,expectedFixture:fixture); }
+        catch(AuthoredPhaseValidationException failure) when(refinePhases is not null)
+        {
+            progress?.Report("AI correcting unsupported phase labels (one shared correction; paths and events unchanged)…");
+            var immutable=JsonSerializer.Serialize(document,AuthoredJsonContext.Default.AuthoredMatchDocument);
+            var correction=await refinePhases(document,failure,token).ConfigureAwait(false);
+            token.ThrowIfCancellationRequested();
+            if(JsonSerializer.Serialize(document,AuthoredJsonContext.Default.AuthoredMatchDocument)!=immutable)
+                throw new ScenarioValidationException("AI phase-correction adapter changed immutable scenario metadata.");
+            var corrected=AuthoredPhaseRefinement.Apply(document,correction);
+            if(archive is not null)
+                await archive.SaveAsync("corrected",JsonSerializer.Serialize(corrected,AuthoredJsonContext.Default.AuthoredMatchDocument)).ConfigureAwait(false);
+            document=corrected;
+            // One shared repair slot: any remaining phase/shape/physics error is terminal, not another catch/retry.
+            match=AuthoredMatchPlan.Build(document,requireCommentary:false,expectedFixture:fixture);
+        }
         catch (AuthoredPathValidationException failure)
         {
             progress?.Report("AI refining rejected player paths (one bounded correction; events unchanged)…");

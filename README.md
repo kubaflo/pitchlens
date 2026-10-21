@@ -480,7 +480,7 @@ were reversed. Selection metadata is persisted before the request, so cancellati
 or a failed generation does not repeat that fixture on relaunch. This is a small
 verified pool, not a claim of all twenty Premier League squads.
 
-`MatchFixture` is captured through paths → optional single shape correction →
+`MatchFixture` is captured through paths → optional single shape OR phase-label correction →
 narration → final validation, and stored in the generated document for replay.
 The candidate cannot change clubs, player IDs, names, shirt numbers or role data.
 AI authors fresh coordinates/events for that selected roster; the production
@@ -538,7 +538,7 @@ paint**. The initial mode chooser allows Test before any request. Live startup v
 constructing services, rendering again, activating a window or inspecting an
 unlaunched bundle does not request a game. **New match** directly starts another
 fresh request, with usage disclosed on its trigger; there is no second creation
-confirmation. This runs **two stages plus at most one bounded AI path correction** through
+confirmation. This runs **two stages plus at most one shared bounded AI correction** through
 `GitHub.Copilot.SDK` **1.0.22**, explicitly selecting **GPT-6.1 Sol (`gpt-6.1-sol`)** with medium reasoning.
 There is no Auto, Anthropic/Claude, alternate-provider or model fallback path.
 Normal Copilot authentication and model entitlement are required. Generation
@@ -571,6 +571,42 @@ metadata cannot be edited. The viewer does not nudge coordinates or weaken
 thresholds. The complete parser/causality/onside/physics/shape validation runs
 again, and the narration/story package is requested only after it passes. Invalid correction,
 transport/auth failure, cancellation or timeout never starts another correction.
+
+The **same single optional slot** also handles an unsupported phase tag.
+Phase evidence uses event **completion time in `(start,end]`**: a pass completing
+at30s supports phase1 only; one released at29s and completing at32s supports
+phase2 only. A `turnover` tag still requires an actual intercepted opposing pass
+(`completed:false`) completing inside that exact interval; `finish` still
+requires an observed goal. No interception, score, path or outcome is invented.
+Missing actions and unrelated ownership/physics/schema failures are terminal,
+not admission to this correction.
+
+For a phase-evidence rejection, Sol may return **only ten phase IDs, fixed
+start/end bounds and revised kinds**. IDs/count/order/intervals, all original
+events, paths, fixture, owner and duration are immutable. Missing/duplicate/
+unknown/reordered IDs, moved bounds, extra scenario fields and unsupported
+labels reject the correction. Only the AI authors revised labels; the viewer
+does not locally fall back to `possession` or erase a rejection. The complete
+unchanged parser/evidence/causality/physics/shape/variety checks then run again.
+Phase correction and path correction are **alternatives**, not a retry chain:
+if another phase or shape defect remains afterward, no second correction or
+narration request starts. Valid first responses still use2model responses;
+either optional correction allows at most3, within the same15minute overall/
+270second per-response limits. Activity explicitly says **correcting phase
+labels · paths/events unchanged**, not that player paths were refined.
+Eligibility has expanded: a phase-tag failure that previously stopped after
+the initial response may now consume the correction response and, only if
+fully valid afterward, the narration response. It never exceeds the existing cap.
+
+The reported Arsenal/Chelsea “Turnover phase lacks interception” screenshot
+demonstrated a phase-evidence rejection that previously bypassed the shape-only
+recovery path. **Its exact failed Live response was unavailable**: production
+does not enable the opt-in raw archive or SDK session store. Controlled headless
+regressions demonstrate the boundary mismatch and bounded recovery; they are
+not a reproduction of that particular payload. New sanitized failures identify
+phase ID, exact interval, required evidence and observed event IDs/completion
+times/outcomes, without logging raw prose or credentials. No paid investigation
+request or live success is claimed for this correction.
 
 The UI shows connecting/authentication/model/generation/validation progress and
 a Cancel action. Generation runs off the UI thread, is limited to fifteen minutes
@@ -771,7 +807,7 @@ evidence; the same temporal/reference gates remain in force. Rejected story
 chapters and cues identify their ID/time so a narration failure is actionable.
 
 The existing generation budget remains two responses, or three with the one
-optional path correction: the storytelling package **replaces** the caption
+optional shared path OR phase-label correction: the storytelling package **replaces** the caption
 response, it does not add a hidden stage. Each new match must validate its own
 matching cues and chapters before atomic delivery; caption-only historical data
 cannot satisfy a new-generation success. The visible thinking/stage/elapsed/

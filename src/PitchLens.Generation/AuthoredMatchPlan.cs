@@ -130,12 +130,10 @@ public static class AuthoredMatchPlan
             }
             var times = players.SelectMany(p => p.Path.Frames.Select(f => f.Time)).Concat(events.Select(e => e.Time))
                 .Concat(possession.Select(p => p.Time)).Distinct().Order();
+            AuthoredPhaseEvidence.Validate(events,document.PhaseKinds);
             var beats = document.PhaseKinds.Select((kind, n) =>
             {
                 var evidence = events.Where(e => e.Time > n * 30 && e.Time <= (n + 1) * 30).ToArray();
-                Require(evidence.Length > 0, "Every phase needs observed actions.");
-                if (kind == "finish") Require(evidence.Any(e => e.Kind == EventKind.Goal), "Finish phase lacks goal evidence.");
-                if (kind == "turnover") Require(evidence.Any(e => e.Kind == EventKind.Pass && e.Completed == false), "Turnover phase lacks interception.");
                 return new StoryBeat("phase-" + (n + 1), n * 30, (n + 1) * 30, kind,
                     evidence.Select(e => e.Id).ToArray(), evidence.SelectMany(e => new[] { e.ActorId, e.ReceiverId }).OfType<string>().Distinct().ToArray());
             }).ToArray();

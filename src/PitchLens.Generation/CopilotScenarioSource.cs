@@ -22,7 +22,9 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
                 "\n" + request.Instructions, AuthoredMatchPrompt.Schema,"paths",progress,cancellation),
             (document,failure,cancellation)=>RequestAsync(AuthoredPathRefinement.Prompt(document,failure),
                 AuthoredPathRefinement.Schema,"correction",progress,cancellation),
-            (match,cancellation)=>GenerateNarrationAsync(match,progress,cancellation),progress,token,archive,request.Fixture);
+            (match,cancellation)=>GenerateNarrationAsync(match,progress,cancellation),progress,token,archive,request.Fixture,
+            (document,failure,cancellation)=>RequestAsync(AuthoredPhaseRefinement.Prompt(document,failure),
+                AuthoredPhaseRefinement.Schema,"phase-correction",progress,cancellation));
     public async Task<string> RefinePreservedAsync(string rawPaths, IProgress<string>? progress, CancellationToken token)
     {
         if (archive is not null) await archive.SaveAsync("paths", rawPaths).ConfigureAwait(false);
@@ -33,7 +35,8 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
             (document, failure, cancellation) => RequestAsync(AuthoredPathRefinement.Prompt(document, failure),
                 AuthoredPathRefinement.Schema, "correction", progress, cancellation),
             (match, cancellation) => GenerateNarrationAsync(match, progress, cancellation),
-            progress, token, archive);
+            progress, token, archive,refinePhases:(document,failure,cancellation)=>RequestAsync(
+                AuthoredPhaseRefinement.Prompt(document,failure),AuthoredPhaseRefinement.Schema,"phase-correction",progress,cancellation));
     public Task<string> GenerateCommentaryAsync(Match match, IProgress<string>? progress, CancellationToken cancellationToken) =>
         RequestAsync(CommentaryPrompt.For(match), CommentaryPrompt.Schema, "commentary", progress, cancellationToken);
     public Task<string> GenerateNarrationAsync(Match match, IProgress<string>? progress, CancellationToken cancellationToken) =>
@@ -107,6 +110,7 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
             progress?.Report(responseStage switch
             {
                 "correction" => $"AI refining rejected paths with {Model} (one correction maximum; events unchanged)…",
+                "phase-correction" => $"AI correcting unsupported phase labels with {Model} (one shared correction; paths/events unchanged)…",
                 "director" => $"Preparing one {Model} editorial request from observed footage…",
                 _ => $"Generating synthetic match content with {Model}…"
             });
@@ -120,6 +124,7 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
                 progress?.Report(responseStage switch
                 {
                     "correction" => "Sol is refining player paths (one correction maximum)…",
+                    "phase-correction" => "Sol is correcting phase labels (one shared correction; paths/events unchanged)…",
                     "commentary" => "Sol is composing contextual narration and match story…",
                     "director" => "Sol is choosing clips, evidence and pacing for Director's Cut…",
                     _ => "Sol is authoring all 22 player paths and match events…"

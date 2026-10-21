@@ -54,7 +54,11 @@ public static class AuthoredMatchPrompt
         Completedpasses BOTHclubs inEACH60sminute; >=7distinct outfieldactors EACHclub overmatch, including newlyaddedplayers.
         Both clubs should have credible possessions/attacks/responses, but NOT necessarily goals. Choose a varied result, never force a draw.
         phaseKinds exactly10entries for0..30,30..60,...270..300: possession/turnover/counterattack/finish/response.
-        finish requiresactualgoal inphase;turnover requiresactualinterception. Usepossessionifuncertain, no unsupported tacticalmetrics.
+        Assign tags AFTER checking the actual completed event list: phase1 uses COMPLETION time >0 and <=30,
+        phase2 >30 and <=60,...phase10 >270 and <=300. An event exactlyat30 belongs ONLYto phase1.
+        A pass releasedat29 and completedat32 belongs ONLYto phase2, never phase1.
+        finish requiresactualgoal completing INthatphase;turnover requiresactual opposingpass completed:false INthatphase.
+        Completed:true isnotinterception. Do not count a nearby interception/goal in anotherphase. Usepossessionifuncertain.
         Think through coherent possession/actions first, then coordinate ALL paths and realistic teamshape with those events.
         Do not emit commentary inthisfirststage; aftervalidation anotherboundedrequest authors evidence-anchored CC.
         ALL final numerical paths/events must be present inJSON. The application will reject, NOT repair, unrealistic or invalid output.

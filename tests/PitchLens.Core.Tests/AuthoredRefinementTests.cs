@@ -187,6 +187,8 @@ public sealed class AuthoredRefinementTests
         Assert.Equal(original.Duration, corrected.Duration);
         Assert.Equal(original.InitialOwnerId, corrected.InitialOwnerId);
         Assert.Throws<ScenarioValidationException>(() => AuthoredPathRefinement.Apply(original, json.Insert(1, "\"events\":[],")));
+        Assert.Throws<ScenarioValidationException>(() => AuthoredPathRefinement.Apply(original, json.Insert(1, "\"phaseKinds\":[],")));
+        Assert.Throws<ScenarioValidationException>(() => AuthoredPathRefinement.Apply(original, json.Insert(1, "\"phases\":[],")));
     }
 
     [Fact]
