@@ -17,6 +17,70 @@ starting XIs, match results, athlete performance or a season dataset. We chose
 could not be clarified. PitchLens is independent and unaffiliated with the league
 or either club; submission remains deferred.
 
+## Startup mode and optional local voice
+
+On a fresh installation, the first visible screen offers **Test mode / Instant /
+No AI calls** and **Fresh AI match / Uses Copilot usage** before any SDK request.
+The selected mode is remembered in native app preferences. Test launches open
+the verified recorded match immediately, with a compact **TEST / No AI calls**
+badge and Recorded/NotFresh provenance. Live launches retain one fresh bounded
+generation per new app lifetime; render, activation, replay and mode toggles never
+create extra requests. Voice is **off on every launch**, independent of mode.
+
+Test mode is a native service boundary, not just a disabled button: startup,
+New match, Explain, Director generation and connection checking cannot reach
+their SDK sources. Matching recorded goal analysis is available after86s, labelled
+**Recorded analysis / No AI**. Settings' matching recorded Director preview is
+available at300s. Neither is presented as a new AI response. If the user switches
+a fresh game into Test, the game/position is retained rather than discarded;
+recorded previews remain unavailable unless the exact historical facts match.
+Settings can switch to Live while keeping the current game; **New match** is
+the separate explicit usage-consuming action. Switching to Test never starts AI.
+
+**Short voice calls** in transport and Settings uses the installed English OS
+text-to-speech engine through pinned MAUI10.0.20 `ITextToSpeech`, not a cloud
+speech provider or another model. It reads the already validated commentary
+without inventing or rewriting words. At selected1x, current cues are eligible; above1x the
+policy is **goals only**, not an unreadable queue of every short cue. Admission
+uses a conservative two-words-per-wall-second budget: use the full unchanged cue
+if it fits, otherwise its existing first sentence if that fits; otherwise skip
+it. No words are generated or rewritten. This is a pacing heuristic, not an
+auditory duration guarantee. This is **not full spoken commentary**: on the
+actual40-cue recorded package,17 cues are eligible at1x on entry (including both
+goals),23 are skipped. At2x/3x/5x only the eligible goal calls are admitted.
+The four current recorded Director hold sentences all exceed the budget and
+remain text-only; other short eligible holds may speak. These measured counts
+are admission coverage, not guaranteed completed utterances. Long film hold sentences are skipped rather than
+repeatedly chopped into short fragments. Film freeze
+explanations may be spoken while enabled, bounded by the hold; if the OS cannot
+finish before a cue/hold expires, speech stops rather than delaying football or
+queuing the remainder. Full delivery of every sentence is not promised. CC remains
+independent and visible. No translation, celebrity/clone voice, microphone,
+voice download, recording/export or multilingual claim is included.
+
+Only the current eligible utterance is retained; superseded pending work is
+cancelled, native calls are serialized, and stale callbacks cannot overwrite
+current status. Seek, pause, restart, rate change, scene replacement, background,
+film exit, voice-off and disposal stop speech; a discontinuity suppresses the
+current destination cue rather than announcing an obsolete goal after a seek.
+There is no queued catch-up audio. Unavailable English voices or speech failures
+disable only audio and show an explicit error; football continues. Native calls
+are marshalled to the main thread. Installed API metadata confirms
+`SpeakAsync(string,SpeechOptions,CancellationToken)` and `GetLocalesAsync`;
+this implementation uses only Locale/Volume/Pitch, not an assumed rate setting.
+Headless fake-engine tests prove scheduling/cancellation, not audible voice quality.
+No audio is played by build, startup or automated review.
+
+The official hackathon rules have **no dedicated text-to-speech prize**.
+Optional speech is an accessibility/personalized narrative UX enhancement relevant
+to the stated experience criteria, not an eligibility, category or winning claim.
+
+For strictly no-paid native review of a fresh unique review app, open it, choose
+**Test mode**, keep **Voice off**, then use replay/recorded analysis/recorded film.
+There is no hidden startup flag. A remembered Live choice will generate on later
+launches; the first chooser and Test boundary are covered by actual Razor/native
+controlled tests. Audible acceptance needs an explicit user voice-on action.
+
 ## Director's Cut / In-app film
 
 **Director's Cut** is a direct, usage-consuming action that asks exact
@@ -30,7 +94,7 @@ half-speed or normal-speed footage, freeze holds, evidence and connecting text.
 It does not generate another match or add a response to the two/three-response
 match-generation pipeline. Tools remain disabled for editorial planning.
 
-This milestone is an **interactive in-app 2D film**, not MP4 export, audio/TTS,
+This milestone is an **interactive in-app 2D film**, not MP4 export or produced audio,
 photorealistic video, a multi-agent system or a live-match claim. Personalized
 editions and downloadable video remain deferred. No new provider, cloud service,
 language or CV pipeline is included.
@@ -86,15 +150,15 @@ One SDK Send, zero initial-plan/narration/correction/retry requests; internal
 provider inference-turn count was not measured. Raw prompt/facts/schema/response
 were preserved in session-only owner-readable witnesses before validation.
 
-For **no-additional-call recorded-film review after cancelling the startup request**, explicitly
-choose **Play recorded demo / No AI call**, then seek that matching recording to 300s,
+For **no-paid recorded-film review**, choose Test mode at the first-launch chooser,
+then seek that matching recording to300s,
 open Settings → **Recorded Director's Cut demo / No AI call**, then **Watch
 recorded film / No AI call**. This is explicitly **Recorded SDK / Not fresh**,
 never substituted for the normal Director action. It is unavailable on another
 scene or before that observed cutoff. The selected Split Signal logo is retained.
-Opening the normal new build itself automatically begins usage-consuming fresh
-generation; this preview does not make that launch free. For strictly no-paid
-verification use the headless controlled tests without launching the app.
+Opening a fresh installation now shows the mode chooser before requesting AI;
+choosing Test makes this preview genuinely no-paid. A remembered Live choice
+still begins fresh generation on future launches.
 
 | Film wall interval | Actual source footage | Freeze hold | Local score after finish |
 |---|---|---|---|
@@ -326,11 +390,11 @@ There are zero overlapping player IDs and zero identical corresponding-role
 paths versus either prior Arsenal/City game. At10s samples, mean corresponding
 player displacement is14.322m versus the805-knot1:1 and14.879m versus the854-knot2:0.
 This live output is **not bundled as a new static game**. Normal native review
-launch still begins a fresh usage-consuming request; strictly no-paid checks use
-headless controlled tests and offline validation of the session witness.
+launch uses the mode chooser or its remembered preference; Test is no-paid.
+Headless controlled tests and offline session validation make no SDK request.
 
-Each new app lifetime requests a fresh match **once after the first visible UI
-paint**. Startup visibly discloses Copilot usage and shows progress/elapsed/Cancel;
+In **Live mode**, each new app lifetime requests a fresh match **once after the first visible UI
+paint**. The initial mode chooser allows Test before any request. Live startup visibly discloses Copilot usage and shows progress/elapsed/Cancel;
 constructing services, rendering again, activating a window or inspecting an
 unlaunched bundle does not request a game. **New match** directly starts another
 fresh request, with usage disclosed on its trigger; there is no second creation
@@ -383,7 +447,7 @@ retires the request; SDK session/runtime resources are disposed.
 Cleanup has its own deadline; if graceful SDK disposal stalls, only that
 generation's owned runtime is stopped and the cleanup error is reported.
 
-Normal startup no longer plays the same recording. Before first delivery the
+Live startup no longer plays the same recording. Before first delivery the
 pitch-first creation state hides bootstrap players, replay controls and score:
 there is **no active game**, not a fabricated empty success. Validated paths,
 captions and story arrive atomically as **Fresh SDK / gpt-6.1-sol**. Startup
@@ -504,7 +568,8 @@ package has twelve turning points: four buildups, four turnovers, two goals and
 two restart responses. Cards combine concise AI headings/interpretations with
 local consequence/score badges and the shared exact-coordinate action map.
 Evidence IDs, chapter-scoped pass measurements and provenance are expandable;
-they do not dominate the story. No TTS/audio, new provider or extra per-card call.
+they do not dominate the story. No extra story provider or per-card call;
+optional local speech reads existing captions, not new AI story text.
 
 The stored package covers the whole match, but the visible story is an as-of
 projection. Each chapter reveals exactly at its focus event's completion; every
@@ -538,7 +603,7 @@ This was exactly one narration-only SDK Send, zero initial-plan requests,
 no repair/retry/fallback. Raw request, schema, measured facts and response were
 preserved in opt-in session-only artifacts before validation.
 Earlier 40/41-cue caption-only recordings remain historical, unedited resources.
-Playback and choosing the recorded demo make no requests; normal startup does.
+Playback and Test mode make no requests; remembered Live startup does.
 Settings distinguishes recorded/generated
 narration/story; all describe synthetic actions.
 

@@ -82,6 +82,7 @@ small, .caption { font-size: 14px; line-height: 1.4; color: var(--muted); }
 .transport { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 8px 32px 20px; flex: none; }
 .match-controls { display: contents; border: 0; padding: 0; margin: 0; }
 .film-transport { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px 32px; background: #eee6f3; }
+.film-voice { display: flex; align-items: center; gap: 12px; padding: 0 32px; background: #eee6f3; }
 .film-transport input { flex: 1; min-width: 120px; accent-color: var(--purple); }
 .film-transport small { width: 100%; }
 .film-heading { position: absolute; top: 66px; left: 12px; right: 12px; max-width: 600px; z-index: 28; color: white; pointer-events: none; }

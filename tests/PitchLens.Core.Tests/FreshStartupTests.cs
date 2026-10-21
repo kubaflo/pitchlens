@@ -62,7 +62,7 @@ namespace PitchLens.Core.Tests
             var root = await renderer.Dispatcher.InvokeAsync(() => renderer.RenderComponentAsync<Page>());
             Assert.Equal(0,source.Calls);
             var before = await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
-            Assert.Contains("Startup creates a new",before);
+            Assert.Contains("Live startup creates a new",before);
             Assert.DoesNotContain("id=\"pitch\"",before);
             Assert.DoesNotContain("Recorded SDK example",before);
             Assert.False(native.HasMatch);

@@ -4,6 +4,7 @@ using PitchLens.Generation;
 namespace PitchLens.App;
 
 public sealed record NativeView(PresentationFrame Frame, string? Model, bool Fresh, string Status, bool Generating, ScenarioOrigin Origin);
+public enum SessionMode { Unchosen, Live, Test }
 
 public sealed partial class MatchService : IDisposable
 {
@@ -32,12 +33,16 @@ public sealed partial class MatchService : IDisposable
     private Task? startupRequest;
     private bool startupAdmitted;
     public bool HasMatch { get; private set; }
+    public SessionMode Mode { get; private set; }=SessionMode.Live;
+    private readonly Action<SessionMode>? saveMode;
+    public SpokenCommentary Voice { get; } = new(new UnavailableSpeech());
     private Task? momentRequest;
     public string? MomentIntentNotice { get; private set; }
     public bool CanExplainCurrent
     {
         get { lock (gate) return HasMatch && !disposed && !Generating && !CheckingConnection && !Director.Busy && !FilmActive &&
-            (Explainer.Busy || presentation.Match.Events.Any(e => e.Time <= presentation.Position)); }
+            (Mode==SessionMode.Test?presentation.Position>=86&&MomentRecording.Available(presentation.Match,presentation.Revision):
+            Explainer.Busy || presentation.Match.Events.Any(e => e.Time <= presentation.Position)); }
     }
     public event Action? Changed;
     public bool Active { get; private set; } = true;
@@ -54,10 +59,14 @@ public sealed partial class MatchService : IDisposable
     public MatchFixture? RequestedFixture => generation.RequestedFixture;
 
     public MatchService(IScenarioSource scenarios, IMomentSource moments, Func<IProgress<string>, CancellationToken, Task> connection,
-        IDirectorSource? director = null, IMonotonicClock? filmClock = null, bool readyDemo = true, MatchVariety? variety = null)
+        IDirectorSource? director = null, IMonotonicClock? filmClock = null, bool readyDemo = true, MatchVariety? variety = null,
+        SessionMode mode=SessionMode.Live,Action<SessionMode>? saveMode=null,ILocalSpeech? speech=null,IMonotonicClock? replayClock=null)
     {
+        if(replayClock is not null)presentation=new(NarrationRecording.Create(),replayClock);
         generation = new(scenarios, presentation.Match, ScenarioOrigin.RecordedSdkExample, AuthoredMatchRecording.Model, variety);
         HasMatch = readyDemo;
+        Mode=mode;this.saveMode=saveMode;
+        if(speech is not null)Voice=new(speech);
         Explainer = new(moments);
         Director = new(director ?? new UnavailableDirectorSource());
         if (filmClock is not null) this.filmClock = filmClock;
@@ -71,6 +80,7 @@ public sealed partial class MatchService : IDisposable
         Explainer.Changed += NotifyChanged;
         Director.ChangeScene(presentation.Revision);
         Director.Changed += NotifyChanged;
+        Voice.Changed += NotifyChanged;
         presentation.Select(presentation.Match.Players.First(p=>p.Role=="midfielder").Id);
     }
     private void NotifyChanged() { if (!disposed) Changed?.Invoke(); }
@@ -81,9 +91,41 @@ public sealed partial class MatchService : IDisposable
             ObjectDisposedException.ThrowIf(disposed, this);
             if (startupAdmitted) return startupRequest ?? Task.CompletedTask;
             startupAdmitted = true;
+            if(Mode==SessionMode.Unchosen)return Task.CompletedTask;
+            if(Mode==SessionMode.Test){PlayRecordedDemo();return Task.CompletedTask;}
             if (HasMatch) return Task.CompletedTask;
             return startupRequest = GenerateAsync();
         }
+    }
+    public Task ChooseModeAsync(SessionMode mode,bool generateNow=true)
+    {
+        lock(gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed,this);
+            if(mode is not(SessionMode.Live or SessionMode.Test))throw new ArgumentException("Choose Live or Test.");
+            if(mode==SessionMode.Live&&Mode==mode&&Generating)return startupRequest??Task.CompletedTask;
+            if(Generating||Explainer.Busy||Director.Busy||CheckingConnection)throw new InvalidOperationException("Cancel or finish active requests before changing mode.");
+            saveMode?.Invoke(mode);Mode=mode;startupAdmitted=true;
+            Voice.Stop();
+            if(mode==SessionMode.Test)
+            {
+                presentation.Pause();
+                if(!HasMatch)PlayRecordedDemo();
+                Status=Fresh?"Test mode · Current fresh match retained; all SDK requests blocked.":"Test mode · Recorded SDK demo / Not fresh / No AI calls.";
+            }
+        }
+        NotifyChanged();
+        lock(gate)return mode==SessionMode.Live&&generateNow?startupRequest=GenerateAsync():Task.CompletedTask;
+    }
+    public void TestExplain()
+    {
+        lock(gate)
+        {
+            if(Mode!=SessionMode.Test||!MomentRecording.Available(presentation.Match,presentation.Revision)||presentation.Position<86)
+                throw new InvalidOperationException("Recorded analysis is available only for the matching observed demo goal.");
+            Voice.Stop();LoadRecordedMoment();ExplanationSnapshot=Explainer.Current!.Evidence;presentation.Pause();
+        }
+        NotifyChanged();
     }
     public void PlayRecordedDemo()
     {
@@ -103,12 +145,28 @@ public sealed partial class MatchService : IDisposable
         lock (gate)
         {
             var frame = disposed ? null : presentation.Sample(force);
-            if (frame is not null && film is not null)
+            var sampledFilm=film?.Frame;
+            if (frame is not null && sampledFilm is not null)
             {
-                var sourceTime = film.Frame.SourceTime;
+                var sourceTime = sampledFilm.SourceTime;
                 frame = frame with { Snapshot = Replay.At(presentation.Match, sourceTime), Playing = false,
                     Explanations = Explanations.At(presentation.Match, sourceTime, frame.Mode),
                     Story = StoryReplay.At(presentation.Match, sourceTime), EffectiveRate = 1, HighlightActive = false, HighlightsEnabled = false };
+            }
+            if(frame is not null)
+            {
+                string? key=null,text=null;var playing=film?.Playing??frame.Playing;
+                if(sampledFilm is { Holding:true }&&Director.Current is { } directed)
+                {var scene=directed.Plan.Scenes[sampledFilm.SceneIndex];key=$"film:{frame.Revision}:{directed.Plan.FactsHash}:{scene.Id}";
+                    text=SpokenCommentary.TextThatFits(scene.Text,scene.HoldSeconds);}
+                else if(film is null)
+                {
+                    var cue=CommentaryReplay.At(frame.Match.Commentary,frame.Snapshot.Time);
+                    if(cue is not null&&(frame.Rate==1||frame.Match.Events.Single(e=>e.Id==cue.EventId).Kind==EventKind.Goal))
+                    {key=$"match:{frame.Revision}:{cue.Id}";
+                        text=SpokenCommentary.TextThatFits(cue.Text,(cue.End-cue.Start)/frame.EffectiveRate);}
+                }
+                Voice.Observe(key,text,Active&&HasMatch&&playing);
             }
             return frame is null ? null : new(frame, CurrentModel, Fresh, Status, Generating, Origin);
         }
@@ -119,6 +177,7 @@ public sealed partial class MatchService : IDisposable
         {
             if (disposed) return;
             if (!HasMatch && command != "pause") return;
+            if(command is "pause" or "toggle" or "restart" or "seek" or "seek-by" or "rate" or "watch-goal")Voice.Stop();
             if (film is not null) { DirectorNotice = "Exit Director's Cut to use the match replay and player controls."; return; }
             switch (command)
             {
@@ -152,6 +211,7 @@ public sealed partial class MatchService : IDisposable
         {
             if (disposed) return;
             presentation.Pause();
+            Voice.Stop();
             film?.Pause();
             Active = false;
         }
@@ -182,6 +242,7 @@ public sealed partial class MatchService : IDisposable
         {
             if (disposed || presentation.Revision != captured.Revision)
                 throw new InvalidOperationException("This evidence belongs to an earlier match. The current replay was not changed.");
+            Voice.Stop();
             film = null;
             var fact = captured.Resolve(id);
             presentation.Pause();
@@ -194,6 +255,7 @@ public sealed partial class MatchService : IDisposable
         MomentEvidence captured;
         lock (gate)
         {
+            if (Mode!=SessionMode.Live)throw new InvalidOperationException("Test mode blocks AI requests. Switch to Live explicitly.");
             if (disposed || Generating || CheckingConnection || Explainer.Busy || Director.Busy || FilmActive) return;
             captured = ExplanationSnapshot ?? throw new InvalidOperationException("Capture an observed moment first.");
         }
@@ -206,6 +268,7 @@ public sealed partial class MatchService : IDisposable
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             MomentIntentNotice = null;
+            if(Mode!=SessionMode.Live){MomentIntentNotice="Test mode blocks AI analysis. Use the labelled recorded analysis or switch to Live.";return Task.CompletedTask;}
             if (Generating || CheckingConnection || Director.Busy || FilmActive)
             {
                 MomentIntentNotice = Director.Busy || FilmActive ? "Director's Cut is active. Finish or exit it before moment analysis." :
@@ -255,6 +318,7 @@ public sealed partial class MatchService : IDisposable
         using var token = new CancellationTokenSource(TimeSpan.FromSeconds(45));
         lock (gate)
         {
+            if(Mode!=SessionMode.Live){ConnectionStatus="Test mode · SDK connection checks are blocked.";NotifyChanged();return;}
             if (disposed || Generating || CheckingConnection || Explainer.Busy || Director.Busy || FilmActive) return;
             connectionCancellation = token;
             ConnectionStatus = "Checking bundled runtime, normal login and exact Sol availability. No AI generation.";
@@ -287,6 +351,7 @@ public sealed partial class MatchService : IDisposable
         var token = new CancellationTokenSource();
         lock (gate)
         {
+            if(Mode!=SessionMode.Live){token.Dispose();Status="Test mode · New AI match is disabled. Switch to Live explicitly.";NotifyChanged();return;}
             if (disposed || cancellation is not null || CheckingConnection || Explainer.Busy || Director.Busy || FilmActive) { token.Dispose(); return; }
             cancellation = token;
             generationActivityId = GenerationActivity.Begin("Preparing the match-generation request…");
@@ -317,6 +382,7 @@ public sealed partial class MatchService : IDisposable
                 {
                     presentation.Replace(generation.Current);
                     HasMatch = true;
+                    Voice.Stop();
                     Explainer.ChangeScene(presentation.Revision);
                     ExplanationSnapshot = null;
                     MomentIntentNotice = null;
@@ -347,6 +413,7 @@ public sealed partial class MatchService : IDisposable
         lock (gate)
         {
             if (disposed || presentation.Revision != revision) return;
+            Voice.Stop();
             if (film is not null) film.Pause();
             else
             {
@@ -367,6 +434,7 @@ public sealed partial class MatchService : IDisposable
             Explainer.Cancel();
             Explainer.Changed -= NotifyChanged;
             Director.Cancel(); Director.Changed -= NotifyChanged;
+            Voice.Changed-=NotifyChanged;Voice.Dispose();
             presentation.Dispose();
             disposed = true;
         }
@@ -377,6 +445,7 @@ public sealed partial class MatchService : IDisposable
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
+            if(Mode!=SessionMode.Live){DirectorNotice="Test mode blocks AI editing. Use the labelled recorded film preview or switch to Live.";return Task.CompletedTask;}
             if (Director.Busy) return directorRequest ?? Task.CompletedTask;
             if (!CanDirect) { DirectorNotice = "Observe a goal and at least a minute of the match. Finish other requests and exit any film first."; return Task.CompletedTask; }
             presentation.Pause();
@@ -394,6 +463,7 @@ public sealed partial class MatchService : IDisposable
             ObjectDisposedException.ThrowIf(disposed, this);
             if (Director.Busy || Explainer.Busy || Generating || CheckingConnection)
                 throw new InvalidOperationException("Finish the active request before watching a film.");
+            Voice.Stop();
             var current = Director.Current ?? throw new InvalidOperationException("Create a valid film first.");
             if (current.Evidence.Revision != presentation.Revision) throw new InvalidOperationException("Film belongs to a previous match.");
             presentation.Pause(); film = new(current.Plan, filmClock); film.Play();
@@ -424,6 +494,7 @@ public sealed partial class MatchService : IDisposable
                 case "exit": film = null; break;
                 default: throw new ArgumentException("Unknown film control.");
             }
+            Voice.Stop();
         }
         NotifyChanged();
     }
@@ -444,4 +515,6 @@ public sealed partial class MatchService : IDisposable
         public Task<string> CreateAsync(DirectorEvidence evidence, IProgress<string>? progress, CancellationToken token) =>
             throw new CopilotGenerationException("No Director SDK source configured.");
     }
+    private sealed class UnavailableSpeech:ILocalSpeech
+    {public Task SpeakAsync(string text,CancellationToken token)=>throw new NotSupportedException("Local speech is not configured.");}
 }
