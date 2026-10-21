@@ -23,12 +23,14 @@ public sealed class GenerationService(IScenarioSource source, Match initial, Sce
     public string? CurrentModel { get; private set; } = initialOrigin == ScenarioOrigin.RecordedSdkExample ? initialModel ?? RecordedScenario.Model : null;
     public bool IsSdkGenerated => Origin == ScenarioOrigin.FreshSdkGeneration;
     public MatchFixture? RequestedFixture { get; private set; }
+    public string? TerminalIssue { get; private set; }
 
     public async Task GenerateAsync(IProgress<string>? progress, CancellationToken cancellationToken)
     {
         if (Interlocked.CompareExchange(ref running, 1, 0) != 0)
             throw new InvalidOperationException("A generation is already running.");
         State = GenerationState.Generating;
+        TerminalIssue = null;
         Status = "Requesting synthetic scenario through Copilot SDK…";
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromMinutes(15));
@@ -55,16 +57,21 @@ public sealed class GenerationService(IScenarioSource source, Match initial, Sce
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             State = GenerationState.Cancelled;
+            TerminalIssue = "Generation cancelled.";
             Status = "Generation cancelled. Previous match kept.";
         }
         catch (OperationCanceledException)
         {
             State = GenerationState.Failed;
+            TerminalIssue = "Generation timed out after fifteen minutes (paths, optional one AI correction, narration/story).";
             Status = "Generation timed out after fifteen minutes (paths, optional one AI correction, narration/story). Previous match kept.";
         }
         catch (Exception e) when (e is ScenarioValidationException or CopilotGenerationException or TimeoutException or IOException or InvalidOperationException or UnauthorizedAccessException)
         {
             State = cancellationToken.IsCancellationRequested ? GenerationState.Cancelled : GenerationState.Failed;
+            TerminalIssue = cancellationToken.IsCancellationRequested
+                ? $"Generation cancelled. Runtime reported: {e.Message}"
+                : $"Generation failed: {e.Message}";
             Status = cancellationToken.IsCancellationRequested
                 ? $"Generation cancelled. Previous match kept. Runtime reported: {e.Message}"
                 : $"Generation failed: {e.Message} Previous match kept.";

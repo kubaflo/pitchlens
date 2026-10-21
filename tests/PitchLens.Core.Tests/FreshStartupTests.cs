@@ -115,6 +115,80 @@ namespace PitchLens.Core.Tests
             await native.StartSessionAsync();Assert.Equal(1,source.Calls);
         }
 
+        [Theory]
+        [InlineData(false,false)]
+        [InlineData(true,false)]
+        [InlineData(false,true)]
+        [InlineData(true,true)]
+        public async Task Failed_no_match_to_explicit_recorded_demo_recontexts_terminal_activity_and_retains_request_facts(bool useTest,bool cancel)
+        {
+            var source=new Delayed();using var native=Native(source);
+            var capture=new Capture();
+            using var services=new ServiceCollection().AddLogging().AddSingleton(native).AddSingleton<IJSRuntime>(new NoJs())
+                .AddSingleton<IComponentActivator>(capture).BuildServiceProvider();
+            await using var renderer=new HtmlRenderer(services,services.GetRequiredService<ILoggerFactory>());
+            var root=await renderer.Dispatcher.InvokeAsync(()=>renderer.RenderComponentAsync<Page>());
+            var pending=native.StartSessionAsync();
+            Assert.Throws<InvalidOperationException>(native.PlayRecordedDemo);
+            Assert.True(native.GenerationActivity.Snapshot.Active);Assert.False(native.HasMatch);
+            if(cancel){native.Cancel();source.Reply.SetCanceled();}
+            else source.Reply.SetException(new CopilotGenerationException("Controlled turnover phase lacks interception."));
+            await pending;
+            var outcome=cancel?GenerationState.Cancelled:GenerationState.Failed;
+            Assert.Equal(outcome,native.RequestState);Assert.False(native.HasMatch);
+            Assert.Contains("No active match",native.Status);
+            Assert.Contains("No active match",native.GenerationActivity.Snapshot.Message);
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Page!.RefreshFreshTest());
+            Assert.Contains("No active match",await renderer.Dispatcher.InvokeAsync(root.ToHtmlString));
+            await renderer.Dispatcher.InvokeAsync(async()=>{
+                if(useTest)await native.ChooseModeAsync(SessionMode.Test,false);
+                else native.PlayRecordedDemo();
+                await capture.Page!.RefreshFreshTest();
+            });
+            Assert.True(native.HasMatch);Assert.False(native.Fresh);Assert.Equal(outcome,native.RequestState);
+            Assert.Equal(ScenarioOrigin.RecordedSdkExample,native.Origin);
+            Assert.True(native.RecordedDemoAfterGenerationIssue);
+            Assert.NotNull(native.PriorGenerationIssue);
+            Assert.Equal(outcome,native.PriorGenerationIssue.State);
+            Assert.Contains(cancel?"Generation cancelled.":"Controlled turnover phase lacks interception.",native.PriorGenerationIssue.Message);
+            Assert.DoesNotContain("No active match",native.PriorGenerationIssue.Message);
+            Assert.DoesNotContain("Previous match kept",native.PriorGenerationIssue.Message);
+            Assert.False(native.GenerationActivity.Snapshot.Active);
+            Assert.Equal(RequestStage.Complete,native.GenerationActivity.Snapshot.Stage);
+            var html=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
+            Assert.Contains("id=\"pitch\"",html);Assert.Contains("Recorded demo active",html);
+            Assert.Contains("id=\"earlier-generation-issue\"",html);
+            Assert.Contains("Earlier AI creation",html);
+            Assert.DoesNotContain("No active match",html);
+            Assert.DoesNotContain("choose the recorded demo",html);
+            Assert.DoesNotContain("Creation failed. Previous match kept.",html);
+            Assert.DoesNotContain("Sol &#xB7; Creating your match</strong>",html);
+            Assert.Equal(1,source.Calls);
+            native.Command("seek",300);native.Command("restart");await native.StartSessionAsync();
+            if(useTest)await native.GenerateAsync();
+            Assert.Equal(1,source.Calls);
+            var prior=native.PriorGenerationIssue;native.PlayRecordedDemo();
+            Assert.Equal(prior,native.PriorGenerationIssue); // Opening the demo again does not reset elapsed request history.
+            await native.ChooseModeAsync(SessionMode.Live,false);
+            source.Reply=new(TaskCreationOptions.RunContinuationsAsynchronously);
+            var retry=native.GenerateAsync();
+            Assert.False(native.RecordedDemoAfterGenerationIssue);
+            Assert.True(native.GenerationActivity.Snapshot.Active);Assert.True(native.HasMatch);
+            Assert.Equal(prior,native.PriorGenerationIssue);
+            Assert.Throws<InvalidOperationException>(native.PlayRecordedDemo);
+            source.Reply.SetException(new CopilotGenerationException("Controlled later failure."));
+            await retry;
+            Assert.Equal(2,source.Calls);Assert.True(native.HasMatch);
+            Assert.Equal(GenerationState.Failed,native.RequestState);
+            Assert.Equal(RequestStage.Failed,native.GenerationActivity.Snapshot.Stage);
+            Assert.Contains("Controlled later failure.",native.GenerationActivity.Snapshot.Message);
+            Assert.DoesNotContain("No active match",native.GenerationActivity.Snapshot.Message);
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Page!.RefreshFreshTest());
+            html=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
+            Assert.Contains("Controlled later failure.",html);
+            Assert.Contains("Creation failed. Previous match kept.",html);
+        }
+
         [Fact]
         public async Task Unload_cancels_first_request_and_late_candidate_does_not_deliver()
         {

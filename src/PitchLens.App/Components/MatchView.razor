@@ -81,6 +81,10 @@
         {
             <div class="request-status" role="status">Creating a synthetic match with Sol 6.1. Replay remains available.</div>
         }
+        else if(Session.RecordedDemoAfterGenerationIssue && Session.PriorGenerationIssue is { } earlierIssue)
+        {
+            <div class="request-status" role="status">Recorded demo active · Not fresh. Earlier AI creation @(earlierIssue.State==GenerationState.Cancelled?"was cancelled":"failed"). <button class="text-button" @onclick='() => Open("generation-dialog")'>Earlier request details</button></div>
+        }
         else if (Session.RequestState == GenerationState.Failed)
         {
             <div class="request-status error" role="alert">Creation failed. Previous match kept. <button class="text-button" @onclick='() => Open("generation-dialog")'>Details</button></div>
@@ -184,7 +188,11 @@
                 <p>@(Session.RequestedFixture is { } fixture?$"{fixture.Home.Name} v {fixture.Away.Name}":"Selected Premier League clubs") · Five minutes (300 seconds) · Synthetic 11v11. All 22 player paths and events authored by AI.</p>
                 <p>Only GPT-6.1 Sol (@CopilotScenarioSource.Model), using normal local Copilot login. Paths/events, at most one shared AI correction for rejected team shape OR unsupported phase labels, then grounded subtitles: at most three model responses, bounded to fifteen minutes. Phase correction cannot change events or paths. May consume usage. No model fallback.</p>
                 <div class="actions"><button class="button purple" @onclick="Generate" disabled="@(Session.Mode!=SessionMode.Live||Session.Generating || Session.CheckingConnection || Session.Explainer.Busy)">@(Session.Generating ? "Creating…" : "Create match with Sol 6.1")</button>@if (Session.Generating) { <button class="button" @onclick="Session.Cancel">Cancel creation</button> }</div>
-                <p id="generation-status" role="@(Session.RequestState == GenerationState.Failed ? "alert" : "status")">@Session.Status</p>
+                <p id="generation-status" role="@(Session.RequestState == GenerationState.Failed && !Session.RecordedDemoAfterGenerationIssue ? "alert" : "status")">@Session.Status</p>
+                @if(Session.PriorGenerationIssue is { } priorIssue)
+                {
+                    <details id="earlier-generation-issue"><summary>Earlier generation @(priorIssue.State==GenerationState.Cancelled?"cancelled":"failed") · Recorded demo was explicitly selected</summary><p>@priorIssue.Message</p><p class="caption">Elapsed @TimeSpan.FromSeconds(priorIssue.ElapsedSeconds).ToString(@"m\:ss"). This is a prior request outcome, not the current match's source or an active request.</p></details>
+                }
                 <p class="caption">Closing this popup does not cancel creation. Cancel is also available in the main brand bar. Invalid output or cancellation keeps the last valid match.</p>
             </div>
         </dialog>

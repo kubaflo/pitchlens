@@ -545,6 +545,16 @@ Normal Copilot authentication and model entitlement are required. Generation
 uses Copilot services over the network and may consume your Copilot usage.
 No API key or token is configured or read by application code.
 
+After a failed/cancelled startup with no active match, explicitly selecting the
+recorded demo replaces the obsolete “No active match / choose the demo” notice
+with **Recorded demo active / Not fresh**. The earlier request's actual failure
+or cancellation is retained under **Earlier request details**, without stale
+action instructions. This is not a silent fallback or a successful generation:
+the failed request state remains failed and the demo remains recorded. Active
+generation must finish or be cancelled before demo selection; a later explicit
+Live request gets fresh activity and errors normally. Switching into Test or
+replaying/seeking the demo makes no SDK call.
+
 The model authors the **complete 300-second event sequence and explicit
 time/position trajectories for ALL 22 players**. Each player supplies 31-81
 compact `[time,x,y]` knots, spanning 0-300 seconds with gaps at most 12 seconds.

@@ -4,6 +4,7 @@ using PitchLens.Generation;
 namespace PitchLens.App;
 
 public sealed record NativeView(PresentationFrame Frame, string? Model, bool Fresh, string Status, bool Generating, ScenarioOrigin Origin);
+public sealed record EarlierGenerationIssue(GenerationState State,string Message,double ElapsedSeconds);
 public enum SessionMode { Unchosen, Live, Test }
 
 public sealed partial class MatchService : IDisposable
@@ -54,6 +55,8 @@ public sealed partial class MatchService : IDisposable
     public ScenarioOrigin Origin { get; private set; } = ScenarioOrigin.RecordedSdkExample;
     public bool Fresh { get; private set; }
     public GenerationState RequestState => generation.State;
+    public EarlierGenerationIssue? PriorGenerationIssue { get; private set; }
+    public bool RecordedDemoAfterGenerationIssue { get; private set; }
     public Match Match => presentation.Match;
     public MatchFixture? RequestedFixture => generation.RequestedFixture;
 
@@ -132,6 +135,13 @@ public sealed partial class MatchService : IDisposable
             startupAdmitted = true; HasMatch = true; Fresh = false; Origin = ScenarioOrigin.RecordedSdkExample;
             CurrentModel = AuthoredMatchRecording.Model;
             Status = "Explicit recorded SDK demo / Not fresh / No AI request.";
+            if(generation.State is GenerationState.Failed or GenerationState.Cancelled && generation.TerminalIssue is { } issue)
+            {
+                if(!RecordedDemoAfterGenerationIssue)
+                    PriorGenerationIssue=new(generation.State,issue,GenerationActivity.Snapshot.ElapsedSeconds);
+                RecordedDemoAfterGenerationIssue=true;
+                GenerationActivity.Reset();
+            }
         }
         NotifyChanged();
     }
@@ -349,6 +359,7 @@ public sealed partial class MatchService : IDisposable
             if(Mode!=SessionMode.Live){token.Dispose();Status="Test mode · New AI match is disabled. Switch to Live explicitly.";NotifyChanged();return;}
             if (disposed || cancellation is not null || CheckingConnection || Explainer.Busy || Director.Busy || FilmActive) { token.Dispose(); return; }
             cancellation = token;
+            RecordedDemoAfterGenerationIssue=false;
             generationActivityId = GenerationActivity.Begin("Preparing the match-generation request…");
         }
         Command("pause");
@@ -396,10 +407,10 @@ public sealed partial class MatchService : IDisposable
                 cancellation = null;
                 MomentIntentNotice = null;
                 token.Dispose();
+                GenerationActivity.Finish(activityId, generation.State == GenerationState.Succeeded ? RequestStage.Complete :
+                    generation.State == GenerationState.Cancelled ? RequestStage.Cancelled : RequestStage.Failed, Status);
             }
             if (!disposed) Changed?.Invoke();
-            GenerationActivity.Finish(activityId, generation.State == GenerationState.Succeeded ? RequestStage.Complete :
-                generation.State == GenerationState.Cancelled ? RequestStage.Cancelled : RequestStage.Failed, Status);
         }
     }
     public void Freeze(double time, long revision)
