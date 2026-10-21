@@ -282,7 +282,7 @@ export function loadScenario(json) {
         pitchLens = visibleLens = null; lensSequence = -1;
         prepareBroadcast(engine.scenario);
         lastClockTime = 0;
-        popups?.close("player-dialog", false); popups?.close("roster-dialog", false); lensPlayerId = null;
+        popups?.close("player-dialog", false); popups?.close("roster-dialog", false); popups?.close("analysis-dialog"); lensPlayerId = null;
         buildPlayerTargets(); updateTransport(0); draw();
     }
 }
@@ -369,7 +369,7 @@ export function loadFilm(json) {
     const plan = JSON.parse(json);
     if (plan.revision !== engine.scenario.revision) throw new Error("Film belongs to a different scene.");
     film = new FilmProjection(plan);
-    popups?.close("player-dialog", false); popups?.close("roster-dialog", false);
+    popups?.close("player-dialog", false); popups?.close("roster-dialog", false); popups?.close("analysis-dialog");
     draw();
 }
 export function setFilmClock(position, playing, sequence, revision) {
@@ -381,6 +381,7 @@ export function setFilmClock(position, playing, sequence, revision) {
 }
 export function setEvidence(revision, json) {
     evidence = pinnedEvidence(revision, json, engine.clock);
+    popups?.close("analysis-dialog");
     for(const detail of document.querySelectorAll(".lens-data[open]"))detail.open=false;
     draw();
 }

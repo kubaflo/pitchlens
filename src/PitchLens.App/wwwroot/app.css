@@ -52,14 +52,9 @@ small, .caption { font-size: 14px; line-height: 1.4; color: var(--muted); }
 .player-target[hidden] { display: none; }
 .pitch-slot canvas:focus-visible, .player-target:focus-visible { outline: 2px solid var(--focus-on-dark); outline-offset: 2px; box-shadow: 0 0 0 6px var(--purple); }
 .pitch-caption { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 0; font-size: 16px; flex: none; }
-.match-lenses { flex: none; margin: 12px 32px 0; position: relative; z-index: 30; }
-.match-lenses fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
-.analysis-toggle { display: inline-flex; align-items: center; gap: 10px; min-height: 36px; padding: 6px 12px; color: var(--purple); background: white; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 15px; font-weight: 600; }
-.analysis-toggle small { font-size: 12px; font-weight: 400; }
-.analysis-toggle > span:last-child { color: var(--muted); margin-left: 6px; }
-.analysis-toggle[aria-expanded="true"] { border-color: var(--focus-ring); border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
-.analysis-panel { margin-top: -1px; padding: 12px; background: white; border: 1px solid var(--line); border-radius: 0 6px 6px; max-height: min(320px, 32vh); overflow: auto; }
-.analysis-panel[hidden] { display: none; }
+.analysis-dialog fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.analysis-button { gap: 8px; }
+.analysis-button small { font-size: 12px; font-weight: 400; }
 .lens-provenance { font-size: 12px; color: var(--muted); }
 .lens-provenance summary { cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .lens-provenance p { margin-top: 6px; }
@@ -72,9 +67,11 @@ small, .caption { font-size: 14px; line-height: 1.4; color: var(--muted); }
 .my-match-select { margin-left: auto; }
 .my-match-select span { font-weight: 700; line-height: 1.15; }
 .my-match-select small { display: block; font-weight: 400; font-size: 12px; }
-.lens-summary { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 6px 0 0; font-size: 13px; }
-.lens-summary > strong { font-size: 14px; }
-.lens-summary > span, .lens-notice { color: var(--muted); }
+.lens-summary { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 14px; }
+.lens-summary > summary { cursor: pointer; font-weight: 600; }
+.lens-metrics { display: grid; gap: 10px; margin-top: 14px; }
+.lens-metrics > strong { font-size: 16px; }
+.lens-metrics > span, .lens-notice { color: var(--muted); }
 .lens-notice { font-size: 13px; margin-top: 4px; }
 .lens-data { position: relative; }
 .lens-data summary { cursor: pointer; text-decoration: underline; text-underline-offset: 3px; font-weight: 600; }
@@ -246,6 +243,21 @@ dialog::backdrop { background: #20002680; backdrop-filter: blur(3px); }
 .close { border: 0; background: #f0e8f5; color: var(--purple); border-radius: 8px; padding: 8px 14px; min-height: 44px; font-size: 16px; }
 .player-dialog { position: fixed; margin: 0; left: 0; top: 0; width: min(376px, calc(100vw - 32px)); max-height: var(--player-lens-height, calc(100dvh - 32px)); z-index: 30; }
 #roster-dialog { position: fixed; margin: 0; left: 50%; top: 16px; transform: translateX(-50%); z-index: 30; }
+.analysis-dialog { position: fixed; margin: 0; right: 20px; left: auto; top: 88px; width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 108px); overflow: auto; z-index: 32; border-radius: 12px; box-shadow: 0 16px 48px #18002038; }
+.analysis-dialog .dialog-head { position: sticky; top: 0; z-index: 2; background: white; padding: 18px 22px; align-items: center; }
+.analysis-dialog .eyebrow { font-size: 12px; letter-spacing: 1.2px; color: var(--muted); }
+.analysis-dialog h2 { font-size: 28px; margin-top: 4px; }
+.analysis-dialog .analysis-body { padding: 20px 22px; display: block; }
+.analysis-dialog .lens-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: end; }
+.analysis-dialog .lens-controls > .eyebrow, .analysis-dialog .lens-segments, .analysis-dialog .my-match-select { grid-column: 1 / -1; }
+.analysis-dialog .lens-controls label { display: grid; gap: 6px; margin: 0; font-size: 14px; }
+.analysis-dialog .lens-controls select { width: 100%; max-width: 100%; min-height: 40px; padding: 8px; }
+.analysis-dialog .my-match-select { margin: 8px 0 0; padding-top: 16px; border-top: 1px solid var(--line); }
+.analysis-dialog .my-match-select span { display: flex; align-items: baseline; gap: 8px; }
+.analysis-dialog .lens-segments { display: flex; width: 100%; }
+.analysis-dialog .lens-segments button { flex: 1; min-height: 40px; }
+.analysis-dialog .lens-notice { margin-top: 12px; }
+@media (max-height: 640px) { .analysis-dialog { top: 16px; max-height: calc(100dvh - 32px); } }
 .player-identity { display: flex; align-items: center; gap: 16px; }
 .player-identity img { width: 64px; height: 64px; flex: 0 0 64px; object-fit: contain; }
 .player-identity h2 { font-size: 28px; }

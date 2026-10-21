@@ -24,6 +24,7 @@ export function popupPosition(point, size, viewport, bounds = null, gap = 24) {
 }
 
 const isPlayerFlow = id => id === "player-dialog" || id === "roster-dialog";
+const isNonmodal = id => isPlayerFlow(id) || id === "analysis-dialog";
 
 export class PopupHost {
     constructor(doc, win) {
@@ -35,7 +36,9 @@ export class PopupHost {
             if (button) { this.close(button.closest("dialog")?.id); return; }
             if (this.floating?.open && !this.floating.contains(event.target)) {
                 event.target.closest?.("button, input, select, a, [tabindex]")?.focus({ preventScroll: true });
-                if (!event.target.closest?.(".player-target, #players-button, #roster, .transport"))
+                if (this.floating.id === "analysis-dialog" ?
+                    !event.target.closest?.("#analysis-button") :
+                    !event.target.closest?.(".player-target, #players-button, #roster, .transport"))
                     this.close(this.floating.id, false);
             }
         };
@@ -84,11 +87,11 @@ export class PopupHost {
                 if (this.floating === dialog) { this.observer?.disconnect(); this.floating = null; this.anchor = null; }
                 if (this.doc.querySelector("dialog[open]") || !restoreFocus) return;
                 const opener = this.openers.get(dialog);
-                const target = opener?.isConnected && !opener.hidden ? opener : this.doc.getElementById("pitch");
+                const target = opener?.isConnected && !opener.hidden && !opener.disabled ? opener : this.doc.getElementById("pitch");
                 target?.focus({ preventScroll: true });
             };
             const backdrop = event => {
-                if (isPlayerFlow(dialog.id) || event.target !== dialog) return;
+                if (isNonmodal(dialog.id) || event.target !== dialog) return;
                 const box = dialog.getBoundingClientRect();
                 if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom)
                     dialog.close();
@@ -102,7 +105,7 @@ export class PopupHost {
         for (const open of this.doc.querySelectorAll("dialog[open]")) if (open !== dialog) this.close(open.id, false);
         if (!dialog.open || !parent) this.openers.set(dialog, opener);
         this.restoreOnClose.delete(dialog);
-        const floating = isPlayerFlow(id);
+        const floating = isNonmodal(id);
         dialog.setAttribute("aria-modal", floating ? "false" : "true");
         if (!dialog.open) { if (floating) dialog.show(); else dialog.showModal(); }
         if (floating) {

@@ -76,8 +76,8 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
             return { left: 100, top: 100, width: 376, height: Math.min(460, parseFloat(this.style["--player-lens-height"] ?? "460")) };
         }
     });
-    const dialog = makeDialog("player-dialog"), roster = makeDialog("roster-dialog"), story = makeDialog("story-dialog");
-    const dialogs = [dialog, roster, story];
+    const dialog = makeDialog("player-dialog"), roster = makeDialog("roster-dialog"), story = makeDialog("story-dialog"),analysis=makeDialog("analysis-dialog");
+    const dialogs = [dialog, roster, story,analysis];
     globalThis.window = { devicePixelRatio: 2, innerWidth: 1280, innerHeight: 900, matchMedia: () => motion, addEventListener() {}, removeEventListener() {} };
     globalThis.document = {
         hidden: false, activeElement: canvas,
@@ -444,8 +444,12 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         assert.equal(diagnostics().lens,null);
         setLens(JSON.stringify({...network,window:{...network.window,cutoff:48}}),sequence);
         assert.ok(diagnostics().lens);
+        openPopup("analysis-dialog");
+        assert.equal(analysis.nonmodalOpens,1);assert.equal(analysis.modalOpens,0);
+        assert.equal(analysis.style.transform,undefined);
         const lensFilm={revision:4,factsHash:"local",scenes:[{sourceStart:39,sourceEnd:49,rate:1,holdSeconds:3,camera:"finish",focusEventId:"g",text:"Observed finish."}]};
         loadFilm(JSON.stringify(lensFilm));setFilmClock(10,false,++sequence,4);
+        assert.equal(analysis.open,false,"Director transition closes Analysis");
         assert.equal(diagnostics().lens,null,"Director never paints lenses using the paused main-match cutoff");
         assert.equal(goalNodes["pitch-lens-tag"].hidden,true);
         loadFilm(null);
@@ -454,7 +458,9 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         assert.equal(diagnostics().lens,null);
         rect.width=originalSize.width;rect.height=originalSize.height;observation();
         const dense=JSON.parse(readFileSync(new URL("../../src/PitchLens.Generation/Resources/recorded_11v11_dense_narration.json",import.meta.url),"utf8"));
+        openPopup("analysis-dialog");
         loadScenario(JSON.stringify({...clip,revision:5,captions:dense.cues}));
+        assert.equal(analysis.open,false,"new fixture closes Analysis rather than reopening stale choices");
         assert.equal(diagnostics().lens,null,"new revision clears all old fixture metrics");
         const beforeDense=native.length;
         for(const rate of [1,3,5]){

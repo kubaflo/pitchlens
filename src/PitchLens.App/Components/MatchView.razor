@@ -26,7 +26,7 @@
         </div>
         <div class="page-heading">
             <div><span class="eyebrow">Matchday / Synthetic 11v11</span><h1>@match.Teams[0].Name <span class="fixture-versus">v</span> @match.Teams[1].Name</h1></div>
-            <div class="actions"><button class="button purple" disabled="@(!Session.CanExplainCurrent)" title="@(Session.Mode==SessionMode.Test?"Matching recorded goal analysis after86s. No AI call.":"Uses Copilot usage. Explains the current observed moment.")" aria-label="@(Session.Mode==SessionMode.Test?"Recorded analysis. No AI call.":"Explain this moment. Uses Copilot usage.")" @onclick="OpenMoment">@(Session.Mode==SessionMode.Test?"Recorded analysis · No AI":"Explain this moment")</button><button id="players-button" class="button" disabled="@Session.FilmActive" @onclick='() => Open("roster-dialog")'>Players</button><button class="button purple" disabled="@Session.FilmActive" @onclick='() => Open("story-dialog")'>Match story</button></div>
+            <div class="actions"><button id="analysis-button" class="button analysis-button" disabled="@Session.FilmActive" aria-haspopup="dialog" aria-controls="analysis-dialog" @onclick='() => Open("analysis-dialog")'>Analysis@if(lensOptions.Mode!=PitchLensMode.Off){<small>@lensOptions.Mode</small>}</button><button class="button purple" disabled="@(!Session.CanExplainCurrent)" title="@(Session.Mode==SessionMode.Test?"Matching recorded goal analysis after86s. No AI call.":"Uses Copilot usage. Explains the current observed moment.")" aria-label="@(Session.Mode==SessionMode.Test?"Recorded analysis. No AI call.":"Explain this moment. Uses Copilot usage.")" @onclick="OpenMoment">@(Session.Mode==SessionMode.Test?"Recorded analysis · No AI":"Explain this moment")</button><button id="players-button" class="button" disabled="@Session.FilmActive" @onclick='() => Open("roster-dialog")'>Players</button><button class="button purple" disabled="@Session.FilmActive" @onclick='() => Open("story-dialog")'>Match story</button></div>
             <button class="button" disabled="@(Session.Mode!=SessionMode.Live||!Session.CanDirect)" title="Uses Copilot usage. Test mode has an explicit recorded preview in Settings." aria-label="Director's Cut. Uses Copilot usage." @onclick="OpenDirector">Director's Cut</button>
         </div>
         <section class="score-strip" aria-label="Synthetic match score">
@@ -38,7 +38,7 @@
         @if (evidenceNotice is not null) { <div class="request-status" role="status">@evidenceNotice</div> }
         @if (Session.MomentIntentNotice is { } momentNotice) { <div class="request-status" role="status">@momentNotice</div> }
         <MatchLenses Match="match" SelectedId="@frame.SelectedId" Options="lensOptions" View="lensView" Focus="storyFocus"
-            FavoriteNotice="@favoriteNotice" FilmActive="Session.FilmActive" Revision="frame.Revision" OptionsChanged="SetLensOptions"
+            FavoriteNotice="@favoriteNotice" FilmActive="Session.FilmActive" OptionsChanged="SetLensOptions"
             SelectedPlayer="SelectLensPlayer" FocusSelected="SetStoryFocus" Replay="ReplayConnection" />
         <main class="matchday-stage">
             <div class="pitch-slot">
@@ -247,7 +247,7 @@ else
     private string? favoriteNotice;
     private string? focusedHeading;
     private long lensRevision;
-    private sealed record PopupRequest(string Id);
+    private sealed record PopupRequest(string Id,long Revision);
     private static string Crest(string id) => FixtureCatalog.Clubs.Single(t=>t.Id==id).Crest!;
     private static string Club(Match match, string id) => match.Teams.Single(t => t.Id == id).Name;
     protected override void OnInitialized()
@@ -277,7 +277,8 @@ else
             if (!disposed && module is not null && pendingPopup is { } popup)
             {
                 pendingPopup = null;
-                await module.InvokeVoidAsync("openPopup", popup.Id, frame?.SelectedId);
+                if(popup.Id!="analysis-dialog"||popup.Revision==frame?.Revision&&!Session.FilmActive)
+                    await module.InvokeVoidAsync("openPopup", popup.Id, frame?.SelectedId);
             }
         }
         catch (JSException e) { if (!disposed) { error = $"Match interface failed: {e.Message}"; Session.Command("pause"); StateHasChanged(); } }
@@ -344,8 +345,8 @@ else
     }
     private void Open(string id)
     {
-        if (id is not ("player-dialog" or "roster-dialog")) Session.Command("pause");
-        pendingPopup = new(id);
+        if (id is not ("player-dialog" or "roster-dialog" or "analysis-dialog")) Session.Command("pause");
+        pendingPopup = new(id,frame?.Revision??0);
         StateHasChanged();
     }
     private void UpdateLenses()
@@ -402,6 +403,7 @@ else
         try
         {
             var captured=Session.ConnectionEvidence(request.View,request.EdgeId);
+            if(module is not null)await module.InvokeVoidAsync("closePopup","analysis-dialog");
             await InspectEvidence(captured,captured.FocusId);
         }
         catch(InvalidOperationException e){evidenceNotice=e.Message;StateHasChanged();}

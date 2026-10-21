@@ -27,8 +27,8 @@ namespace PitchLens.Core.Tests
             var root=await renderer.Dispatcher.InvokeAsync(()=>renderer.RenderComponentAsync<Page>());
             Assert.Null(capture.Page!.LensViewForTest);
             var initial=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
-            Assert.Contains("Analysis",initial);Assert.DoesNotContain("My match story focus",initial);
-            await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ToggleForAnalysisTest());
+            Assert.Contains("Analysis",initial);Assert.Contains("id=\"analysis-dialog\"",initial);
+            Assert.DoesNotContain("id=\"analysis-dialog\" open",initial);
             await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ModeForLensTest(PitchLensMode.Connections));
             await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.RangeForLensTest(ObservedRange.MatchSoFar));
             await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ClubForLensTest(native.Match.Teams[1].Id));
@@ -82,7 +82,6 @@ namespace PitchLens.Core.Tests
             var capture=new Capture();using var services=Services(native,capture);
             await using var renderer=new HtmlRenderer(services,services.GetRequiredService<ILoggerFactory>());
             var root=await renderer.Dispatcher.InvokeAsync(()=>renderer.RenderComponentAsync<Page>());
-            await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ToggleForAnalysisTest());
             await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ModeForLensTest(PitchLensMode.Connections));
             await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ClubForLensTest(away));
             var lens=capture.Page!.LensViewForTest!;
@@ -104,7 +103,7 @@ namespace PitchLens.Core.Tests
         [InlineData(PitchLensMode.Connections,false)]
         [InlineData(PitchLensMode.Movement,true)]
         [InlineData(PitchLensMode.Connections,true)]
-        public async Task Analysis_is_collapsed_with_active_lens_and_open_close_preserves_replay_focus_window_and_selection(PitchLensMode mode,bool otherFixture)
+        public async Task Analysis_requests_nonpausing_popup_and_close_preserves_replay_focus_window_and_selection(PitchLensMode mode,bool otherFixture)
         {
             var forbidden=new MatchLensTests.Forbidden();var clock=new Clock();
             var source=new LocalFixture(FixtureTests.Json(FixtureCatalog.Create("liverpool","chelsea")));
@@ -115,20 +114,22 @@ namespace PitchLens.Core.Tests
             var capture=new Capture();using var services=Services(native,capture);
             await using var renderer=new HtmlRenderer(services,services.GetRequiredService<ILoggerFactory>());
             var root=await renderer.Dispatcher.InvokeAsync(()=>renderer.RenderComponentAsync<Page>());
-            // Load an active selection before ever opening the disclosure.
+            var popup=new PopupModule();
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Page!.AttachPopupForTest(popup));
             await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ModeForLensTest(mode));
-            Assert.False(capture.Controls!.AnalysisOpenForTest);
+            Assert.False(popup.Open);
             var html=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
-            Assert.Contains("aria-expanded=\"false\"",html);Assert.Contains("aria-controls=\"analysis-panel\"",html);
-            Assert.Contains("class=\"analysis-panel\" hidden",html);
-            Assert.DoesNotContain("Lens observed window",html);Assert.DoesNotContain("My match story focus",html);
-            Assert.DoesNotContain("hottest cell",html);Assert.DoesNotContain("class=\"lens-summary\"",html);
+            Assert.Contains("aria-controls=\"analysis-dialog\"",html);
+            Assert.Contains("<dialog id=\"analysis-dialog\" class=\"analysis-dialog\" aria-modal=\"false\"",html);
+            Assert.DoesNotContain("id=\"analysis-dialog\" open",html);
+            Assert.DoesNotContain("analysis-panel",html);
             Assert.Contains("id=\"commentary-caption\"",html);Assert.Contains("id=\"play-pause\"",html);
-            await renderer.Dispatcher.InvokeAsync(()=>capture.Controls.ToggleForAnalysisTest());
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Page!.OpenAnalysisForPopupTest());
+            Assert.True(popup.Open);Assert.Equal(1,popup.Opens);Assert.True(native.Sample(true)!.Frame.Playing);
             html=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
-            Assert.Contains("aria-expanded=\"true\"",html);Assert.Contains("id=\"analysis-panel\"",html);
             Assert.Contains("Lens observed window",html);Assert.Contains("My match story focus",html);
             Assert.Contains("Source details",html);Assert.Contains("<summary>Explore",html);
+            Assert.NotNull(capture.Controls);
             var player=native.Match.Players.First(p=>p.TeamId==native.Match.Teams[0].Id);
             await renderer.Dispatcher.InvokeAsync(()=>capture.Controls.FocusForLensTest("player:"+player.Id));
             await renderer.Dispatcher.InvokeAsync(()=>capture.Controls.RangeForLensTest(ObservedRange.MatchSoFar));
@@ -138,8 +139,8 @@ namespace PitchLens.Core.Tests
             var options=capture.Controls.Options;
             Assert.NotNull(capture.Page);
             var playing=native.Sample(true)!.Frame;
-            await renderer.Dispatcher.InvokeAsync(()=>capture.Controls.ToggleForAnalysisTest());
-            Assert.False(capture.Controls.AnalysisOpenForTest);
+            await renderer.Dispatcher.InvokeAsync(()=>popup.InvokeVoidAsync("closePopup","analysis-dialog").AsTask());
+            Assert.False(popup.Open);
             Assert.Equal(options,capture.Controls.Options);Assert.Equal(focus,capture.Controls.Focus);
             Assert.Equal(player.Id,native.Sample(true)!.Frame.SelectedId);
             Assert.Equal(playing.Snapshot.Time,native.Sample(true)!.Frame.Snapshot.Time);Assert.True(native.Sample(true)!.Frame.Playing);
@@ -147,22 +148,33 @@ namespace PitchLens.Core.Tests
             {
                 clock.Seconds=tick*.25;
                 await renderer.Dispatcher.InvokeAsync(()=>capture.Page.RefreshForLensTest());
-                Assert.False(capture.Controls.AnalysisOpenForTest);
+                Assert.False(popup.Open);Assert.Equal(1,popup.Opens);
                 Assert.Equal(options,capture.Controls.Options);
             }
             Assert.Equal(153,native.Sample(true)!.Frame.Snapshot.Time);
             native.Command("seek",100);await renderer.Dispatcher.InvokeAsync(()=>capture.Page.RefreshForLensTest());
-            Assert.False(capture.Controls.AnalysisOpenForTest);
+            Assert.False(popup.Open);Assert.Equal(1,popup.Opens);
             Assert.Equal(mode.ToString().ToLowerInvariant(),capture.Page.LensViewForTest!.Mode);
             Assert.Equal(ObservedRange.MatchSoFar,capture.Controls.Options.Range);
             Assert.Equal(player.Id,native.Sample(true)!.Frame.SelectedId);Assert.Equal(focus,capture.Controls.Focus);
             html=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
-            Assert.Contains("class=\"analysis-panel\" hidden",html);
-            await renderer.Dispatcher.InvokeAsync(()=>capture.Controls.ToggleForAnalysisTest());
-            Assert.True(capture.Controls.AnalysisOpenForTest);
+            Assert.DoesNotContain("analysis-panel",html);
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Page.OpenAnalysisForPopupTest());
+            Assert.True(popup.Open);
             html=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
             Assert.Contains("My match story focus",html);
-            Assert.DoesNotContain("<details class=\"lens-data\" open",html); // Closing outer analysis cannot reopen nested exploration.
+            Assert.DoesNotContain("<details class=\"lens-summary\" open",html);
+            if(mode==PitchLensMode.Connections)
+            {
+                var current=capture.Page.LensViewForTest!;
+                var edge=current.Edges[0];
+                popup.Calls.Clear();
+                await renderer.Dispatcher.InvokeAsync(()=>capture.Controls.ReplayForLensTest(edge.Id));
+                Assert.False(popup.Open);Assert.False(native.Sample(true)!.Frame.Playing);
+                Assert.True(popup.Calls.IndexOf("closePopup:analysis-dialog")<popup.Calls.IndexOf("setEvidence"));
+                Assert.Equal(native.Match.Events.Single(e=>e.Id==edge.EventIds[^1]).Time,native.Sample(true)!.Frame.Snapshot.Time);
+                native.Command("play");
+            }
             await renderer.Dispatcher.InvokeAsync(()=>capture.Controls.ModeForLensTest(PitchLensMode.Off));
             Assert.Null(capture.Page.LensViewForTest);Assert.Equal(focus,capture.Controls.Focus);
             Assert.Equal(3,native.Sample(true)!.Frame.Rate);Assert.True(native.Sample(true)!.Frame.Playing);
@@ -177,17 +189,13 @@ namespace PitchLens.Core.Tests
             var capture=new Capture();using var services=Services(native,capture);
             await using var renderer=new HtmlRenderer(services,services.GetRequiredService<ILoggerFactory>());
             var root=await renderer.Dispatcher.InvokeAsync(()=>renderer.RenderComponentAsync<Page>());
-            await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ToggleForAnalysisTest());
             await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ModeForLensTest(PitchLensMode.Movement));
             await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.FocusForLensTest("club:arsenal"));
             native.PreviewRecordedDirector();native.WatchDirector();
             await renderer.Dispatcher.InvokeAsync(()=>capture.Page!.RefreshForLensTest());
             Assert.Null(capture.Page!.LensViewForTest);
             var html=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
-            Assert.Contains("aria-expanded=\"false\"",html);
-            Assert.Contains("class=\"analysis-panel\" hidden",html);
-            await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ToggleForAnalysisTest());
-            html=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
+            Assert.DoesNotContain("id=\"analysis-dialog\" open",html);
             Assert.Contains("hidden during Director",html);
             Assert.Contains("<fieldset disabled",html);
             native.FilmCommand("exit");await renderer.Dispatcher.InvokeAsync(()=>capture.Page.RefreshForLensTest());
@@ -198,10 +206,7 @@ namespace PitchLens.Core.Tests
             Assert.Equal(2,capture.Page.LensViewForTest!.Window.Revision);
             Assert.Equal(0,capture.Page.LensViewForTest.Window.Cutoff);
             html=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
-            Assert.Contains("aria-expanded=\"false\"",html);
-            Assert.Contains("class=\"analysis-panel\" hidden",html);
-            await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ToggleForAnalysisTest());
-            html=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
+            Assert.DoesNotContain("id=\"analysis-dialog\" open",html);
             Assert.Contains("previous favorite is not in this match",html);
             Assert.Contains("All observed stories",html);
             Assert.DoesNotContain("My match / Arsenal",html);
@@ -219,6 +224,19 @@ namespace PitchLens.Core.Tests
         {
             public ValueTask<T> InvokeAsync<T>(string id,object?[]?args)=>throw new InvalidOperationException("No app or SDK launch.");
             public ValueTask<T> InvokeAsync<T>(string id,CancellationToken t,object?[]?args)=>InvokeAsync<T>(id,args);
+        }
+        private sealed class PopupModule:IJSObjectReference
+        {
+            public bool Open;public int Opens;public List<string> Calls=[];
+            public ValueTask DisposeAsync()=>ValueTask.CompletedTask;
+            public ValueTask<T> InvokeAsync<T>(string id,object?[]? args)
+            {
+                Calls.Add(id=="openPopup"||id=="closePopup"?id+":"+args![0]:id);
+                if(id=="openPopup"&&Equals(args![0],"analysis-dialog")){Open=true;Opens++;}
+                if(id=="closePopup"&&Equals(args![0],"analysis-dialog"))Open=false;
+                return ValueTask.FromResult(default(T)!);
+            }
+            public ValueTask<T> InvokeAsync<T>(string id,CancellationToken t,object?[]? args)=>InvokeAsync<T>(id,args);
         }
         private sealed class Capture:IComponentActivator
         {
@@ -238,11 +256,11 @@ namespace PitchLens.Core.Tests.Components
     {
         public PitchLensView? LensViewForTest=>lensView;
         public Task RefreshForLensTest()=>Refresh(true);
+        public void AttachPopupForTest(IJSObjectReference popup){module=popup;rendererReady=true;loadedRevision=frame!.Revision;startupRequested=true;}
+        public async Task OpenAnalysisForPopupTest(){Open("analysis-dialog");await OnAfterRenderAsync(false);}
     }
     public partial class MatchLenses
     {
-        public void ToggleForAnalysisTest(){ToggleAnalysis();StateHasChanged();}
-        public bool AnalysisOpenForTest=>analysisOpen;
         public Task ModeForLensTest(PitchLensMode mode)=>SetMode(mode);
         public Task RangeForLensTest(ObservedRange range)=>WindowChanged(new(){Value=range.ToString()});
         public Task ClubForLensTest(string id)=>ClubChanged(new(){Value=id});

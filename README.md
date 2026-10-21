@@ -77,16 +77,22 @@ controlled tests. Native visual/readability acceptance remains user-operated.
 
 ## Match lenses / My match
 
-The pitch stays primary. **Analysis** is collapsed by default, even with an
-active lens. Open it to choose **Connections** or **Movement**, then **Last 60s**
+The pitch stays primary. The header's **Analysis** button opens a compact
+**nonmodal popup**, closed by default even with an active lens. There is no
+inline statistics row or expanding panel to push the pitch down.
+Open it to choose **Connections** or **Movement**, then **Last 60s**
 or **Match so far**, set **My match**, or inspect optional statistics.
-Closing Analysis removes its controls and statistics from the page and keyboard/
-accessibility navigation without turning off the overlay, changing selection,
+Closing Analysis hides its native dialog from keyboard/accessibility navigation
+without turning off the overlay, changing selection,
 pausing or resetting the match. Only a compact active-mode hint and the pitch's
 historical/seconds legend remain. Choose **Off** inside Analysis to clear the
-overlay. Source/revision information and detailed tables sit behind nested
-disclosures; the expanded panel is height-bounded so the pitch remains visible.
-Replay samples and seeks never reopen a closed panel. Fixture and Director
+overlay. Numeric summaries, source/revision information and detailed tables sit
+behind **Overlay details** and nested disclosures. The popup is560px wide at most
+and scrolls internally within the window; it does not follow a player.
+Close, Escape or an outside click dismiss it; keyboard dismissal returns focus
+to the opener, while outside dismissal preserves the newly clicked target.
+Opening, closing and tuning Analysis never pauses football. Replay samples and
+seeks never reopen a closed popup. Fixture and Director
 transitions close it without clearing the selected lens/window/focus preferences.
 Ongoing AI activity, cancellation and errors remain outside this optional panel.
 **Match lenses** itself is off by default.
@@ -94,6 +100,16 @@ These are original local measurements of the existing synthetic replay, not
 new AI output, real athlete analytics or additional model requests. They work
 in Test and Live without SDK usage. No speech, new provider, chart package,
 external match data or extra generation stage is involved.
+
+**One installed app identity:** updated builds keep `io.github.kubaflo.pitchlens`
+and the name **PitchLens**. Older uniquely named review apps were separate
+applications, which caused the two Dock icons; this was not evidence of a
+duplicate `CreateWindow` call. No global mutex, process killing or settings reset
+has been added. Signed builds are prepared in versioned build directories, then
+staged to the original app path only after the user safely exits existing apps.
+No running bundle or unsaved game is overwritten. Existing duplicate review
+processes are not claimed resolved until the user closes them and one canonical
+app is actually running; a ready build is not permission to launch a third.
 
 **Connections:** choose either actual fixture club. Directed edges include only
 completed same-club passes whose **completion time is inside the inclusive

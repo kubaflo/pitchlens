@@ -26,15 +26,15 @@ function harness() {
             return { left: 100, top: 100, right: 476, bottom: 100 + height, width: 376, height };
         }
     });
-    const player = makeDialog("player-dialog"), roster = makeDialog("roster-dialog"), story = makeDialog("story-dialog");
-    const all = [player, roster, story];
+    const player = makeDialog("player-dialog"), roster = makeDialog("roster-dialog"), story = makeDialog("story-dialog"), analysis=makeDialog("analysis-dialog");
+    const all = [player, roster, story, analysis];
     const doc = {
         activeElement: opener, getElementById: id => all.find(d => d.id === id),
         querySelector: () => all.find(d => d.open), querySelectorAll: () => all.filter(d => d.open),
         addEventListener: (key, fn) => documentHandlers.set(key, fn), removeEventListener: key => documentHandlers.delete(key)
     };
     const flush = () => { while (tasks.length) tasks.shift()(); };
-    return { win, doc, opener, player, roster, story, observers, documentHandlers, windowHandlers, flush };
+    return { win, doc, opener, player, roster, story, analysis, observers, documentHandlers, windowHandlers, flush };
 }
 
 test("lens placement flips/clamps, prefers pitch space and avoids the selected shirt when possible", () => {
@@ -114,4 +114,47 @@ test("roster and player are nonmodal; follow, switching, Escape/outside and asyn
     assert.ok(h.observers.every(o => o.disconnected));
     assert.equal(h.player.handlers.size, 0);
     assert.equal(h.documentHandlers.size, 0); assert.equal(h.windowHandlers.size, 0);
+});
+
+test("Analysis is a nonmodal independent popup: no player following, Escape/outside/Close and safe focus return",()=>{
+    const h=harness(),host=new PopupHost(h.doc,h.win);
+    host.open("analysis-dialog");
+    assert.equal(h.analysis.nonmodal,1);assert.equal(h.analysis.modal,0);
+    assert.equal(h.analysis.attributes["aria-modal"],"false");
+    host.follow({x:700,y:500},{left:0,top:0,right:1000,bottom:700,height:700},40);
+    h.windowHandlers.get("resize")();
+    assert.equal(h.analysis.style.transform,undefined,"Analysis never follows or inherits player coordinates");
+    const inside={parent:h.analysis,closest:()=>null};
+    h.documentHandlers.get("click")({target:inside});assert.equal(h.analysis.open,true);
+    const trigger={closest:selector=>selector==="#analysis-button"?trigger:null};
+    h.documentHandlers.get("click")({target:trigger});assert.equal(h.analysis.open,true,"opening click does not immediately dismiss popup");
+    let prevented=false;
+    h.documentHandlers.get("keydown")({key:"Escape",preventDefault(){prevented=true;}});
+    h.flush();assert.equal(prevented,true);assert.equal(h.analysis.open,false);assert.equal(h.opener.focused,1);
+    host.open("analysis-dialog");
+    const outside={focused:0,focus(){this.focused++;h.doc.activeElement=this;},closest:selector=>selector==="button, input, select, a, [tabindex]"?outside:null};
+    h.documentHandlers.get("click")({target:outside});h.flush();
+    assert.equal(h.analysis.open,false);assert.equal(outside.focused,1);assert.equal(h.opener.focused,1,"outside close must not steal focus");
+    h.doc.activeElement=h.opener;host.open("analysis-dialog");
+    const close={closest:selector=>selector==="[data-close-popup]"?close:selector==="dialog"?h.analysis:null};
+    h.documentHandlers.get("click")({target:close});h.flush();
+    assert.equal(h.analysis.open,false);assert.equal(h.opener.focused,2);
+    host.open("analysis-dialog");h.doc.activeElement=inside;
+    inside.closest=selector=>selector==="dialog"?h.analysis:null;
+    host.open("player-dialog");h.flush();
+    assert.equal(h.analysis.open,false);assert.equal(h.player.open,true);
+    host.open("analysis-dialog");h.flush();assert.equal(h.player.open,false);
+    host.dispose();h.flush();assert.equal(h.analysis.open,false);
+    assert.equal(h.analysis.handlers.size,0);assert.equal(h.documentHandlers.size,0);
+});
+
+test("Analysis close falls back to pitch focus if its opener becomes disabled during a film transition",()=>{
+    const h=harness(),host=new PopupHost(h.doc,h.win);
+    const pitch={focused:0,focus(){this.focused++;}};
+    const find=h.doc.getElementById;
+    h.doc.getElementById=id=>id==="pitch"?pitch:find(id);
+    host.open("analysis-dialog");h.opener.disabled=true;
+    host.close("analysis-dialog");h.flush();
+    assert.equal(h.opener.focused,0);assert.equal(pitch.focused,1);
+    host.dispose();
 });
