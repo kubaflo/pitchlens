@@ -12,7 +12,7 @@ public sealed record WebCaption(string Id, string EventId, double Start, double 
 public sealed record WebScenario(long Revision, double Duration, WebPlayer[] Players, WebFrame[] Ball, WebGoal[] Goals, WebCaption[] Captions,
     PlaybackRateWindow[] FocusWindows,Team[] Teams);
 public sealed record WebClock(long Revision, long Sequence, double Time, bool Playing, string SelectedId, double Rate,
-    double EffectiveRate, bool HighlightsEnabled);
+    double EffectiveRate, bool HighlightsEnabled,bool VoicePaced,double? VoiceBoundary);
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(WebScenario))]
@@ -44,6 +44,6 @@ public static class WebContracts
     }
     public static string Clock(PresentationFrame frame) => JsonSerializer.Serialize(
         new WebClock(frame.Revision, frame.Sequence, frame.Snapshot.Time, frame.Playing, frame.SelectedId, frame.Rate,
-            frame.EffectiveRate, frame.HighlightsEnabled),
+            frame.EffectiveRate, frame.HighlightsEnabled,frame.VoicePaced,frame.VoiceBoundary),
         WebJsonContext.Default.WebClock);
 }

@@ -37,28 +37,38 @@ recorded previews remain unavailable unless the exact historical facts match.
 Settings can switch to Live while keeping the current game; **New match** is
 the separate explicit usage-consuming action. Switching to Test never starts AI.
 
-**Short voice calls** in transport and Settings uses the installed English OS
+**Full voice** in transport and Settings uses the installed English OS
 text-to-speech engine through pinned MAUI10.0.20 `ITextToSpeech`, not a cloud
-speech provider or another model. It reads the already validated commentary
-without inventing or rewriting words. At selected1x, current cues are eligible; above1x the
-policy is **goals only**, not an unreadable queue of every short cue. Admission
-uses a conservative two-words-per-wall-second budget: use the full unchanged cue
-if it fits, otherwise its existing first sentence if that fits; otherwise skip
-it. No words are generated or rewritten. This is a pacing heuristic, not an
-auditory duration guarantee. This is **not full spoken commentary**: on the
-actual40-cue recorded package,17 cues are eligible at1x on entry (including both
-goals),23 are skipped. At2x/3x/5x only the eligible goal calls are admitted.
-The four current recorded Director hold sentences all exceed the budget and
-remain text-only; other short eligible holds may speak. These measured counts
-are admission coverage, not guaranteed completed utterances. Long film hold sentences are skipped rather than
-repeatedly chopped into short fragments. Film freeze
-explanations may be spoken while enabled, bounded by the hold; if the OS cannot
-finish before a cue/hold expires, speech stops rather than delaying football or
-queuing the remainder. Full delivery of every sentence is not promised. CC remains
-independent and visible. No translation, celebrity/clone voice, microphone,
+speech provider or another model. It reads **every word** of each validated timed
+comment during continuous playback: no short-text filter, sentence clipping,
+goals-only policy or long-comment skip. Voice switches presentation to explicit
+**Voice-paced1x / base3x saved** (or the chosen1/2/5x). The authoritative native
+clock stops at the next unspoken cue start even after a large timer step, then
+advances at1x and holds at the current cue's end as long as the OS needs.
+This is **Listening hold**, not a user pause: the play intent stays active, the
+current complete subtitle/reading text remains visible, and player/ball/score
+stay at that source instant. A sequenced typed boundary packet makes JS project
+the same clamp; there is no independent speech clock or late catch-up queue.
+Speech completion releases only that owned boundary. Turning voice off restores
+the selected base rate without jumping the playhead.
+
+All four **full Director hold sentences** use the same policy. The original AI
+edit remains58 presentation seconds with voice off; enabled full speech may
+extend its freeze holds and actual wall duration. The UI labels original edit
+duration separately from voice extension. Score/captions/evidence follow source
+time, not a later scene's result. Film exit restores the paused main match.
+
+Every visible AI explanation claim (including the full paragraph behind the
+three-line lead) and each Fan/Analyst story chapter has **Listen / Stop**.
+Listen reads the complete current-mode text through the same owned voice service,
+pauses canonical replay and remains paused on completion. It works without
+enabling automatic voice; changing modes, closing the comment dialog or navigating
+evidence cancels it. It never reads all technical disclosures or future chapters.
+CC remains independent; a separate full reading-text/status line is available.
+No translation, celebrity/clone voice, microphone,
 voice download, recording/export or multilingual claim is included.
 
-Only the current eligible utterance is retained; superseded pending work is
+Only the current utterance is retained; superseded pending work is
 cancelled, native calls are serialized, and stale callbacks cannot overwrite
 current status. Seek, pause, restart, rate change, scene replacement, background,
 film exit, voice-off and disposal stop speech; a discontinuity suppresses the
@@ -69,6 +79,12 @@ are marshalled to the main thread. Installed API metadata confirms
 `SpeakAsync(string,SpeechOptions,CancellationToken)` and `GetLocalesAsync`;
 this implementation uses only Locale/Volume/Pitch, not an assumed rate setting.
 Headless fake-engine tests prove scheduling/cancellation, not audible voice quality.
+Exact controlled coverage checks send **40/40 complete recorded cue strings**
+once in order at base1x/3x/5x, including huge clock steps, and **4/4 complete
+Director sentences**, including the last end hold. Original AI text is unchanged.
+User seeks/restarts/pause/off intentionally cancel or skip comments rather than
+resuming old audio; full continuous coverage is not a claim that skipped footage
+is spoken. Engine errors release voice pacing without changing user pause intent.
 No audio is played by build, startup or automated review.
 
 The official hackathon rules have **no dedicated text-to-speech prize**.
@@ -160,7 +176,7 @@ Opening a fresh installation now shows the mode chooser before requesting AI;
 choosing Test makes this preview genuinely no-paid. A remembered Live choice
 still begins fresh generation on future launches.
 
-| Film wall interval | Actual source footage | Freeze hold | Local score after finish |
+| Original voice-off film wall interval | Actual source footage | Freeze hold | Local score after finish |
 |---|---|---|---|
 | 0–12s | 69–78s at 1x | 9–12s | 0:0 |
 | 12–30s | 79–86s at 0.5x | 26–30s | 1:0 |

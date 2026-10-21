@@ -14,10 +14,12 @@ export function filmAt(plan, seconds) {
     throw new Error("Film has no scenes.");
 }
 export class FilmProjection {
-    constructor(plan) { this.plan = plan; this.position = 0; this.anchor = 0; this.playing = false; this.sequence = -1; }
-    apply(position, playing, now) {
+    constructor(plan) { this.plan = plan; this.position = 0; this.anchor = 0; this.playing = false; this.sequence = -1; this.voiceBoundary=null; }
+    apply(position, playing, now, voiceBoundary=null) {
         if (!Number.isFinite(position) || position < 0 || position > filmDuration(this.plan)) throw new Error("Invalid film anchor.");
+        if(voiceBoundary!==null&&(!Number.isFinite(voiceBoundary)||voiceBoundary<position||voiceBoundary>filmDuration(this.plan)))throw new Error("Invalid film voice boundary.");
         this.position = position; this.playing = playing; this.anchor = now;
+        this.voiceBoundary=voiceBoundary;
     }
-    frame(now) { return filmAt(this.plan, this.position + (this.playing ? Math.max(0, now - this.anchor) / 1000 : 0)); }
+    frame(now) { return filmAt(this.plan, Math.min(this.voiceBoundary??filmDuration(this.plan),this.position + (this.playing ? Math.max(0, now - this.anchor) / 1000 : 0))); }
 }

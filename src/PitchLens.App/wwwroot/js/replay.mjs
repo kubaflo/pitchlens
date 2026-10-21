@@ -66,6 +66,7 @@ export function advancePlayback(position, wallSeconds, duration, rate, windows =
 export class ProjectionClock {
     revision = 0; sequence = -1; position = 0; anchor = 0; playing = false; duration = 0; rate = 3;
     windows = []; highlightsEnabled = false;
+    voicePaced = false; voiceBoundary = null;
     reset(revision, duration, now, windows = []) {
         this.revision = revision; this.duration = duration; this.sequence = -1;
         this.position = 0; this.anchor = now; this.playing = false; this.rate = 3;
@@ -78,24 +79,31 @@ export class ProjectionClock {
             else this.windows.push({ ...window });
         }
         this.highlightsEnabled = false;
+        this.voicePaced=false;this.voiceBoundary=null;
     }
     apply(packet, now) {
         if (packet.revision !== this.revision || packet.sequence <= this.sequence) return false;
         if (!Number.isFinite(packet.time) || packet.time < 0 || packet.time > this.duration) throw new RangeError("Invalid clock packet.");
         const rate = packet.rate ?? 3;
         if (![1, 2, 3, 5].includes(rate)) throw new RangeError("Invalid replay rate.");
+        const voiceBoundary=packet.voiceBoundary??null;
+        if(voiceBoundary!==null&&(!Number.isFinite(voiceBoundary)||voiceBoundary<packet.time||voiceBoundary>this.duration))
+            throw new RangeError("Invalid voice boundary.");
         this.sequence = packet.sequence; this.position = packet.time;
         this.anchor = now; this.playing = packet.playing; this.rate = rate;
         this.highlightsEnabled = packet.highlightsEnabled ?? false;
+        this.voicePaced=packet.voicePaced??false;
+        this.voiceBoundary=voiceBoundary;
         return true;
     }
     time(now) {
+        if(this.voicePaced)return this.playing?Math.min(this.voiceBoundary??this.duration,this.position+Math.max(0,now-this.anchor)/1000):this.position;
         return this.playing ? advancePlayback(this.position, Math.max(0, now - this.anchor) / 1000,
             this.duration, this.rate, this.windows, this.highlightsEnabled) : this.position;
     }
     effectiveRate(now) {
         const time = this.time(now);
-        return this.highlightsEnabled && this.windows.some(w => w.start <= time && time < w.end) ? 1 : this.rate;
+        return this.voicePaced || this.highlightsEnabled && this.windows.some(w => w.start <= time && time < w.end) ? 1 : this.rate;
     }
     freeze(now) {
         this.position = this.time(now); this.anchor = now; this.playing = false;

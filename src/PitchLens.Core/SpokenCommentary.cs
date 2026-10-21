@@ -7,89 +7,94 @@ public interface ILocalSpeech
 
 public sealed class SpokenCommentary(ILocalSpeech engine) : IDisposable
 {
-    public static string? TextThatFits(string text,double wallSeconds)
-    {
-        if(!double.IsFinite(wallSeconds)||wallSeconds<=0)return null;
-        var sentenceEnd=text.IndexOfAny(['.','!','?']);
-        var first=sentenceEnd>=0?text[..(sentenceEnd+1)]:text;
-        var limit=(int)Math.Floor(wallSeconds*2);
-        if(text.Split(' ',StringSplitOptions.RemoveEmptyEntries).Length<=limit)return text;
-        return first.Split(' ',StringSplitOptions.RemoveEmptyEntries).Length<=limit?first:null;
-    }
     private readonly object gate = new();
-    private readonly SemaphoreSlim serial = new(1, 1);
+    private readonly SemaphoreSlim serial = new(1,1);
     private CancellationTokenSource? current;
-    private string? lastKey;
     private long epoch;
     private bool disposed;
-    private bool suppressNext;
+    private string? currentKey,completedKey;
     public bool Enabled { get; private set; }
-    public string Status { get; private set; } = "Voice off";
+    public bool Manual { get; private set; }
+    public string? ReadingText { get; private set; }
+    public string Status { get; private set; }="Voice off";
     public event Action? Changed;
+    public bool Completed(string key){lock(gate)return completedKey==key;}
     public void SetEnabled(bool enabled)
     {
-        lock (gate)
-        {
-            ObjectDisposedException.ThrowIf(disposed,this);
-            Enabled=enabled; StopCore(); lastKey=null;suppressNext=false;
-            Status=enabled?"Voice ready · Short English cues · Goals only above1x":"Voice off";
-        }
+        lock(gate){ObjectDisposedException.ThrowIf(disposed,this);StopCore();Enabled=enabled;Status=enabled?"Voice-paced · Full comments":"Voice off";}
         Changed?.Invoke();
     }
     public void Stop()
     {
-        lock(gate){if(disposed)return;StopCore();suppressNext=true;Status=Enabled?"Voice ready":"Voice off";}
+        lock(gate){if(disposed)return;StopCore();Status=Enabled?"Voice-paced · Ready":"Voice off";}
         Changed?.Invoke();
     }
-    private void StopCore(){epoch++;current?.Cancel();current=null;}
-    public void Observe(string? key,string? text,bool playing)
+    private void StopCore(){epoch++;current?.Cancel();current=null;currentKey=completedKey=null;Manual=false;ReadingText=null;}
+    public void Read(string key,string text,bool manual=false)
     {
         CancellationTokenSource request;long version;
         lock(gate)
         {
-            if(disposed||!Enabled)return;
-            if(suppressNext){lastKey=key;suppressNext=false;return;}
-            if(playing&&key is not null&&text is null)
-            {
-                if(lastKey==key)return;
-                lastKey=key;StopCore();Status="Short voice calls · Long cue skipped";Changed?.Invoke();return;
-            }
-            if(!playing||key is null||text is null)
-            {
-                if(current is not null){StopCore();Status="Voice ready";Changed?.Invoke();}
-                return;
-            }
-            if(key==lastKey)return;
-            lastKey=key;StopCore();
-            current=request=new();version=epoch;Status="Speaking · Local English voice";
+            if(disposed||(!Enabled&&!manual)||currentKey==key||completedKey==key)return;
+            StopCore();current=request=new();currentKey=key;Manual=manual;ReadingText=text;version=epoch;Status="Speaking full comment · Local English voice";
         }
-        Changed?.Invoke();
-        _=SpeakAsync(text,request,version);
+        Changed?.Invoke();_=SpeakAsync(key,text,request,version);
     }
-    private async Task SpeakAsync(string text,CancellationTokenSource request,long version)
+    private async Task SpeakAsync(string key,string text,CancellationTokenSource request,long version)
     {
-        var entered=false;
+        var entered=false;var notify=false;
         try
         {
             await serial.WaitAsync(request.Token).ConfigureAwait(false);entered=true;
             request.Token.ThrowIfCancellationRequested();
             await engine.SpeakAsync(text,request.Token).ConfigureAwait(false);
-            lock(gate)if(!disposed&&version==epoch)Status="Voice ready";
+            lock(gate)if(!disposed&&version==epoch){completedKey=key;current=null;Manual=false;ReadingText=null;Status=Enabled?"Voice-paced · Ready":"Voice finished";notify=true;}
         }
         catch(OperationCanceledException)when(request.IsCancellationRequested){}
         catch(Exception e)when(e is InvalidOperationException or NotSupportedException or IOException)
-        {
-            lock(gate)if(!disposed&&version==epoch){Enabled=false;Status=$"Voice unavailable: {e.Message} Football continues.";}
-        }
+        {lock(gate)if(!disposed&&version==epoch){Enabled=false;Manual=false;ReadingText=null;current=null;Status=$"Voice unavailable: {e.Message} Football continues.";notify=true;}}
         finally
         {
             if(entered)serial.Release();
-            lock(gate)if(current==request)current=null;
-            request.Dispose();Changed?.Invoke();
+            request.Dispose();
+            if(notify)Changed?.Invoke();
         }
     }
-    public void Dispose()
+    public void Dispose(){lock(gate){if(disposed)return;StopCore();Enabled=false;disposed=true;Status="Voice off";}}
+}
+
+public sealed record SpeechBeat(string Key,double Start,double End,string Text);
+
+public sealed class SpeechPacing(IReadOnlyList<SpeechBeat> beats)
+{
+    private int index;
+    private bool started;
+    public string? HeldKey { get; private set; }
+    public void Reset(double time,bool skipCurrent)
     {
-        lock(gate){if(disposed)return;StopCore();Enabled=false;disposed=true;Status="Voice off";}
+        index=0;started=false;HeldKey=null;
+        while(index<beats.Count&&(beats[index].End<=time || skipCurrent&&beats[index].Start<=time))index++;
+    }
+    public double? Update(double time,bool playing,SpokenCommentary voice)
+    {
+        HeldKey=null;
+        if(!voice.Enabled||voice.Manual)return null;
+        while(index<beats.Count)
+        {
+            var beat=beats[index];
+            if(!started&&time<beat.Start)return beat.Start;
+            if(!started)
+            {
+                if(!playing)return Math.Max(time,beat.Start);
+                started=true;voice.Read(beat.Key,beat.Text);
+            }
+            if(!voice.Enabled)return null;
+            if(voice.Completed(beat.Key)){index++;started=false;continue;}
+            // Keep the end-exclusive caption/film scene visible during its listening hold.
+            var boundary=Math.Max(time,Math.BitDecrement(beat.End));
+            if(time>=Math.BitDecrement(beat.End))HeldKey=beat.Key;
+            return boundary;
+        }
+        return null;
     }
 }

@@ -80,84 +80,40 @@ namespace PitchLens.Core.Tests
         {
             var retire=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var engine=new Speech{Retirement=retire.Task};using var voice=new SpokenCommentary(engine);
-            Assert.False(voice.Enabled);voice.Observe("a","First",true);Assert.Empty(engine.Text);
-            voice.SetEnabled(true);voice.Observe("a","First",true);
+            Assert.False(voice.Enabled);voice.Read("a","First");Assert.Empty(engine.Text);
+            voice.SetEnabled(true);voice.Read("a","First");
             await engine.WaitCalls(1);
-            for(var i=0;i<20;i++)voice.Observe("a","First",true);
+            for(var i=0;i<20;i++)voice.Read("a","First");
             Assert.Single(engine.Text);
-            voice.Observe("b","Second",true);voice.Observe("c","Newest",true);
+            voice.Read("b","Second");voice.Read("c","Newest");
             retire.SetResult();
             await engine.WaitCalls(2);
             Assert.Equal(1,engine.MaxConcurrent);
             Assert.Equal("Newest",engine.Text.Last());
             Assert.DoesNotContain("Second",engine.Text);
             voice.Stop();await Task.Delay(20);
-            voice.Observe("jump","Obsolete after seek",true);Assert.DoesNotContain("Obsolete after seek",engine.Text);
-            voice.Observe("next","Next observed",true);await engine.WaitCalls(3);
+            voice.Read("next","Next observed");await engine.WaitCalls(3);
             voice.SetEnabled(false);await Task.Delay(20);Assert.Equal("Voice off",voice.Status);
             Assert.False(voice.Enabled);
-        }
-        [Theory]
-        [InlineData(1)]
-        [InlineData(3)]
-        [InlineData(5)]
-        public async Task Native_sample_voice_policy_reads_goals_only_above1x_and_Cc_independently(double rate)
-        {
-            var engine=new Speech();var clock=new Clock();
-            using var native=new MatchService(new Forbidden(),new Forbidden(),(_,_)=>Task.CompletedTask,speech:engine,mode:SessionMode.Test,replayClock:clock);
-            native.Command("rate",rate);native.Voice.SetEnabled(true);
-            native.Command("seek",16);native.Command("play");native.Sample(true);
-            clock.Seconds=1/rate;native.Sample(true);native.Sample(true);
-            Assert.Equal(rate==1?1:0,engine.Text.Count);
-            native.Command("seek",85);native.Command("play");native.Sample(true);
-            clock.Seconds+=1;native.Sample(true);
-            await engine.WaitCalls(rate==1?2:1);
-            Assert.Contains("scores",engine.Text.Last(),StringComparison.OrdinalIgnoreCase);
-            for(var i=0;i<10;i++)native.Sample(true);
-            Assert.Equal(rate==1?2:1,engine.Text.Count);
-            clock.Seconds+=4;native.Sample(true);
-            await Task.Delay(20);Assert.DoesNotContain("Speaking",native.Voice.Status);
-            Assert.Equal(rate==1?2:1,engine.Text.Count);
-            native.Command("pause");await Task.Delay(20);Assert.DoesNotContain("Speaking",native.Voice.Status);
-            Assert.NotNull(CommentaryReplay.At(native.Match.Commentary,86)); // Speech never changes CC.
         }
         [Fact]
         public async Task Voice_error_disables_only_audio_and_dispose_retires_pending_callbacks()
         {
-            using var voice=new SpokenCommentary(new ErrorSpeech());voice.SetEnabled(true);voice.Observe("a","text",true);
+            using var voice=new SpokenCommentary(new ErrorSpeech());voice.SetEnabled(true);voice.Read("a","text");
             await Task.Delay(30);Assert.False(voice.Enabled);Assert.Contains("Voice unavailable",voice.Status);
-            var engine=new Speech();var disposed=new SpokenCommentary(engine);disposed.SetEnabled(true);disposed.Observe("a","text",true);
+            var engine=new Speech();var disposed=new SpokenCommentary(engine);disposed.SetEnabled(true);disposed.Read("a","text");
             await engine.WaitCalls(1);disposed.Dispose();await Task.Delay(20);Assert.Equal("Voice off",disposed.Status);
         }
         [Fact]
         public async Task Stale_engine_failure_after_voice_off_cannot_replace_off_status_or_reenable_audio()
         {
             var engine=new LateSpeech();using var voice=new SpokenCommentary(engine);
-            voice.SetEnabled(true);voice.Observe("first","Old cue",true);
+            voice.SetEnabled(true);voice.Read("first","Old cue");
             Assert.Equal(1,engine.Calls);
             voice.SetEnabled(false);
             engine.Done.SetException(new InvalidOperationException("Late old engine error"));
             await Task.Delay(30);
             Assert.False(voice.Enabled);Assert.Equal("Voice off",voice.Status);
-        }
-        [Fact]
-        public void Speech_admission_uses_only_original_short_text_or_first_sentence_and_skips_long_holds()
-        {
-            Assert.Equal("Gyokeres scores!",SpokenCommentary.TextThatFits("Gyokeres scores! A longer explanation follows the observed finish.",4));
-            Assert.Null(SpokenCommentary.TextThatFits("A long continuous explanation has far too many words for this short freeze frame to finish naturally.",3));
-            Assert.Equal("A short cue.",SpokenCommentary.TextThatFits("A short cue.",2));
-            Assert.Null(SpokenCommentary.TextThatFits("An obsolete cue.",0));
-        }
-        [Fact]
-        public void Actual_recorded_coverage_is_seventeen_short_calls_at1x_including_both_goals_not_full_narration()
-        {
-            var match=NarrationRecording.Create();
-            var eligible=match.Commentary!.Cues.Where(c=>SpokenCommentary.TextThatFits(c.Text,c.End-c.Start)is not null).ToArray();
-            Assert.Equal(40,match.Commentary.Cues.Count);Assert.Equal(17,eligible.Length);
-            Assert.Equal(23,match.Commentary.Cues.Count-eligible.Length);
-            Assert.All(match.Events.Where(e=>e.Kind==PitchLens.Core.EventKind.Goal),g=>Assert.Contains(eligible,c=>c.EventId==g.Id));
-            var film=DirectorRecording.Load(match,1,300);
-            Assert.DoesNotContain(film.Plan.Scenes,s=>SpokenCommentary.TextThatFits(s.Text,s.HoldSeconds)is not null);
         }
         private sealed class Forbidden:IScenarioSource,IMomentSource,IDirectorSource
         {

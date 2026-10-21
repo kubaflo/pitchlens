@@ -328,6 +328,17 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         setClock(JSON.stringify({ revision: 3, sequence: ++sequence, time: 0, playing: false, rate: 5 }));
         assert.equal(goalNodes["goal-banner"].hidden, true);
         assert.equal(goalNodes["match-score"].textContent, "0 : 0");
+        setCaptionsEnabled(true);
+        setClock(JSON.stringify({ revision:3,sequence:++sequence,time:49,playing:true,rate:5,voicePaced:true,
+            voiceBoundary:52.99999999999999,highlightsEnabled:false }));
+        const voicePackets=native.length;
+        wall+=1000000;nextFrame();
+        assert.ok(diagnostics().time<53,"voice hold never advances beyond current full caption");
+        assert.equal(caption.hidden,false);
+        assert.equal(caption.textContent,goalClip.captions[0].text);
+        assert.equal(goalNodes["match-score"].textContent,"1 : 0");
+        assert.equal(native.length,voicePackets,"projecting speech hold never generates extra native calls");
+        setClock(JSON.stringify({ revision:3,sequence:++sequence,time:0,playing:false,rate:5,voicePaced:false }));
         const edit = { revision: 3, factsHash: "test-edit", scenes: [
             { sourceStart: 39, sourceEnd: 49, rate: 1, holdSeconds: 4, camera: "finish", focusEventId: goalClip.goals[0].id, text: "The recorded finish." },
             { sourceStart: 59, sourceEnd: 65, rate: .5, holdSeconds: 3, camera: "tactical", focusEventId: "later", text: "The response." }

@@ -36,6 +36,13 @@ public sealed partial class MatchService : IDisposable
     public SessionMode Mode { get; private set; }=SessionMode.Live;
     private readonly Action<SessionMode>? saveMode;
     public SpokenCommentary Voice { get; } = new(new UnavailableSpeech());
+    private SpeechPacing? voicePacing;
+    private bool pacedFilm;
+    private long pacedRevision;
+    private bool voiceWasEnabled;
+    public bool ListeningHold { get; private set; }
+    public double? FilmVoiceBoundary { get; private set; }
+    public string VoicePaceLabel=>Voice.Enabled?$"{(ListeningHold?"Listening hold":"Voice-paced1x")} · base{presentation.Rate}x saved":"";
     private Task? momentRequest;
     public string? MomentIntentNotice { get; private set; }
     public bool CanExplainCurrent
@@ -80,10 +87,68 @@ public sealed partial class MatchService : IDisposable
         Explainer.Changed += NotifyChanged;
         Director.ChangeScene(presentation.Revision);
         Director.Changed += NotifyChanged;
-        Voice.Changed += NotifyChanged;
+        Voice.Changed += VoiceChanged;
         presentation.Select(presentation.Match.Players.First(p=>p.Role=="midfielder").Id);
     }
     private void NotifyChanged() { if (!disposed) Changed?.Invoke(); }
+    private void VoiceChanged()=>ThreadPool.QueueUserWorkItem(_=>NotifyChanged());
+    public void SetVoiceEnabled(bool enabled)
+    {
+        lock(gate)
+        {
+            if(disposed)return;
+            ClearVoicePace();Voice.SetEnabled(enabled);ResetVoicePace(false);UpdateVoicePace();
+        }
+        NotifyChanged();
+    }
+    private void ClearVoicePace()
+    {
+        presentation.SetVoiceBoundary(false,null);film?.SetVoiceBoundary(false,null);
+        voicePacing=null;FilmVoiceBoundary=null;ListeningHold=false;
+    }
+    private void ResetVoicePace(bool skipCurrent)
+    {
+        if(!Voice.Enabled){ClearVoicePace();voiceWasEnabled=false;return;}
+        var beats=new List<SpeechBeat>();
+        if(film is not null&&Director.Current is { } directed)
+        {
+            double offset=0;
+            foreach(var scene in directed.Plan.Scenes)
+            {
+                var end=offset+FilmTimeline.SceneDuration(scene);
+                beats.Add(new($"film:{presentation.Revision}:{scene.Id}:{directed.Plan.FactsHash}",end-scene.HoldSeconds,end,scene.Text));
+                offset=end;
+            }
+        }
+        else if(presentation.Match.Commentary is { } track)
+            beats.AddRange(track.Cues.Select(c=>new SpeechBeat($"match:{presentation.Revision}:{c.Id}",c.Start,c.End,c.Text)));
+        voicePacing=new(beats);voicePacing.Reset(film?.Position??presentation.Position,skipCurrent);
+        pacedFilm=film is not null;pacedRevision=presentation.Revision;voiceWasEnabled=true;
+    }
+    private void UpdateVoicePace()
+    {
+        if(!Voice.Enabled){if(voiceWasEnabled||voicePacing is not null)ClearVoicePace();voiceWasEnabled=false;return;}
+        if(voicePacing is null||pacedFilm!=(film is not null)||pacedRevision!=presentation.Revision)ResetVoicePace(false);
+        var time=film?.Position??presentation.Position;var playing=film?.Playing??presentation.Playing;
+        var pacing=voicePacing!;
+        var boundary=pacing.Update(time,Active&&playing,Voice);
+        ListeningHold=Voice.Enabled&&pacing.HeldKey is not null;
+        if(film is not null){FilmVoiceBoundary=boundary;film.SetVoiceBoundary(Voice.Enabled,boundary);}
+        else presentation.SetVoiceBoundary(Voice.Enabled,boundary);
+    }
+    public void StopListening(){lock(gate){Voice.Stop();ResetVoicePace(true);UpdateVoicePace();}NotifyChanged();}
+    public void StopManualListening(){if(Voice.Manual)StopListening();}
+    public void ListenTo(string text,long revision,double cutoff)
+    {
+        lock(gate)
+        {
+            if(disposed||revision!=presentation.Revision||!double.IsFinite(cutoff)||cutoff>presentation.Position)
+                throw new InvalidOperationException("Only visible observed comments can be read.");
+            presentation.Pause();film?.Pause();ClearVoicePace();Voice.Stop();
+            Voice.Read($"manual:{revision}:{Guid.NewGuid():N}",text,true);
+        }
+        NotifyChanged();
+    }
     public Task StartSessionAsync()
     {
         lock (gate)
@@ -106,13 +171,14 @@ public sealed partial class MatchService : IDisposable
             if(mode==SessionMode.Live&&Mode==mode&&Generating)return startupRequest??Task.CompletedTask;
             if(Generating||Explainer.Busy||Director.Busy||CheckingConnection)throw new InvalidOperationException("Cancel or finish active requests before changing mode.");
             saveMode?.Invoke(mode);Mode=mode;startupAdmitted=true;
-            Voice.Stop();
+            ClearVoicePace();Voice.Stop();
             if(mode==SessionMode.Test)
             {
                 presentation.Pause();
                 if(!HasMatch)PlayRecordedDemo();
                 Status=Fresh?"Test mode · Current fresh match retained; all SDK requests blocked.":"Test mode · Recorded SDK demo / Not fresh / No AI calls.";
             }
+            ResetVoicePace(true);UpdateVoicePace();
         }
         NotifyChanged();
         lock(gate)return mode==SessionMode.Live&&generateNow?startupRequest=GenerateAsync():Task.CompletedTask;
@@ -123,7 +189,7 @@ public sealed partial class MatchService : IDisposable
         {
             if(Mode!=SessionMode.Test||!MomentRecording.Available(presentation.Match,presentation.Revision)||presentation.Position<86)
                 throw new InvalidOperationException("Recorded analysis is available only for the matching observed demo goal.");
-            Voice.Stop();LoadRecordedMoment();ExplanationSnapshot=Explainer.Current!.Evidence;presentation.Pause();
+            ClearVoicePace();Voice.Stop();LoadRecordedMoment();ExplanationSnapshot=Explainer.Current!.Evidence;presentation.Pause();ResetVoicePace(true);
         }
         NotifyChanged();
     }
@@ -144,6 +210,7 @@ public sealed partial class MatchService : IDisposable
     {
         lock (gate)
         {
+            if(!disposed)UpdateVoicePace();
             var frame = disposed ? null : presentation.Sample(force);
             var sampledFilm=film?.Frame;
             if (frame is not null && sampledFilm is not null)
@@ -152,21 +219,6 @@ public sealed partial class MatchService : IDisposable
                 frame = frame with { Snapshot = Replay.At(presentation.Match, sourceTime), Playing = false,
                     Explanations = Explanations.At(presentation.Match, sourceTime, frame.Mode),
                     Story = StoryReplay.At(presentation.Match, sourceTime), EffectiveRate = 1, HighlightActive = false, HighlightsEnabled = false };
-            }
-            if(frame is not null)
-            {
-                string? key=null,text=null;var playing=film?.Playing??frame.Playing;
-                if(sampledFilm is { Holding:true }&&Director.Current is { } directed)
-                {var scene=directed.Plan.Scenes[sampledFilm.SceneIndex];key=$"film:{frame.Revision}:{directed.Plan.FactsHash}:{scene.Id}";
-                    text=SpokenCommentary.TextThatFits(scene.Text,scene.HoldSeconds);}
-                else if(film is null)
-                {
-                    var cue=CommentaryReplay.At(frame.Match.Commentary,frame.Snapshot.Time);
-                    if(cue is not null&&(frame.Rate==1||frame.Match.Events.Single(e=>e.Id==cue.EventId).Kind==EventKind.Goal))
-                    {key=$"match:{frame.Revision}:{cue.Id}";
-                        text=SpokenCommentary.TextThatFits(cue.Text,(cue.End-cue.Start)/frame.EffectiveRate);}
-                }
-                Voice.Observe(key,text,Active&&HasMatch&&playing);
             }
             return frame is null ? null : new(frame, CurrentModel, Fresh, Status, Generating, Origin);
         }
@@ -177,7 +229,10 @@ public sealed partial class MatchService : IDisposable
         {
             if (disposed) return;
             if (!HasMatch && command != "pause") return;
-            if(command is "pause" or "toggle" or "restart" or "seek" or "seek-by" or "rate" or "watch-goal")Voice.Stop();
+            var resuming=command=="play"||command=="toggle"&&!presentation.Playing;
+            var discontinuity=!resuming&&command is "pause" or "toggle" or "restart" or "seek" or "seek-by" or "rate" or "watch-goal" or "mode";
+            if(resuming&&Voice.Manual){ClearVoicePace();Voice.Stop();ResetVoicePace(true);}
+            if(discontinuity){ClearVoicePace();Voice.Stop();}
             if (film is not null) { DirectorNotice = "Exit Director's Cut to use the match replay and player controls."; return; }
             switch (command)
             {
@@ -201,6 +256,8 @@ public sealed partial class MatchService : IDisposable
                     break;
                 default: throw new ArgumentException("Unknown replay command.");
             }
+            if(discontinuity){ResetVoicePace(command is not "restart" && command is not "play");UpdateVoicePace();}
+            else if(resuming)UpdateVoicePace();
         }
         Changed?.Invoke();
     }
@@ -211,9 +268,10 @@ public sealed partial class MatchService : IDisposable
         {
             if (disposed) return;
             presentation.Pause();
-            Voice.Stop();
+            ClearVoicePace();Voice.Stop();
             film?.Pause();
             Active = false;
+            ResetVoicePace(true);UpdateVoicePace();
         }
         Changed?.Invoke();
     }
@@ -231,7 +289,7 @@ public sealed partial class MatchService : IDisposable
         lock (gate)
         {
             if (disposed || !HasMatch || Explainer.Busy) return;
-            presentation.Pause();
+            presentation.Pause();ClearVoicePace();Voice.Stop();ResetVoicePace(true);
             ExplanationSnapshot = MomentEvidence.Capture(presentation.Match, presentation.Revision, presentation.Position, eventId);
         }
         Changed?.Invoke();
@@ -242,11 +300,12 @@ public sealed partial class MatchService : IDisposable
         {
             if (disposed || presentation.Revision != captured.Revision)
                 throw new InvalidOperationException("This evidence belongs to an earlier match. The current replay was not changed.");
-            Voice.Stop();
+            ClearVoicePace();Voice.Stop();
             film = null;
             var fact = captured.Resolve(id);
             presentation.Pause();
             presentation.Seek(fact.Time);
+            ResetVoicePace(true);UpdateVoicePace();
         }
         Changed?.Invoke();
     }
@@ -278,7 +337,7 @@ public sealed partial class MatchService : IDisposable
             }
             else if (Explainer.Busy)
             {
-                presentation.Pause();
+                presentation.Pause();ClearVoicePace();Voice.Stop();ResetVoicePace(true);
                 pending = momentRequest ?? Task.CompletedTask;
             }
             else if (!presentation.Match.Events.Any(e => e.Time <= presentation.Position))
@@ -288,7 +347,7 @@ public sealed partial class MatchService : IDisposable
             }
             else
             {
-                presentation.Pause();
+                presentation.Pause();ClearVoicePace();Voice.Stop();ResetVoicePace(true);
                 var captured = MomentEvidence.Capture(presentation.Match, presentation.Revision, presentation.Position);
                 ExplanationSnapshot = captured;
                 var failedSameSnapshot = Explainer.LastRequestedHash == captured.Hash &&
@@ -382,7 +441,7 @@ public sealed partial class MatchService : IDisposable
                 {
                     presentation.Replace(generation.Current);
                     HasMatch = true;
-                    Voice.Stop();
+                    ClearVoicePace();Voice.Stop();
                     Explainer.ChangeScene(presentation.Revision);
                     ExplanationSnapshot = null;
                     MomentIntentNotice = null;
@@ -413,7 +472,7 @@ public sealed partial class MatchService : IDisposable
         lock (gate)
         {
             if (disposed || presentation.Revision != revision) return;
-            Voice.Stop();
+            ClearVoicePace();Voice.Stop();
             if (film is not null) film.Pause();
             else
             {
@@ -421,6 +480,7 @@ public sealed partial class MatchService : IDisposable
                 presentation.Pause();
                 presentation.Seek(time);
             }
+            ResetVoicePace(true);UpdateVoicePace();
         }
         Changed?.Invoke();
     }
@@ -434,7 +494,7 @@ public sealed partial class MatchService : IDisposable
             Explainer.Cancel();
             Explainer.Changed -= NotifyChanged;
             Director.Cancel(); Director.Changed -= NotifyChanged;
-            Voice.Changed-=NotifyChanged;Voice.Dispose();
+            Voice.Changed-=VoiceChanged;Voice.Dispose();
             presentation.Dispose();
             disposed = true;
         }
@@ -448,7 +508,7 @@ public sealed partial class MatchService : IDisposable
             if(Mode!=SessionMode.Live){DirectorNotice="Test mode blocks AI editing. Use the labelled recorded film preview or switch to Live.";return Task.CompletedTask;}
             if (Director.Busy) return directorRequest ?? Task.CompletedTask;
             if (!CanDirect) { DirectorNotice = "Observe a goal and at least a minute of the match. Finish other requests and exit any film first."; return Task.CompletedTask; }
-            presentation.Pause();
+            presentation.Pause();ClearVoicePace();Voice.Stop();ResetVoicePace(true);
             var evidence = DirectorEvidence.Capture(presentation.Match, presentation.Revision, presentation.Position);
             DirectorNotice = $"Captured through {evidence.Cutoff:0.0}s. Main match stays paused; return restores this position, speed and selection.";
             pending = directorRequest = Director.CreateAsync(evidence, retry);
@@ -463,10 +523,11 @@ public sealed partial class MatchService : IDisposable
             ObjectDisposedException.ThrowIf(disposed, this);
             if (Director.Busy || Explainer.Busy || Generating || CheckingConnection)
                 throw new InvalidOperationException("Finish the active request before watching a film.");
-            Voice.Stop();
+            ClearVoicePace();Voice.Stop();
             var current = Director.Current ?? throw new InvalidOperationException("Create a valid film first.");
             if (current.Evidence.Revision != presentation.Revision) throw new InvalidOperationException("Film belongs to a previous match.");
             presentation.Pause(); film = new(current.Plan, filmClock); film.Play();
+            ResetVoicePace(false);UpdateVoicePace();
         }
         NotifyChanged();
     }
@@ -486,6 +547,7 @@ public sealed partial class MatchService : IDisposable
         lock (gate)
         {
             if (film is null) return;
+            ClearVoicePace();Voice.Stop();
             switch (command)
             {
                 case "toggle": if (film.Playing) film.Pause(); else if (Active) film.Play(); break;
@@ -494,7 +556,7 @@ public sealed partial class MatchService : IDisposable
                 case "exit": film = null; break;
                 default: throw new ArgumentException("Unknown film control.");
             }
-            Voice.Stop();
+            ResetVoicePace(command is "seek" or "toggle");UpdateVoicePace();
         }
         NotifyChanged();
     }

@@ -11,8 +11,8 @@
         }
     </section>
     <aside class="studio-analysis">
-        <div class="segments"><button class="@(!analyst ? "selected" : "")" aria-pressed="@(!analyst ? "true" : "false")" @onclick="() => analyst = false">Fan</button><button class="@(analyst ? "selected" : "")" aria-pressed="@(analyst ? "true" : "false")" @onclick="() => analyst = true">Analyst</button></div>
-        <div class="insight-lead"><span class="eyebrow">@(analyst ? "The pattern" : "The moment")</span><p>@Claims[0].Text</p><div class="insight-links">@foreach (var id in Claims[0].EvidenceIds)
+        <div class="segments"><button class="@(!analyst ? "selected" : "")" aria-pressed="@(!analyst ? "true" : "false")" @onclick="() => ChangeAudience(false)">Fan</button><button class="@(analyst ? "selected" : "")" aria-pressed="@(analyst ? "true" : "false")" @onclick="() => ChangeAudience(true)">Analyst</button></div>
+        <div class="insight-lead"><span class="eyebrow">@(analyst ? "The pattern" : "The moment")</span><p>@Claims[0].Text</p><button class="text-button" title="Read the entire original paragraph, not only the visible three lines." @onclick="()=>Read(Claims[0].Text)">Listen · Full comment</button><button class="text-button" @onclick="()=>Stop.InvokeAsync()">Stop</button><div class="insight-links">@foreach (var id in Claims[0].EvidenceIds)
             { <button class="text-button" @onclick="() => Select(id)">Highlight @Result.Evidence.Resolve(id).Time.ToString("0.#")s</button> }</div></div>
         <div class="histogram">
             <div class="studio-section-title"><h3>Pass distance</h3><strong>@visuals.MeasuredPasses measured</strong></div>
@@ -37,7 +37,7 @@
     <details><summary>Full original AI explanation (@Claims.Length statements)</summary>
         <p class="caption">AI interpretation, not verified causal truth. Original response retained unchanged; the lead above is visually clamped, not rewritten.</p>
         @foreach (var claim in Claims)
-        { <article class="moment-claim"><p>@claim.Text</p><div class="insight-links">@foreach (var id in claim.EvidenceIds) { <button class="evidence" @onclick="() => Inspect.InvokeAsync(id)">@Result.Evidence.Resolve(id).Time.ToString("0.#")s · @id</button> }</div></article> }
+        { <article class="moment-claim"><p>@claim.Text</p><button class="text-button" @onclick="()=>Read(claim.Text)">Listen · Full comment</button><button class="text-button" @onclick="()=>Stop.InvokeAsync()">Stop</button><div class="insight-links">@foreach (var id in claim.EvidenceIds) { <button class="evidence" @onclick="() => Inspect.InvokeAsync(id)">@Result.Evidence.Resolve(id).Time.ToString("0.#")s · @id</button> }</div></article> }
     </details>
     <details><summary>Match-to-cutoff player totals & provenance</summary>
         <p class="caption">Local totals through @facts.Cutoff.ToString("0.0")s, not the recent histogram sample and not AI arithmetic. Accuracy unavailable before attempts.</p>
@@ -53,6 +53,8 @@
     [Parameter] public bool Pending { get; set; }
     [Parameter] public bool Earlier { get; set; }
     [Parameter] public EventCallback<string> Inspect { get; set; }
+    [Parameter] public EventCallback<(string Text,long Revision,double Cutoff)> Listen { get; set; }
+    [Parameter] public EventCallback Stop { get; set; }
     private MomentEvidence? cached;
     private MomentFacts facts = null!;
     private MomentVisuals visuals = null!;
@@ -67,5 +69,7 @@
     }
     private void Select(string id) => visuals.Select(id);
     private void SelectBin(DistanceBin bin) => visuals.SelectBin(bin);
+    private Task Read(string text)=>Listen.InvokeAsync((text,Result.Evidence.Revision,Result.Evidence.Cutoff));
+    private async Task ChangeAudience(bool value){await Stop.InvokeAsync();analyst=value;}
     private static string N(double value) => value.ToString("R", CultureInfo.InvariantCulture);
 }

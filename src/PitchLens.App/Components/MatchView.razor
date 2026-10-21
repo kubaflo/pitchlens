@@ -52,9 +52,11 @@
             </div>
             <div class="pitch-caption"><span>@(Session.FilmActive ? "Film view · Return to the paused match for player lenses." : "Click a shirt. Get the player lens.")</span><span>@(match.Narrative is null ? frame.Explanations.LastOrDefault()?.Text ?? "Play to reveal the story." : frame.Story.LastOrDefault()?.Heading ?? "The story unfolds as you watch.")</span></div>
         </main>
+        @if(Session.Voice.ReadingText is { } spokenText)
+        {<div class="voice-reading"><span>Reading full comment · @Session.VoicePaceLabel</span><p>@spokenText</p><button class="text-button" @onclick="Session.StopListening">Stop reading</button></div>}
         @if (Session.FilmFrame is { } filmFrame)
         {
-            <div class="film-voice"><button class="text-button" aria-pressed="@(Session.Voice.Enabled?"true":"false")" @onclick="ToggleVoice">@(Session.Voice.Enabled?"Voice off for film":"Voice on for film")</button><span class="caption" role="status">@Session.Voice.Status</span></div>
+            <div class="film-voice"><button class="text-button" aria-pressed="@(Session.Voice.Enabled?"true":"false")" @onclick="ToggleVoice">@(Session.Voice.Enabled?"Voice off for film":"Full voice on for film")</button><span class="caption" role="status">@Session.Voice.Status · @Session.VoicePaceLabel</span><small>Original edit @filmFrame.Duration.ToString("0")s · Full voice can extend freeze holds and wall time.</small></div>
             <div class="film-transport"><button class="button" @onclick='() => Session.FilmCommand("restart")'>Restart film</button><button class="button purple" @onclick='() => Session.FilmCommand("toggle")'>@(Session.FilmPlaying ? "Pause film" : "Play film")</button><input aria-label="Film time in wall seconds" type="range" min="0" max="@filmFrame.Duration" step="0.1" value="@filmFrame.FilmTime" @onchange="FilmSeek" />@if (filmFrame.Holding) { <button class="button" title="Leave the film and pause the match at this scene's completed focus event." @onclick="InspectFilmScene">Inspect this scene</button> }<button class="button" @onclick='() => Session.FilmCommand("exit")'>Return to paused match</button><small>@(filmFrame.FilmTime >= filmFrame.Duration ? "Film complete. Restart or return to your paused match." : "Film clock is separate. Scene evidence unlocks at each freeze frame; player lenses require leaving film.")</small></div>
         }
         <footer class="transport">
@@ -66,7 +68,7 @@
             <label class="rate-control">Speed<select aria-label="Replay speed" value="@frame.Rate" @onchange="RateChanged"><option value="1">1x</option><option value="2">2x</option><option value="3">3x</option><option value="5">5x</option></select></label>
             <output id="effective-speed" class="effective-speed" aria-label="Effective replay pace"></output>
             <button class="button cc-button" aria-label="AI commentator subtitles" aria-pressed="@(captionsEnabled ? "true" : "false")" disabled="@(match.Commentary is null)" @onclick="ToggleCaptions">CC</button>
-            <button class="button" aria-pressed="@(Session.Voice.Enabled?"true":"false")" title="Short local English calls, not full spoken commentary. Goals only at2x/3x/5x. No extra AI request." @onclick="ToggleVoice">@(Session.Voice.Enabled?"Short voice calls · On":"Short voice calls · Off")</button>
+            <button class="button" aria-pressed="@(Session.Voice.Enabled?"true":"false")" title="Full local English commentary. Voice-paced1x may hold until speech finishes; selected base speed is saved. No AI call." @onclick="ToggleVoice">@(Session.Voice.Enabled?"Full voice · On":"Full voice · Off")</button>
             <span class="caption" role="status">@Session.Voice.Status</span>
             <button class="text-button" @onclick='() => Open("settings-dialog")'>Settings</button>
             </fieldset>
@@ -110,9 +112,10 @@
             <header class="dialog-head"><div><span class="eyebrow">The observed arc</span><h2 id="story-title">Match story</h2><span class="caption">Only evidence observed through @snapshot.Time.ToString("00.0")s</span></div><button class="close" data-close-popup>Close</button></header>
             <div class="dialog-body">
                 <div class="segments" id="mode"><button id="mode-casual" class="@(frame.Mode == ExplanationMode.Casual ? "selected" : "")" aria-pressed="@(frame.Mode == ExplanationMode.Casual ? "true" : "false")" @onclick="() => Mode(false)">Fan</button><button id="mode-analyst" class="@(frame.Mode == ExplanationMode.Analyst ? "selected" : "")" aria-pressed="@(frame.Mode == ExplanationMode.Analyst ? "true" : "false")" @onclick="() => Mode(true)">Analyst</button></div>
+                <p class="caption" role="status">@Session.Voice.Status</p>
                 @if (match.Narrative is not null)
                 {
-                    <NarrativeStory Match="match" Revision="frame.Revision" Cutoff="snapshot.Time" Score="snapshot.Score" Mode="frame.Mode" Fresh="view!.Fresh" Inspect="InspectStory" />
+                    <NarrativeStory Match="match" Revision="frame.Revision" Cutoff="snapshot.Time" Score="snapshot.Score" Mode="frame.Mode" Fresh="view!.Fresh" Inspect="InspectStory" Listen="ListenComment" Stop="Session.StopListening" />
                 }
                 else
                 {
@@ -126,6 +129,7 @@
             <header class="dialog-head"><div><span class="eyebrow">PitchLens / Evidence studio</span><h2 id="moment-title">Explain this moment</h2><span class="caption">Synthetic football · AI interpretation, not verified causal truth</span></div><button class="close" data-close-popup>Close</button></header>
             <div class="dialog-body studio-body">
                 <RequestActivityView Activity="Session.Explainer.Activity" Title="Sol · Moment analysis" Budget="270s response budget · Up to 6 read-only tool calls · Bounded cleanup" Cancel="Session.Explainer.Cancel" />
+                <p class="caption" role="status">@Session.Voice.Status</p>
                 @if (Session.ExplanationSnapshot is { } captured)
                 {
                     var focus = captured.Resolve(captured.FocusId);
@@ -134,7 +138,7 @@
                 @if (Session.MomentIntentNotice is { } intentNotice) { <p role="status">@intentNotice</p> }
                 @if (Session.Explainer.VisibleAt(frame.Revision, snapshot.Time) is { } explained)
                 {
-                    <MomentStudio Result="explained" Pending="Session.Explainer.Busy" Earlier="@(Session.Explainer.Activity.Snapshot.Stage is RequestStage.Failed or RequestStage.Cancelled || explained.Evidence.Hash != Session.ExplanationSnapshot?.Hash)" Inspect="id => InspectEvidence(explained.Evidence, id)" />
+                    <MomentStudio Result="explained" Pending="Session.Explainer.Busy" Earlier="@(Session.Explainer.Activity.Snapshot.Stage is RequestStage.Failed or RequestStage.Cancelled || explained.Evidence.Hash != Session.ExplanationSnapshot?.Hash)" Inspect="id => InspectEvidence(explained.Evidence, id)" Listen="ListenComment" Stop="Session.StopListening" />
                 }
                 else if (Session.Explainer.Current is { } hiddenExplanation)
                 { <p class="caption">Saved analysis is hidden before its captured cutoff of @hiddenExplanation.Evidence.Cutoff.ToString("0.0")s. Seek forward to that time to view it again.</p> }
@@ -178,7 +182,7 @@
             <div class="dialog-body">
                 <RequestActivityView Activity="Session.ConnectionActivity" Title="SDK connection check · No AI request" Budget="45-second check · No generation or model usage" Cancel="Session.CancelConnection" />
                 <section><h3>@Session.Mode mode</h3><p>Test blocks all SDK requests. Switching modes preserves your current game; generating a new Live match is an explicit separate action.</p><div class="actions"><button class="button" disabled="@(Session.Generating||Session.Explainer.Busy||Session.Director.Busy||Session.CheckingConnection)" @onclick="UseTest">Use Test mode · No AI calls</button><button class="button" disabled="@(Session.Generating||Session.Explainer.Busy||Session.Director.Busy||Session.CheckingConnection)" @onclick="UseLive">Use Live mode · Keep current match</button></div></section>
-                <section><h3>Short voice calls</h3><button class="button" aria-pressed="@(Session.Voice.Enabled?"true":"false")" @onclick="ToggleVoice">@(Session.Voice.Enabled?"Turn voice off":"Turn voice on")</button><p class="caption">Installed English OS voice, off each launch. Not full spoken commentary: short current cues at1x; goals only at2x/3x/5x. Uses original text or its existing first sentence when it fits; long cues/film holds are skipped, never queued. The recorded film's current hold sentences do not fit and stay text-only. Speech stops at expiry, so complete delivery is not guaranteed. No translation, cloned voice, cloud speech or extra AI request. CC stays independent.</p><p role="status">@Session.Voice.Status</p></section>
+                <section><h3>Full spoken comments</h3><button class="button" aria-pressed="@(Session.Voice.Enabled?"true":"false")" @onclick="ToggleVoice">@(Session.Voice.Enabled?"Turn voice off":"Turn full voice on")</button><p class="caption">Installed English OS voice, off each launch. Every timed comment is read in full during continuous playback. Voice-paced1x waits at boundaries as needed; base speed is retained and returns when off. Full film comments can extend the original edit's wall duration. Seek/pause intentionally cancels old speech without catch-up. Listen buttons read full current Fan/Analyst paragraphs while paused. No translation, cloned voice, cloud speech or AI request.</p><p role="status">@Session.Voice.Status</p></section>
                 <section id="scenario-provenance"><h3>@(view!.Origin == ScenarioOrigin.DeterministicDemo ? "Authored five-minute demo" : view.Fresh ? "New SDK-generated match" : "Recorded SDK example")</h3><p>Source model: @(view.Model ?? "None — authored locally"). @(view.Fresh ? "Generated in this session." : "Not a fresh request.")</p><p>All actions are synthetic. Real 2026/27 roster names; no real match result or athlete performance claim.</p></section>
                 <p>@(match.Commentary is { } commentary ? $"AI commentator subtitles: {commentary.Model}, {commentary.Cues.Count} timed cues for this match. {(view.Fresh ? "Generated with this match." : "Recorded generation, not a fresh request.")} {(match.Narrative is null ? "Historical story facts are scripted." : $"AI story: {match.Narrative.Chapters.Count} evidence-bound Fan/Analyst chapters from the same response.")}" : "AI narration unavailable; historical event facts are scripted.")</p>
                 @if (match.Players.Count == 22)
@@ -318,7 +322,7 @@ else
                 {
                     if (!ReferenceEquals(loadedFilm, directed.Plan))
                     { await module.InvokeVoidAsync("loadFilm", JsonSerializer.Serialize(directed.Plan, WebJsonContext.Default.FilmPlan)); loadedFilm = directed.Plan; }
-                    await module.InvokeVoidAsync("setFilmClock", filmFrame.FilmTime, Session.FilmPlaying, current.Sequence, current.Revision);
+                    await module.InvokeVoidAsync("setFilmClock", filmFrame.FilmTime, Session.FilmPlaying, current.Sequence, current.Revision,Session.FilmVoiceBoundary);
                 }
                 else if (loadedFilm is not null) { loadedFilm = null; await module.InvokeVoidAsync("loadFilm", (string?)null); }
             }
@@ -362,7 +366,8 @@ else
     private Task StartLive()=>Session.ChooseModeAsync(SessionMode.Live);
     private Task UseTest()=>Session.ChooseModeAsync(SessionMode.Test,false);
     private Task UseLive()=>Session.ChooseModeAsync(SessionMode.Live,false);
-    private void ToggleVoice()=>Session.Voice.SetEnabled(!Session.Voice.Enabled);
+    private void ToggleVoice()=>Session.SetVoiceEnabled(!Session.Voice.Enabled);
+    private void ListenComment((string Text,long Revision,double Cutoff) comment)=>Session.ListenTo(comment.Text,comment.Revision,comment.Cutoff);
     private async Task OpenDirector()
     {
         if(Session.Mode!=SessionMode.Live){Open("settings-dialog");return;}
@@ -467,6 +472,7 @@ else
         }
     });
     [JSInvokable] public Task FilmHidden() => InvokeAsync(() => { if (Session.FilmPlaying) Session.FilmCommand("toggle"); });
+    [JSInvokable] public Task CommentClosed()=>InvokeAsync(Session.StopManualListening);
     public async ValueTask DisposeAsync()
     {
         disposed = true;

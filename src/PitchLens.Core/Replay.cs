@@ -22,8 +22,10 @@ public sealed class Playback
     public bool IsPlaying { get; private set; }
     public double Rate { get; private set; } = 3;
     public bool HighlightsEnabled { get; private set; } = true;
+    public bool VoicePaced { get; private set; }
+    public double? VoiceBoundary { get; private set; }
     public bool HighlightActive { get { var time = Position; return HighlightsEnabled && rateWindows.Any(w => w.Start <= time && time < w.End); } }
-    public double EffectiveRate => HighlightActive ? 1 : Rate;
+    public double EffectiveRate => VoicePaced || HighlightActive ? 1 : Rate;
     public static bool IsSupportedRate(double rate) => rate is 1 or 2 or 3 or 5;
 
     public Playback(double duration, IMonotonicClock clock, IEnumerable<PlaybackRateWindow>? windows = null)
@@ -47,7 +49,8 @@ public sealed class Playback
         {
             if (IsPlaying)
             {
-                var current = Advance(position, Math.Max(0, clock.Seconds - anchor));
+                var current = VoicePaced ? Math.Min(VoiceBoundary ?? duration, position + Math.Max(0, clock.Seconds - anchor)) :
+                    Advance(position, Math.Max(0, clock.Seconds - anchor));
                 if (current < duration) return current;
                 position = duration;
                 IsPlaying = false;
@@ -95,6 +98,15 @@ public sealed class Playback
         position = Position;
         anchor = clock.Seconds;
         HighlightsEnabled = enabled;
+    }
+    public void SetVoiceBoundary(bool enabled, double? boundary)
+    {
+        if(boundary is double value && (!double.IsFinite(value)||value<0||value>duration))
+            throw new ArgumentOutOfRangeException(nameof(boundary));
+        if(VoicePaced==enabled&&VoiceBoundary==boundary)return;
+        position=Position;anchor=clock.Seconds;
+        if(boundary is double next && next<position)throw new ArgumentException("Voice boundary cannot rewind playback.");
+        VoicePaced=enabled;VoiceBoundary=boundary;
     }
     private double Advance(double from, double wallSeconds)
     {
