@@ -60,9 +60,9 @@ if (args is ["--narration", var narrationRuntime, var narrationWork, var narrati
         await using var writer = new StreamWriter(stream);
         await writer.WriteAsync(text);
     }
-    await SaveNarrationWitness("request.txt", NarrationPrompt.For(immutableMatch));
+    await SaveNarrationWitness("request.txt", DenseNarrationPrompt.For(immutableMatch));
     await SaveNarrationWitness("facts.json", NarrationPrompt.Facts(immutableMatch));
-    await SaveNarrationWitness("schema.json", NarrationPrompt.Schema);
+    await SaveNarrationWitness("schema.json", DenseNarrationPrompt.Schema);
     using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(270));
     try
     {
@@ -71,7 +71,8 @@ if (args is ["--narration", var narrationRuntime, var narrationWork, var narrati
         await SaveNarrationWitness("response.json", raw);
         var validated = NarrationPrompt.Attach(raw, immutableMatch);
         await SaveNarrationWitness("validated.json", raw);
-        Console.WriteLine($"LIVE NARRATION VALIDATED | model={CopilotScenarioSource.Model} | factsHash={validated.Narrative!.FactsHash} | cues={validated.Commentary!.Cues.Count} | chapters={validated.Narrative.Chapters.Count} | SDK Send requests=1 | match plan requests=0");
+        var captionStats=CaptionSchedule.Measure(validated.Commentary!.Cues.Select(c=>new CaptionSlot(c.EventId,c.Start,c.End)),validated.Duration);
+        Console.WriteLine($"LIVE NARRATION VALIDATED | model={CopilotScenarioSource.Model} | factsHash={validated.Narrative!.FactsHash} | cues={validated.Commentary.Cues.Count} | chapters={validated.Narrative.Chapters.Count} | coverageSeconds={captionStats.Seconds} | fraction={captionStats.Fraction} | maxInteriorGap={captionStats.MaximumInteriorGap} | SDK Send requests=1 | match plan requests=0");
         return 0;
     }
     catch (Exception e) when (e is ScenarioValidationException or CopilotGenerationException or OperationCanceledException or IOException)

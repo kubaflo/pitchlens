@@ -12,7 +12,6 @@ else
         <article class="narrative-card" @key="c.Chapter.Id">
             <div class="narrative-copy"><div class="narrative-kicker"><time>@c.Chapter.RevealTime.ToString("0.#")s</time><span>@c.Badge</span><strong>@c.Score</strong></div>
                 <h3>@c.Chapter.Heading</h3><p>@(Mode == ExplanationMode.Analyst ? c.Chapter.Analyst : c.Chapter.Fan)</p>
-                <button class="text-button" @onclick="()=>ReadChapter(c.Chapter.Id)">Listen · Full @(Mode==ExplanationMode.Analyst?"Analyst":"Fan") comment</button><button class="text-button" @onclick="()=>Stop.InvokeAsync()">Stop</button>
                 <button class="text-button" @onclick="() => Inspect.InvokeAsync((c.Evidence, c.Visuals.SelectedId))">Replay selected evidence →</button>
             </div>
             <div class="narrative-map"><EvidenceSequence Visuals="c.Visuals" Compact="true" /><span>@c.Visuals.Passes.Count pass attempts · @c.Chapter.EventIds.Length cited actions</span></div>
@@ -24,7 +23,7 @@ else
         </article>
     }
 }
-<details class="caption"><summary>AI story provenance & limitations</summary><p>One structured @Match.Narrative?.Model response authored captions and both audiences for matching facts. @Match.Narrative?.FactsHash. Interpretations can be wrong; validation checks identity, references and reveal bounds, not all prose truth. Local Listen reads existing text, not new AI. No live match claims, inferred pressure or xG.</p></details>
+<details class="caption"><summary>AI story provenance & limitations</summary><p>One structured @Match.Narrative?.Model response authored captions and both audiences for matching facts. @Match.Narrative?.FactsHash. Interpretations can be wrong; validation checks identity, references and reveal bounds, not all prose truth. No live match claims, inferred pressure or xG.</p></details>
 
 @code {
     [Parameter, EditorRequired] public Match Match { get; set; } = null!;
@@ -34,19 +33,12 @@ else
     [Parameter, EditorRequired] public IReadOnlyDictionary<string, int> Score { get; set; } = null!;
     [Parameter] public ExplanationMode Mode { get; set; }
     [Parameter] public EventCallback<(MomentEvidence Evidence, string EventId)> Inspect { get; set; }
-    [Parameter] public EventCallback<(string Text,long Revision,double Cutoff)> Listen { get; set; }
-    [Parameter] public EventCallback Stop { get; set; }
     private Match? cached;
     private long cachedRevision;
     private readonly Dictionary<string, Entry> entries = [];
     private IReadOnlyList<Entry> visible = [];
     private string ScoreNow = "";
     private sealed record Entry(NarrativeChapter Chapter, MomentEvidence Evidence, MomentVisuals Visuals, string Badge, string Score);
-    private Task ReadChapter(string id)
-    {
-        var chapter=visible.Single(e=>e.Chapter.Id==id).Chapter;
-        return Listen.InvokeAsync((Mode==ExplanationMode.Analyst?chapter.Analyst:chapter.Fan,Revision,chapter.RevealTime));
-    }
     protected override void OnParametersSet()
     {
         if (!ReferenceEquals(cached, Match) || cachedRevision != Revision)

@@ -18,6 +18,7 @@
     <EmbeddedResource Include="Resources/recorded_11v11_commentary_broadcast.json" LogicalName="PitchLens.Generation.recorded_11v11_commentary_broadcast.json" />
     <EmbeddedResource Include="Resources/recorded_moment_goal.json" LogicalName="PitchLens.Generation.recorded_moment_goal.json" />
     <EmbeddedResource Include="Resources/recorded_11v11_narration.json" LogicalName="PitchLens.Generation.recorded_11v11_narration.json" />
+    <EmbeddedResource Include="Resources/recorded_11v11_dense_narration.json" LogicalName="PitchLens.Generation.recorded_11v11_dense_narration.json" />
     <EmbeddedResource Include="Resources/recorded_director.json" LogicalName="PitchLens.Generation.recorded_director.json" />
   </ItemGroup>
 </Project>

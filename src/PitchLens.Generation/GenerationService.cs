@@ -43,6 +43,7 @@ public sealed class GenerationService(IScenarioSource source, Match initial, Sce
             progress?.Report("Validating roster, trajectories, possession and event causality…");
             var candidate = AuthoredMatchPlan.Parse(json,expectedFixture:RequestedFixture);
             if (candidate.Narrative is null) throw new ScenarioValidationException("New matches require a matching AI narration/story package, not historical captions alone.");
+            if(candidate.Commentary?.Contract!=2)throw new ScenarioValidationException("New games require matching dense caption slots, not historical sparse subtitles.");
             timeout.Token.ThrowIfCancellationRequested();
             variety?.Accept(candidate);
             Current = candidate;

@@ -7,13 +7,16 @@ public sealed class CommentaryTrack
     public string Model { get; }
     public IReadOnlyList<CommentaryCue> Cues { get; }
     public string? FactsHash { get; }
+    public int Contract { get; }
 
-    public CommentaryTrack(Match match, string model, IEnumerable<CommentaryCue> cues, string? factsHash = null)
+    public CommentaryTrack(Match match, string model, IEnumerable<CommentaryCue> cues, string? factsHash = null,int contract=1)
     {
         var items = cues.ToArray();
         static void Require(bool valid, string message) { if (!valid) throw new ArgumentException(message); }
         Require(!string.IsNullOrWhiteSpace(model), "Commentary model provenance is required.");
-        Require(items.Length is >= 24 and <= 64 && items.All(c => c is not null), "Expected 24-64 AI commentary cues.");
+        Require(contract is 1 or 2,"Unknown commentary contract.");
+        Require(items.Length >= (contract==1?24:1) && items.Length <= (contract==1?64:90) && items.All(c => c is not null), "Invalid AI commentary count for its declared contract.");
+        if(contract==2)CaptionSchedule.Validate(match,items);
         Require(items.Select(c => c.Id).Distinct().Count() == items.Length, "Commentary cue IDs must be unique.");
         double previousEnd = 0;
         foreach (var cue in items)
@@ -66,6 +69,7 @@ public sealed class CommentaryTrack
             "Each goal needs a commentary cue.");
         Model = model;
         FactsHash = factsHash;
+        Contract=contract;
         Cues = Array.AsReadOnly(items.Select(c => c with { PlayerIds = c.PlayerIds.ToArray(), EvidenceIds = c.EvidenceIds?.ToArray() }).ToArray());
     }
 }

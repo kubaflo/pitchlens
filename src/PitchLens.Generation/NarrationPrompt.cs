@@ -6,7 +6,7 @@ using PitchLens.Core;
 
 namespace PitchLens.Generation;
 
-public sealed record NarrationDocument(string FactsHash, CommentaryCue[] Cues, NarrativeChapter[] Chapters);
+public sealed record NarrationDocument(string FactsHash, CommentaryCue[] Cues, NarrativeChapter[] Chapters,int CaptionContract=1);
 public sealed record NarrationPlayer(string Id, string Name, string TeamId,
     [property:JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingNull)] int? Number=null,
     [property:JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingNull)] string? Role=null);
@@ -130,7 +130,9 @@ public static class NarrationPrompt
             if (document.FactsHash != Hash(match) || document.Cues is null || document.Chapters is null ||
                 document.Cues.Any(c => c is null || c.EvidenceIds is null))
                 throw new ArgumentException("Narration/captions must share this exact measured-facts hash and explicit evidence bounds.");
-            return match.WithNarrative(document.Cues, document.Chapters, CopilotScenarioSource.Model, document.FactsHash);
+            if(document.CaptionContract is not(1 or 2))throw new ArgumentException("Unknown caption contract.");
+            if(document.CaptionContract==2)CaptionSchedule.Validate(match,document.Cues);
+            return match.WithNarrative(document.Cues, document.Chapters, CopilotScenarioSource.Model, document.FactsHash,document.CaptionContract);
         }
         catch (ArgumentException e) { throw new ScenarioValidationException($"Invalid narration package: {e.Message}", e); }
     }

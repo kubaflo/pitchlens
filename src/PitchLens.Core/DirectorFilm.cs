@@ -37,8 +37,6 @@ public sealed class FilmPlayback
     public FilmPlan Plan { get; }
     public FilmFrame Frame => FilmTimeline.At(Plan, playback.Position);
     public bool Playing => playback.IsPlaying;
-    public double Position=>playback.Position;
-    public void SetVoiceBoundary(bool enabled,double? boundary)=>playback.SetVoiceBoundary(enabled,boundary);
     public FilmPlayback(FilmPlan plan, IMonotonicClock clock)
     {
         Plan = plan;

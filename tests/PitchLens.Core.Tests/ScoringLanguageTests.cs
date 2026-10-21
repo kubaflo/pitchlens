@@ -12,6 +12,8 @@ public sealed class ScoringLanguageTests
     [InlineData("The ball moves across the goal-mouth.")]
     [InlineData("The pass travels beside the goal line.")]
     [InlineData("The receiver is in front of goal.")]
+    [InlineData("Saka carries closer to goal.")]
+    [InlineData("Closer to the GOAL!")]
     public void Spatial_goal_reference_is_not_a_scoring_claim(string text) =>
         Assert.False(NarrativeText.HasScoringClaim(text));
 
@@ -26,6 +28,12 @@ public sealed class ScoringLanguageTests
     [InlineData("A goal? Not yet.")]
     [InlineData("Toward the goal, then scored.")]
     [InlineData("The carry moves toward the goal. The opener arrives.")]
+    [InlineData("Closer to goal, then scored.")]
+    [InlineData("Closer to the goal. A goal follows.")]
+    [InlineData("Closer to goal. The opener arrives.")]
+    [InlineData("Closer to goal, an equalizer!")]
+    [InlineData("Not closer to goal.")]
+    [InlineData("No closer to the goal.")]
     public void Actual_scoring_language_cannot_be_hidden_inside_a_spatial_phrase(string text) =>
         Assert.True(NarrativeText.HasScoringClaim(text));
 
@@ -46,6 +54,20 @@ public sealed class ScoringLanguageTests
             [new NarrativeText.GoalGeometry([new(0,34)],false)]));
         Assert.False(NarrativeText.SpatialGoalReferencesSupported("across the goal mouth",[]));
         Assert.True(NarrativeText.HasScoringClaim("The goal is close."));
+    }
+    [Theory]
+    [InlineData("closer to goal")]
+    [InlineData("closer to the goal.")]
+    [InlineData("CLOSER TO THE GOAL!")]
+    public void Closer_to_goal_requires_the_same_observed_direction_proof_on_either_side(string text)
+    {
+        Assert.True(NarrativeText.SpatialGoalReferencesSupported(text,[new NarrativeText.GoalGeometry([new(70,34),new(80,34)],true)]));
+        Assert.True(NarrativeText.SpatialGoalReferencesSupported(text,[new NarrativeText.GoalGeometry([new(30,34),new(20,34)],false)]));
+        Assert.False(NarrativeText.SpatialGoalReferencesSupported(text,[new NarrativeText.GoalGeometry([new(80,34),new(70,34)],true)]));
+        Assert.False(NarrativeText.SpatialGoalReferencesSupported(text,[new NarrativeText.GoalGeometry([new(20,34),new(30,34)],false)]));
+        Assert.False(NarrativeText.SpatialGoalReferencesSupported(text,[new NarrativeText.GoalGeometry([new(70,34),new(70,34)],true)]));
+        Assert.False(NarrativeText.SpatialGoalReferencesSupported(text,[]));
+        Assert.True(NarrativeText.HasScoringClaim(text+", then scored."));
     }
 
     [Fact]

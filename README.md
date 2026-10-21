@@ -17,7 +17,7 @@ starting XIs, match results, athlete performance or a season dataset. We chose
 could not be clarified. PitchLens is independent and unaffiliated with the league
 or either club; submission remains deferred.
 
-## Startup mode and optional local voice
+## Startup mode and dense subtitles
 
 On a fresh installation, the first visible screen offers **Test mode / Instant /
 No AI calls** and **Fresh AI match / Uses Copilot usage** before any SDK request.
@@ -25,7 +25,8 @@ The selected mode is remembered in native app preferences. Test launches open
 the verified recorded match immediately, with a compact **TEST / No AI calls**
 badge and Recorded/NotFresh provenance. Live launches retain one fresh bounded
 generation per new app lifetime; render, activation, replay and mode toggles never
-create extra requests. Voice is **off on every launch**, independent of mode.
+create extra requests. Voice-over, Listen controls and speech-driven clock holds
+have been removed. No text-to-speech engine or audio queue is started.
 
 Test mode is a native service boundary, not just a disabled button: startup,
 New match, Explain, Director generation and connection checking cannot reach
@@ -37,65 +38,42 @@ recorded previews remain unavailable unless the exact historical facts match.
 Settings can switch to Live while keeping the current game; **New match** is
 the separate explicit usage-consuming action. Switching to Test never starts AI.
 
-**Full voice** in transport and Settings uses the installed English OS
-text-to-speech engine through pinned MAUI10.0.20 `ITextToSpeech`, not a cloud
-speech provider or another model. It reads **every word** of each validated timed
-comment during continuous playback: no short-text filter, sentence clipping,
-goals-only policy or long-comment skip. Voice switches presentation to explicit
-**Voice-paced1x / base3x saved** (or the chosen1/2/5x). The authoritative native
-clock stops at the next unspoken cue start even after a large timer step, then
-advances at1x and holds at the current cue's end as long as the OS needs.
-This is **Listening hold**, not a user pause: the play intent stays active, the
-current complete subtitle/reading text remains visible, and player/ball/score
-stay at that source instant. A sequenced typed boundary packet makes JS project
-the same clamp; there is no independent speech clock or late catch-up queue.
-Speech completion releases only that owned boundary. Turning voice off restores
-the selected base rate without jumping the playhead.
+CC is on by default. Compact high-contrast captions react to completed actions
+and observed connections; they never pause or slow the clock. Selected1/2/3/5x
+speeds and the existing optional1x goal highlights are unchanged. Only the cue
+valid at the current source time is shown: no missed-cue queue, stale filler or
+future goal announcement. Director's recorded edit remains exactly58 seconds;
+there is no audio extension.
 
-All four **full Director hold sentences** use the same policy. The original AI
-edit remains58 presentation seconds with voice off; enabled full speech may
-extend its freeze holds and actual wall duration. The UI labels original edit
-duration separately from voice extension. Score/captions/evidence follow source
-time, not a later scene's result. Film exit restores the paused main match.
+The instant Test recording now contains **87 exact AI-authored subtitles**
+covering **289/300 replay seconds (96.3%)**, versus the historical40 cues/
+119 seconds (39.7%). Its longest interior blank is4 seconds, head gap3 seconds,
+tail gap0; minute cue counts are18/17/18/17/17. Each call is4–6words (mean5.17),
+24–42characters. These are original Sol words, not locally generated prose.
+The same combined response provides ten matching observed Fan/Analyst chapters.
 
-Every visible AI explanation claim (including the full paragraph behind the
-three-line lead) and each Fan/Analyst story chapter has **Listen / Stop**.
-Listen reads the complete current-mode text through the same owned voice service,
-pauses canonical replay and remains paused on completion. It works without
-enabling automatic voice; changing modes, closing the comment dialog or navigating
-evidence cancels it. It never reads all technical disclosures or future chapters.
-CC remains independent; a separate full reading-text/status line is available.
-No translation, celebrity/clone voice, microphone,
-voice download, recording/export or multilingual claim is included.
+Dense contract2 derives2–6second nonoverlapping slots locally from completed
+events, with goals preferred over their co-timed shots. The model must fill every
+slot with exact event/start/end references; only wording and chapters are AI-authored.
+All calls are2–9words/at most65characters, at least75% are3–8words, with bounded
+participants, observed evidence, plain text and unchanged scoring/unsupported-
+claim gates. There is no fixed80-cue minimum for45–90event games. If available
+slots cover less than75%, generation fails explicitly before the narration Send,
+without inventing filler. Gaps above4seconds caused by sparse source events
+are measured and visibly disclosed in Settings, not filled with stale captions.
+Older contract1 recordings retain their original24–64cue validation.
 
-Only the current utterance is retained; superseded pending work is
-cancelled, native calls are serialized, and stale callbacks cannot overwrite
-current status. Seek, pause, restart, rate change, scene replacement, background,
-film exit, voice-off and disposal stop speech; a discontinuity suppresses the
-current destination cue rather than announcing an obsolete goal after a seek.
-There is no queued catch-up audio. Unavailable English voices or speech failures
-disable only audio and show an explicit error; football continues. Native calls
-are marshalled to the main thread. Installed API metadata confirms
-`SpeakAsync(string,SpeechOptions,CancellationToken)` and `GetLocalesAsync`;
-this implementation uses only Locale/Volume/Pitch, not an assumed rate setting.
-Headless fake-engine tests prove scheduling/cancellation, not audible voice quality.
-Exact controlled coverage checks send **40/40 complete recorded cue strings**
-once in order at base1x/3x/5x, including huge clock steps, and **4/4 complete
-Director sentences**, including the last end hold. Original AI text is unchanged.
-User seeks/restarts/pause/off intentionally cancel or skip comments rather than
-resuming old audio; full continuous coverage is not a claim that skipped footage
-is spoken. Engine errors release voice pacing without changing user pause intent.
-No audio is played by build, startup or automated review.
-
-The official hackathon rules have **no dedicated text-to-speech prize**.
-Optional speech is an accessibility/personalized narrative UX enhancement relevant
-to the stated experience criteria, not an eligibility, category or winning claim.
+At selected1x/3x/5x with goal highlights off, this recording's2–6replay-second
+windows last2–6/0.67–2/0.4–1.2wall seconds respectively. Shorter text improves
+scanability but does not guarantee every user can read every call at5x; choose
+a slower speed or pause manually. Coverage measures source time, not reading
+completion. Goal highlights retain their existing explicit1x presentation.
 
 For strictly no-paid native review of a fresh unique review app, open it, choose
-**Test mode**, keep **Voice off**, then use replay/recorded analysis/recorded film.
+**Test mode**, then use replay/recorded analysis/recorded film.
 There is no hidden startup flag. A remembered Live choice will generate on later
 launches; the first chooser and Test boundary are covered by actual Razor/native
-controlled tests. Audible acceptance needs an explicit user voice-on action.
+controlled tests. Native visual/readability acceptance remains user-operated.
 
 ## Director's Cut / In-app film
 
@@ -176,7 +154,7 @@ Opening a fresh installation now shows the mode chooser before requesting AI;
 choosing Test makes this preview genuinely no-paid. A remembered Live choice
 still begins fresh generation on future launches.
 
-| Original voice-off film wall interval | Actual source footage | Freeze hold | Local score after finish |
+| Original film wall interval | Actual source footage | Freeze hold | Local score after finish |
 |---|---|---|---|
 | 0–12s | 69–78s at 1x | 9–12s | 0:0 |
 | 12–30s | 79–86s at 0.5x | 26–30s | 1:0 |
@@ -580,12 +558,11 @@ match engine or newly generated celebration simulation.
 **Match story** is now an original visual narrative, not the old deterministic
 thirty-second pass lists. The same response that writes captions writes bounded,
 distinct **Fan** and **Analyst** interpretations. The explicit recorded demo's
-package has twelve turning points: four buildups, four turnovers, two goals and
-two restart responses. Cards combine concise AI headings/interpretations with
+package has evidence-bound turning points, including buildups, turnovers, goals and
+restart responses. Cards combine concise AI headings/interpretations with
 local consequence/score badges and the shared exact-coordinate action map.
 Evidence IDs, chapter-scoped pass measurements and provenance are expandable;
-they do not dominate the story. No extra story provider or per-card call;
-optional local speech reads existing captions, not new AI story text.
+they do not dominate the story. No extra story provider, per-card call or audio.
 
 The stored package covers the whole match, but the visible story is an as-of
 projection. Each chapter reveals exactly at its focus event's completion; every
@@ -606,19 +583,29 @@ explicitly historical/scripted and are never relabelled as AI story output.
 
 **CC** controls optional AI-generated subtitles at the bottom of the pitch,
 on by default when available. These are actual **gpt-6.1-sol** output, not
-renamed scripted match notes. The explicit recorded demo uses **40 contextual cues plus twelve
-Fan/Analyst chapters** from one successful bounded Sol SDK storytelling request.
+renamed scripted match notes. The explicit recorded demo uses **87 contextual cues plus matching
+Fan/Analyst chapters** from one bounded Sol SDK storytelling refresh.
 Cues connect prior observed pass/carry sequences with their payoff, instead of
-repeating full-name/pass-completed templates. They span 3-298 seconds, last
-**2-4 replay seconds** each (119 seconds total), and cover both goals.
-`recorded_11v11_narration.json` is the exact unedited validated response,
-SHA-256 `9456026655d301cb03ac0303766638e83b7031b879d939bc81fe064aac7d9ed6`.
+repeating full-name/pass-completed templates. They span3–300seconds, last
+**2–6 replay seconds** each (289seconds total), and cover both goals.
+`recorded_11v11_dense_narration.json` is the exact unedited validated response,
+SHA-256 `bb2b602c7c8dd2d582951ea12ba0b186669144d17904ebea4eb8b18e6d8f7dbb`.
 Both caption/story tracks share measured-facts hash
 `318b2f66780d03907762d80568c9c5228947446aa5617660e40efa0e381aae72`.
 This was exactly one narration-only SDK Send, zero initial-plan requests,
-no repair/retry/fallback. Raw request, schema, measured facts and response were
+no model repair/retry/fallback. Raw request, schema, measured facts and response were
 preserved in opt-in session-only artifacts before validation.
-Earlier 40/41-cue caption-only recordings remain historical, unedited resources.
+The earlier40cue combined response (`recorded_11v11_narration.json`,
+SHA-256 `9456026655d301cb03ac0303766638e83b7031b879d939bc81fe064aac7d9ed6`)
+and40/41cue caption-only recordings remain historical, unedited resources.
+The new response first reproduced a bounded spatial-language false positive:
+cue-e25 at82s says “Saka carries closer to goal.” Its cited carry actually moves
+the ball(70,12)→(84,14), reducing distance to Arsenal's attacking goal(105,34)
+from41.340053m to29m. The shared classifier now recognizes only explicit
+“closer to goal”/“closer to the goal” as spatial uses, requiring the same measured
+direction proof as “toward the goal”. The exact raw package was red before this
+targeted correction and green through full validation afterward, without editing
+any AI word/window/reference or making another model request.
 Playback and Test mode make no requests; remembered Live startup does.
 Settings distinguishes recorded/generated
 narration/story; all describe synthetic actions.
@@ -626,7 +613,7 @@ narration/story; all describe synthetic actions.
 Cues reference a primary event, explicit contextual event IDs and involved
 roster IDs. All context must be completed by cue start and within twelve seconds;
 no future goal can explain an earlier pass. Cues are ordered/nonoverlapping and bounded to 2-6 seconds and
-140 plain-text characters. Every minute and every goal need coverage.
+65plain-text characters for densecontract2 (140 for historicalcontract1). Every minute and every goal need coverage.
 Unknown references, early/overlapping cues, markup, numeric statistics and
 explicit prediction/unsupported goal wording are rejected. This is a bounded
 grounding contract, not a claim that a validator proves every natural-language

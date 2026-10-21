@@ -79,7 +79,7 @@ public sealed class Match
     public Match(double duration, IEnumerable<Team> teams, IEnumerable<Player> players,
         IEnumerable<MatchEvent> events, Trajectory ball, IEnumerable<PossessionChange> possession, MatchStory? story = null,
         IEnumerable<CommentaryCue>? commentary = null, string? commentaryModel = null,
-        IEnumerable<NarrativeChapter>? narrative = null, string? narrationFactsHash = null)
+        IEnumerable<NarrativeChapter>? narrative = null, string? narrationFactsHash = null,int captionContract=1)
     {
         Duration = duration;
         Teams = Array.AsReadOnly(teams.ToArray());
@@ -89,15 +89,15 @@ public sealed class Match
         Possession = Array.AsReadOnly(possession.ToArray());
         Story = story;
         Validate();
-        if (commentary is not null) Commentary = new(this, commentaryModel ?? throw new ArgumentException("Commentary model required."), commentary, narrationFactsHash);
+        if (commentary is not null) Commentary = new(this, commentaryModel ?? throw new ArgumentException("Commentary model required."), commentary, narrationFactsHash,captionContract);
         if (narrative is not null) Narrative = new(this, commentaryModel ?? throw new ArgumentException("Narration model required."),
             narrationFactsHash ?? throw new ArgumentException("Narration facts hash required."), narrative);
     }
 
     public Match WithCommentary(IEnumerable<CommentaryCue> cues, string model) =>
         new(Duration, Teams, Players, Events, Ball, Possession, Story, cues, model);
-    public Match WithNarrative(IEnumerable<CommentaryCue> cues, IEnumerable<NarrativeChapter> chapters, string model, string factsHash) =>
-        new(Duration, Teams, Players, Events, Ball, Possession, Story, cues, model, chapters, factsHash);
+    public Match WithNarrative(IEnumerable<CommentaryCue> cues, IEnumerable<NarrativeChapter> chapters, string model, string factsHash,int captionContract=1) =>
+        new(Duration, Teams, Players, Events, Ball, Possession, Story, cues, model, chapters, factsHash,captionContract);
 
     public Player Player(string id) => Players.Single(p => p.Id == id);
     public bool AttacksRight(string teamId) => Teams[0].Id == teamId;

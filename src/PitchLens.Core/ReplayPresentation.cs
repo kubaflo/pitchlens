@@ -2,7 +2,7 @@ namespace PitchLens.Core;
 
 public sealed record PresentationFrame(long Revision, long Sequence, Match Match, Snapshot Snapshot, bool Playing,
     string SelectedId, ExplanationMode Mode, IReadOnlyList<Explanation> Explanations, IReadOnlyList<StoryMoment> Story, double Rate,
-    double EffectiveRate, bool HighlightsEnabled, bool HighlightActive, bool VoicePaced=false,double? VoiceBoundary=null);
+    double EffectiveRate, bool HighlightsEnabled, bool HighlightActive);
 
 public sealed class ReplayPresentation : IDisposable
 {
@@ -28,7 +28,6 @@ public sealed class ReplayPresentation : IDisposable
     public double Position => playback.Position;
     public double Rate => playback.Rate;
     public bool HighlightsEnabled => playback.HighlightsEnabled;
-    public void SetVoiceBoundary(bool enabled,double? boundary)=>playback.SetVoiceBoundary(enabled,boundary);
 
     public ReplayPresentation(Match match, IMonotonicClock clock)
     {
@@ -73,7 +72,7 @@ public sealed class ReplayPresentation : IDisposable
             storyCount = beats;
         }
         return new(Revision, ++sequence, Match, snapshot, playback.IsPlaying, SelectedId, Mode, explanations, story, playback.Rate,
-            playback.EffectiveRate, playback.HighlightsEnabled, playback.HighlightActive,playback.VoicePaced,playback.VoiceBoundary);
+            playback.EffectiveRate, playback.HighlightsEnabled, playback.HighlightActive);
     }
 
     public void Play() { ObjectDisposedException.ThrowIf(disposed, this); playback.Play(); }

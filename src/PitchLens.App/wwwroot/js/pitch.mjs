@@ -7,7 +7,6 @@ import { ARENA, viewportMap, backgroundTransform, applyField, fieldToViewport, p
 
 let engine, canvas, viewport, context, background, observer, reference, frameId = null;
 let pointerHandler, visibilityHandler, keyboardHandler, rangeDown, rangeUp, range, width = 0, height = 0, dragging = false;
-let commentCloseHandler;
 let popups = null, lensPlayerId = null, canvasBox = null, geometryHandler = null;
 let map = null, wideMap = null, markerSize = null;
 let playerLayer = null;
@@ -69,15 +68,6 @@ export function initialize(element, dotnet) {
         } else { cacheGeometry(); draw(); }
     };
     document.addEventListener("visibilitychange", visibilityHandler);
-    commentCloseHandler=event=>{
-        if(event.target?.id==="moment-dialog"||event.target?.id==="story-dialog")
-            reference?.invokeMethodAsync("CommentClosed").catch(error=>{
-                console.error("Comment speech close failed",error);
-                const banner=document.getElementById("blazor-error-ui");
-                if(banner){banner.textContent="Speech close synchronization failed. Use Voice off to stop reading.";banner.style.display="block";}
-            });
-    };
-    document.addEventListener("close",commentCloseHandler,true);
     keyboardHandler = event => {
         if (document.querySelector?.("dialog[open][aria-modal='true']")) return;
         const command = keyboardAction(event);
@@ -304,8 +294,7 @@ function updateTransport(time, broadcast = broadcastFrame(engine.scenario, time,
     const pace = document.getElementById("effective-speed");
     if (pace) {
         const active = engine.clock.highlightsEnabled && engine.clock.windows.some(w => w.start <= time && time < w.end);
-        const voiceHold=engine.clock.voiceBoundary!==null&&time>=engine.clock.voiceBoundary;
-        const label = film ? `Match ${engine.clock.rate}x saved` : engine.clock.voicePaced?`${voiceHold?"Listening hold":"Voice-paced1x"} · base ${engine.clock.rate}x`:active ? `Highlight ${engine.clock.effectiveRate(now())}x · base ${engine.clock.rate}x` : `${engine.clock.rate}x`;
+        const label = film ? `Match ${engine.clock.rate}x saved` : active ? `Highlight ${engine.clock.effectiveRate(now())}x · base ${engine.clock.rate}x` : `${engine.clock.rate}x`;
         if (pace.textContent !== label) pace.textContent = label;
     }
     const banner = document.getElementById("goal-banner");
@@ -357,12 +346,12 @@ export function loadFilm(json) {
     popups?.close("player-dialog", false); popups?.close("roster-dialog", false);
     draw();
 }
-export function setFilmClock(position, playing, sequence, revision, voiceBoundary=null) {
+export function setFilmClock(position, playing, sequence, revision) {
     if (!film) throw new Error("No film loaded.");
     if (!Number.isSafeInteger(sequence) || revision !== engine.scenario.revision) throw new Error("Invalid film clock packet.");
     if (sequence <= film.sequence) return;
     film.sequence = sequence;
-    film.apply(position, playing, now(),voiceBoundary); draw();
+    film.apply(position, playing, now()); draw();
 }
 export function setEvidence(revision, json) {
     evidence = pinnedEvidence(revision, json, engine.clock);
@@ -378,7 +367,6 @@ export function dispose() {
     window.removeEventListener("resize", resize);
     if (canvas && pointerHandler) canvas.removeEventListener("pointerdown", pointerHandler);
     if (visibilityHandler) document.removeEventListener("visibilitychange", visibilityHandler);
-    if(commentCloseHandler)document.removeEventListener("close",commentCloseHandler,true);
     if (keyboardHandler) window.removeEventListener("keydown", keyboardHandler);
     if (geometryHandler) document.removeEventListener("scroll", geometryHandler, true);
     if (range && rangeDown) range.removeEventListener("pointerdown", rangeDown);
@@ -397,5 +385,4 @@ export function dispose() {
     motionQuery = motionHandler = null; reducedMotion = false; lastClockTime = 0;
     geometryHandler = null;
     pointerHandler = visibilityHandler = keyboardHandler = rangeDown = rangeUp = null;
-    commentCloseHandler=null;
 }

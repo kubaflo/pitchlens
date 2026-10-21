@@ -109,6 +109,7 @@ public static class AuthoredGenerationPipeline
         var commentary = await generateCommentary(match, token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
         var package = NarrationPrompt.Document(commentary);
+        if(package.CaptionContract!=2)throw new ScenarioValidationException("New generation requires dense caption contract2, not a historical package.");
         _ = NarrationPrompt.Attach(package, match);
         var result = JsonSerializer.Serialize(document with { Commentary = null, Narration = package },
             AuthoredJsonContext.Default.AuthoredMatchDocument);

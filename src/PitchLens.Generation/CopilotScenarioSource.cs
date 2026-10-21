@@ -37,7 +37,7 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
     public Task<string> GenerateCommentaryAsync(Match match, IProgress<string>? progress, CancellationToken cancellationToken) =>
         RequestAsync(CommentaryPrompt.For(match), CommentaryPrompt.Schema, "commentary", progress, cancellationToken);
     public Task<string> GenerateNarrationAsync(Match match, IProgress<string>? progress, CancellationToken cancellationToken) =>
-        RequestAsync(NarrationPrompt.For(match), NarrationPrompt.Schema, "commentary", progress, cancellationToken);
+        RequestAsync(DenseNarrationPrompt.For(match), DenseNarrationPrompt.Schema, "commentary", progress, cancellationToken);
     public Task<string> GenerateDirectorAsync(DirectorEvidence evidence, IProgress<string>? progress, CancellationToken token) =>
         RequestAsync(DirectorPrompt.For(evidence), DirectorPrompt.Schema, "director", progress, token);
     internal CopilotClient CreateClient()

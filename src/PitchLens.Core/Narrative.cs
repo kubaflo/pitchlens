@@ -93,7 +93,7 @@ public static class NarrativeText
             }
             var directed = i > 0 && words[i-1] is "toward" or "towards" ||
                 i > 1 && words[i-1] == "the" && words[i-2] is "toward" or "towards";
-            if (directed && !events.Any(e => e.Points.Length > 1 &&
+            if ((directed || IsCloserToGoal(words,i)) && !events.Any(e => e.Points.Length > 1 &&
                 e.Points[^1].DistanceTo(new(e.AttacksRight ? 105 : 0,34)) <
                 e.Points[0].DistanceTo(new(e.AttacksRight ? 105 : 0,34)) - .1))
                 return false;
@@ -114,9 +114,16 @@ public static class NarrativeText
             var direction = i > 0 && words[i - 1] is "toward" or "towards";
             var directedArticle = i > 1 && words[i - 1] == "the" && words[i - 2] is "toward" or "towards";
             var inFront = i > 2 && words[i - 1] == "of" && words[i - 2] == "front" && words[i - 3] == "in";
-            if (!spatialSuffix && !direction && !directedArticle && !inFront) return true;
+            if (!spatialSuffix && !direction && !directedArticle && !inFront && !IsCloserToGoal(words,i)) return true;
         }
         return false;
+    }
+    private static bool IsCloserToGoal(string[] words,int goalIndex)
+    {
+        var toIndex=goalIndex-1;
+        if(toIndex>=0&&words[toIndex]=="the")toIndex--;
+        return toIndex>=1&&words[toIndex]=="to"&&words[toIndex-1]=="closer"&&
+            (toIndex<2||words[toIndex-2] is not("not" or "no" or "never"));
     }
     public static string[] Words(string text) => text.ToLowerInvariant().Split([' ', '.', ',', '!', '?', ';', ':', '—', '-'], StringSplitOptions.RemoveEmptyEntries);
     public static void Validate(string text, int minimum, int maximum)

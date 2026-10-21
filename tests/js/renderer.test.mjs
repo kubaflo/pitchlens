@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 const { initialize, loadScenario, setClock, diagnostics, dispose, openPopup, closePopup, setCaptionsEnabled, setEvidence, loadFilm, setFilmClock } =
     await import(process.env.PITCH_TEST_RENDERER || new URL("../../src/PitchLens.App/wwwroot/js/pitch.mjs", import.meta.url));
 import { at } from "../../src/PitchLens.App/wwwroot/js/replay.mjs";
@@ -329,16 +330,14 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         assert.equal(goalNodes["goal-banner"].hidden, true);
         assert.equal(goalNodes["match-score"].textContent, "0 : 0");
         setCaptionsEnabled(true);
-        setClock(JSON.stringify({ revision:3,sequence:++sequence,time:49,playing:true,rate:5,voicePaced:true,
-            voiceBoundary:52.99999999999999,highlightsEnabled:false }));
-        const voicePackets=native.length;
-        wall+=1000000;nextFrame();
-        assert.ok(diagnostics().time<53,"voice hold never advances beyond current full caption");
-        assert.equal(caption.hidden,false);
+        setClock(JSON.stringify({revision:3,sequence:++sequence,time:49,playing:true,rate:3,highlightsEnabled:false}));
+        const captionPackets=native.length;wall+=1000;nextFrame();
+        assert.equal(diagnostics().time,52,"subtitles do not slow or hold selected3x");
         assert.equal(caption.textContent,goalClip.captions[0].text);
-        assert.equal(goalNodes["match-score"].textContent,"1 : 0");
-        assert.equal(native.length,voicePackets,"projecting speech hold never generates extra native calls");
-        setClock(JSON.stringify({ revision:3,sequence:++sequence,time:0,playing:false,rate:5,voicePaced:false }));
+        wall+=1000;nextFrame();assert.equal(diagnostics().time,55);
+        assert.equal(caption.hidden,true,"expired cues are not stale filler");
+        assert.equal(native.length,captionPackets,"caption changes never make native/model calls");
+        setClock(JSON.stringify({revision:3,sequence:++sequence,time:0,playing:false,rate:5}));
         const edit = { revision: 3, factsHash: "test-edit", scenes: [
             { sourceStart: 39, sourceEnd: 49, rate: 1, holdSeconds: 4, camera: "finish", focusEventId: goalClip.goals[0].id, text: "The recorded finish." },
             { sourceStart: 59, sourceEnd: 65, rate: .5, holdSeconds: 3, camera: "tactical", focusEventId: "later", text: "The response." }
@@ -398,6 +397,29 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         setClock(JSON.stringify({revision:4,sequence:++sequence,time:48.9,playing:false}));
         assert.equal(goalNodes["match-score"].textContent,"0 : 0");
         assert.equal(layer.children.length,22);
+        const dense=JSON.parse(readFileSync(new URL("../../src/PitchLens.Generation/Resources/recorded_11v11_dense_narration.json",import.meta.url),"utf8"));
+        loadScenario(JSON.stringify({...clip,revision:5,captions:dense.cues}));
+        const beforeDense=native.length;
+        for(const rate of [1,3,5]){
+            const anchorWall=wall,seen=new Set();
+            setClock(JSON.stringify({revision:5,sequence:++sequence,time:0,playing:true,rate,highlightsEnabled:false}));
+            for(let time=0;time<=300;time+=.25){
+                wall=anchorWall+time/rate*1000;nextFrame();
+                const actual=diagnostics().time;
+                assert.ok(Math.abs(actual-time)<1e-8,"dense captions cannot alter selected playback speed");
+                const cue=dense.cues.find(c=>c.start<=actual&&actual<c.end);
+                assert.equal(caption.hidden,!cue);
+                if(cue){assert.equal(caption.textContent,cue.text);seen.add(cue.id);}
+            }
+            assert.deepEqual([...seen],dense.cues.map(c=>c.id),"all87 exact cues render in order at1/3/5x without a speech queue");
+        }
+        setClock(JSON.stringify({revision:5,sequence:++sequence,time:85.9,playing:false,rate:3,highlightsEnabled:false}));
+        assert.equal(caption.textContent,dense.cues.find(c=>c.start<=85.9&&85.9<c.end).text);
+        assert.ok(!caption.textContent.includes("Goal!"),"backward seek never retains the later goal call");
+        const densePausedTime=diagnostics().time;wall+=10000;
+        assert.equal(nextFrame,null,"paused captions do not keep an animation or audio loop alive");
+        assert.equal(diagnostics().time,densePausedTime);
+        assert.equal(native.length,beforeDense,"dense captions make no native/model/audio callback");
         dispose();
         assert.equal(caption.hidden, true);
         assert.equal(layer.children.length, 0);

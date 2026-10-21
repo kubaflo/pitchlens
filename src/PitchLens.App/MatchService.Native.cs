@@ -9,28 +9,11 @@ public sealed partial class MatchService
     {
         Mode=Enum.TryParse<SessionMode>(Preferences.Default.Get("session-mode",""),out var stored)&&Enum.IsDefined(stored)&&stored!=SessionMode.Unchosen?stored:SessionMode.Unchosen;
         saveMode=mode=>Preferences.Default.Set("session-mode",mode.ToString());
-        Voice=new(new NativeSpeech());
         generation = new(new NativeSource(this), presentation.Match, ScenarioOrigin.RecordedSdkExample, AuthoredMatchRecording.Model, LoadVariety());
         Explainer = new(new NativeMomentSource(this));
         Director = new(new NativeDirectorSource(this));
         checkConnection = (progress, token) => new NativeSource(this).CheckAsync(progress, token);
         Initialize();
-    }
-    private sealed class NativeSpeech:PitchLens.Core.ILocalSpeech
-    {
-        public async Task SpeakAsync(string text,CancellationToken token)
-        {
-            token.ThrowIfCancellationRequested();
-            await MainThread.InvokeOnMainThreadAsync(async()=>
-            {
-                var locales=await Microsoft.Maui.Media.TextToSpeech.Default.GetLocalesAsync();
-                var english=locales.FirstOrDefault(l=>l.Language.StartsWith("en",StringComparison.OrdinalIgnoreCase))
-                    ??throw new NotSupportedException("No installed English voice is available.");
-                token.ThrowIfCancellationRequested();
-                await Microsoft.Maui.Media.TextToSpeech.Default.SpeakAsync(text,
-                    new Microsoft.Maui.Media.SpeechOptions{Locale=english,Volume=1,Pitch=1},token);
-            });
-        }
     }
     private MatchVariety LoadVariety()
     {

@@ -15,10 +15,7 @@ public sealed class FixtureTests
             Players=old.Players.Select(p=>p with { Id=ids[p.Id] }).ToArray(),
             Events=old.Events.Select(e=>e with { ActorId=ids[e.ActorId],ReceiverId=e.ReceiverId is null?null:ids[e.ReceiverId] }).ToArray() };
         var match=AuthoredMatchPlan.Build(doc,false,fixture);
-        var oldmatch=AuthoredMatchPlan.Parse(VarietyTests.OneSided());
-        var cues=oldmatch.Commentary!.Cues.Select(c=>c with { PlayerIds=c.PlayerIds.Select(id=>ids[id]).ToArray() }).ToArray();
-        var narrated=match.WithCommentary(cues,CopilotScenarioSource.Model);
-        return doc with { Narration=NarrationFixtures.Package(narrated) };
+        return doc with { Narration=NarrationFixtures.Package(match) };
     }
     internal static string Json(MatchFixture fixture)=>JsonSerializer.Serialize(Control(fixture),AuthoredJsonContext.Default.AuthoredMatchDocument);
     [Theory]

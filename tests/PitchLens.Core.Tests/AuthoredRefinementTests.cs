@@ -50,7 +50,7 @@ public sealed class AuthoredRefinementTests
         Assert.Equal(74, service.Current.Events.Count);
         Assert.Equal(original.Events.Select(e => (e.Id, e.Time, e.ActorId, e.ReceiverId, e.Completed)),
             service.Current.Events.Select(e => (e.Id, e.Time, e.ActorId, e.ReceiverId, e.Completed)));
-        Assert.Equal(42, service.Current.Commentary!.Cues.Count);
+        Assert.Equal(CaptionSchedule.For(service.Current).Count, service.Current.Commentary!.Cues.Count);
         foreach (var time in new[] { 300d, 150, 0, 126, 246, 0 })
         {
             Assert.All(Replay.At(service.Current, time).Events, e => Assert.True(e.Time <= time));

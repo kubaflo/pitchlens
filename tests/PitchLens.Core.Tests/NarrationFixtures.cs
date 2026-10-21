@@ -9,11 +9,10 @@ internal static class NarrationFixtures
     public static NarrationDocument Package(Match match, string? legacyTiming = null)
     {
         // Controlled test prose, never bundled or presented as an actual AI recording.
-        var timings = legacyTiming is null ? match.Commentary!.Cues.ToArray() :
-            JsonSerializer.Deserialize(legacyTiming, CommentaryJsonContext.Default.CommentaryDocument)!.Cues;
-        var cues = timings.Select(c => new CommentaryCue(c.Id, c.EventId, c.Start, c.End, c.PlayerIds,
-            match.Events.Single(e => e.Id == c.EventId).Kind == EventKind.Goal ? "The shot ends in the goal." : "The ball changes its route.",
-            [c.EventId])).ToArray();
+        var cues = CaptionSchedule.For(match).Select((slot,i) => new CommentaryCue("dense-"+i,slot.EventId,slot.Start,slot.End,
+            [match.Events.Single(e=>e.Id==slot.EventId).ActorId],
+            match.Events.Single(e => e.Id == slot.EventId).Kind == EventKind.Goal ? "The shot ends in the goal." : "The ball changes its route.",
+            [slot.EventId])).ToArray();
         var selected = match.Events.Where(e => e.Kind == EventKind.Goal)
             .Concat(match.Events.Where(e => e.Kind == EventKind.Pass && e.Completed == false).Take(2))
             .Concat(new[] { 25d, 75, 115, 225, 285 }.Select(time =>
@@ -27,7 +26,7 @@ internal static class NarrationFixtures
                 [e.ActorId], "Observed move", "The recorded sequence connects the move.",
                 "The observed route suggests another way to connect the passing sequence.");
         }).ToArray();
-        return new(NarrationPrompt.Hash(match), cues, chapters);
+        return new(NarrationPrompt.Hash(match), cues, chapters,2);
     }
     public static string Json(Match match, string? legacyTiming = null) =>
         JsonSerializer.Serialize(Package(match, legacyTiming), NarrationJsonContext.Default.NarrationDocument);
