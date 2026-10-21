@@ -1,6 +1,6 @@
-<div class="narrative-context"><span class="source-pill">@(Fresh ? "Fresh AI story" : "Recorded AI story / Not fresh")</span><span>Observed through @Cutoff.ToString("0.0")s</span><strong>@ScoreNow</strong></div>
+<div class="narrative-context"><span class="source-pill">@(Fresh ? "Fresh AI story" : "Recorded AI story / Not fresh")</span><span>Observed through @Cutoff.ToString("0.0")s · @FocusLabel</span><strong>@ScoreNow</strong></div>
 @if (visible.Count == 0)
-{ <div class="studio-empty"><span class="eyebrow">The story is still unfolding</span><p>Play to reveal the first observed turning point. No future chapters are shown.</p></div> }
+{ <div class="studio-empty"><span class="eyebrow">The story is still unfolding</span><p>No observed chapters match this focus yet. No future chapters are shown. All observed goals from both clubs remain included.</p></div> }
 else
 {
     <div class="story-arc" aria-label="Observed narrative timeline">
@@ -11,6 +11,7 @@ else
     {
         <article class="narrative-card" @key="c.Chapter.Id">
             <div class="narrative-copy"><div class="narrative-kicker"><time>@c.Chapter.RevealTime.ToString("0.#")s</time><span>@c.Badge</span><strong>@c.Score</strong></div>
+                @if(Focus.Kind!=StoryFocusKind.All){<span class="story-focus-reason">@(c.Chapter.Kind=="goal"?"Goal context · both clubs always included":"Matches your favorite's observed evidence")</span>}
                 <h3>@c.Chapter.Heading</h3><p>@(Mode == ExplanationMode.Analyst ? c.Chapter.Analyst : c.Chapter.Fan)</p>
                 <button class="text-button" @onclick="() => Inspect.InvokeAsync((c.Evidence, c.Visuals.SelectedId))">Replay selected evidence →</button>
             </div>
@@ -32,19 +33,24 @@ else
     [Parameter] public bool Fresh { get; set; }
     [Parameter, EditorRequired] public IReadOnlyDictionary<string, int> Score { get; set; } = null!;
     [Parameter] public ExplanationMode Mode { get; set; }
+    [Parameter] public StoryFocus Focus { get; set; }=new();
     [Parameter] public EventCallback<(MomentEvidence Evidence, string EventId)> Inspect { get; set; }
     private Match? cached;
     private long cachedRevision;
     private readonly Dictionary<string, Entry> entries = [];
     private IReadOnlyList<Entry> visible = [];
     private string ScoreNow = "";
+    private string FocusLabel=>Focus.Kind switch{
+        StoryFocusKind.Club=>$"My match / {Match.Teams.Single(t=>t.Id==Focus.Id).Name}",
+        StoryFocusKind.Player=>$"My match / {Match.Player(Focus.Id!).Name}",
+        _=>"All observed stories"};
     private sealed record Entry(NarrativeChapter Chapter, MomentEvidence Evidence, MomentVisuals Visuals, string Badge, string Score);
     protected override void OnParametersSet()
     {
         if (!ReferenceEquals(cached, Match) || cachedRevision != Revision)
         { cached = Match; cachedRevision = Revision; entries.Clear(); }
         ScoreNow = $"{Score[Match.Teams[0].Id]} : {Score[Match.Teams[1].Id]}";
-        var chapters = NarrativeReplay.At(Match, Cutoff);
+        var chapters = PitchLens.Core.MatchLenses.Story(Match,Cutoff,Focus).Select(c=>c.Chapter).ToArray();
         foreach (var chapter in chapters)
             if (!entries.ContainsKey(chapter.Id))
             {

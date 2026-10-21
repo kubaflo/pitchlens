@@ -1,0 +1,97 @@
+<section class="match-lenses" aria-label="Match lenses and personal story">
+    <fieldset disabled="@FilmActive">
+        <div class="lens-controls">
+            <span class="eyebrow">Match lenses</span>
+            <div class="segments lens-segments">
+                @foreach(var mode in Enum.GetValues<PitchLensMode>())
+                { <button class="@(Options.Mode==mode?"selected":"")" aria-pressed="@(Options.Mode==mode?"true":"false")" @onclick="()=>SetMode(mode)">@mode</button> }
+            </div>
+            @if(Options.Mode!=PitchLensMode.Off)
+            {
+                <label>Observed window<select aria-label="Lens observed window" value="@Options.Range" @onchange="WindowChanged"><option value="Last60Seconds">Last 60s</option><option value="MatchSoFar">Match so far</option></select></label>
+                @if(Options.Mode==PitchLensMode.Connections)
+                { <label>Club<select aria-label="Connections club" value="@(Options.ClubId??Match.Teams[0].Id)" @onchange="ClubChanged">@foreach(var club in Match.Teams){<option value="@club.Id">@club.Name</option>}</select></label> }
+                else
+                { <label>Player<select aria-label="Movement player" value="@SelectedId" @onchange="PlayerChanged">@foreach(var player in Match.Players){<option value="@player.Id">@player.Name</option>}</select></label> }
+            }
+            <label class="my-match-select"><span>My match <small>Story focus</small></span><select aria-label="My match story focus" value="@FocusValue" @onchange="FocusChanged"><option value="all">All observed stories</option>
+                <optgroup label="Favorite club">@foreach(var club in Match.Teams){<option value="@("club:"+club.Id)">@club.Name</option>}</optgroup>
+                <optgroup label="Favorite player">@foreach(var player in Match.Players){<option value="@("player:"+player.Id)">@player.Name</option>}</optgroup>
+            </select></label>
+        </div>
+        @if(FavoriteNotice is not null){<p class="lens-notice" role="status">@FavoriteNotice</p>}
+        @if(Focus.Kind!=StoryFocusKind.All){<p class="lens-notice">My match filters story evidence, not AI wording. All observed goals from both clubs stay visible. Score and CC are unchanged.</p>}
+        @if(FilmActive){<p class="lens-notice">Match lenses are hidden during Director's Cut. Return to the paused match to inspect its history.</p>}
+        else if(View is { } lens)
+        {
+            <div class="lens-summary">
+                <strong>@(lens.Mode=="connections"?"Historical connections":"Time-weighted movement")</strong>
+                <span>@lens.Window.Start.ToString("0.0")–@lens.Window.Cutoff.ToString("0.0")s · @Match.Teams[0].Abbreviation v @Match.Teams[1].Abbreviation · revision @lens.Window.Revision</span>
+                @if(lens.Mode=="connections")
+                {
+                    <span>@lens.CompletedPasses completed passes · @lens.InterceptedAttempts intercepted attempts excluded</span>
+                    <details class="lens-data"><summary>Explore directed connections (@lens.Edges.Length)</summary>
+                        <p>Arrows show completed passes. Width/count = passes. Hollow nodes average historical ball release and receipt locations, not live player positions. Includes passes completed in this window, even if released earlier.</p>
+                        @if(lens.Edges.Length==0){<p>No completed passes in this observed window. No average positions are inferred.</p>}
+                        <div class="connection-list">@foreach(var edge in lens.Edges)
+                        {
+                            <button class="@(Options.EdgeId==edge.Id?"selected":"")" aria-pressed="@(Options.EdgeId==edge.Id?"true":"false")" @onclick="()=>SelectEdge(edge.Id)">@Match.Player(edge.From).Name → @Match.Player(edge.To).Name <strong>@edge.Count</strong><small>@string.Join(", ",edge.EventIds)</small></button>
+                        }</div>
+                        @if(lens.Nodes.Length>0)
+                        {
+                            <table class="lens-node-table"><caption>Historical release/receipt averages · metres from the pitch's top-left</caption><thead><tr><th scope="col">Player</th><th scope="col">X / Y</th><th scope="col">Samples</th></tr></thead><tbody>
+                                @foreach(var node in lens.Nodes){<tr><th scope="row">H@Match.Player(node.PlayerId).Number · @Match.Player(node.PlayerId).Name</th><td>@node.X.ToString("0.0") / @node.Y.ToString("0.0")m</td><td>@node.Samples</td></tr>}
+                            </tbody></table>
+                        }
+                    </details>
+                    @if(lens.Edges.SingleOrDefault(e=>e.Id==Options.EdgeId) is { } chosen)
+                    { <div class="lens-selection"><strong>@Match.Player(chosen.From).Name → @Match.Player(chosen.To).Name</strong><span>@chosen.Count completed · actual ball-path lengths @string.Join(" / ",chosen.PassMetres.Select(d=>$"{d:0.0}m")) · @string.Join(", ",chosen.EventIds)</span><button class="text-button" @onclick="()=>Replay.InvokeAsync((lens,chosen.Id))">Replay most recent pass evidence →</button></div> }
+                }
+                else
+                {
+                    <span>@Match.Player(lens.SubjectId).Name · @(lens.ObservedSeconds==0?"No elapsed player-time yet":$"{lens.ObservedSeconds:0.0}s observed · {lens.DistanceMetres:0.0}m travelled")</span>
+                    @if(lens.ObservedSeconds>0){<span class="heat-key">0s <i aria-hidden="true"></i> @lens.Cells.Max(c=>c.Seconds).ToString("0.0")s in hottest cell</span>}
+                    <details class="lens-data"><summary>Explore movement cells · seconds</summary>
+                        <p>Seven columns left-to-right, four rows top-to-bottom. Cell shading = seconds spent here, scaled to this window's hottest cell, not knot count, pressure or pitch control. Linear segments are clipped and split at grid crossings; stationary time counts.</p>
+                        @if(lens.ObservedSeconds==0){<p>Unavailable until time has elapsed. No heat is inferred.</p>}
+                        <div class="movement-grid" role="group" aria-label="Movement cell seconds">
+                            @foreach(var cell in lens.Cells)
+                            { <button class="@(Options.Cell==cell.Index?"selected":"")" aria-pressed="@(Options.Cell==cell.Index?"true":"false")" aria-label="Column @(cell.Column+1), row @(cell.Row+1): @cell.Seconds.ToString("0.00") seconds" @onclick="()=>SelectCell(cell.Index)"><small>C@(cell.Column+1) R@(cell.Row+1)</small>@cell.Seconds.ToString("0.00")s</button> }
+                        </div>
+                    </details>
+                    @if(lens.Cells.SingleOrDefault(c=>c.Index==Options.Cell) is { } selected)
+                    { <span class="lens-selection">Selected cell C@(selected.Column+1) R@(selected.Row+1): @selected.Seconds.ToString("0.00")s of @lens.ObservedSeconds.ToString("0.00")s. All cells sum to @lens.Cells.Sum(c=>c.Seconds).ToString("0.00")s.</span> }
+                }
+            </div>
+        }
+    </fieldset>
+</section>
+
+@code {
+    [Parameter,EditorRequired] public Match Match{get;set;}=null!;
+    [Parameter,EditorRequired] public string SelectedId{get;set;}="";
+    [Parameter] public LensOptions Options{get;set;}=new();
+    [Parameter] public PitchLensView? View{get;set;}
+    [Parameter] public StoryFocus Focus{get;set;}=new();
+    [Parameter] public bool FilmActive{get;set;}
+    [Parameter] public string? FavoriteNotice{get;set;}
+    [Parameter] public EventCallback<LensOptions> OptionsChanged{get;set;}
+    [Parameter] public EventCallback<string> SelectedPlayer{get;set;}
+    [Parameter] public EventCallback<StoryFocus> FocusSelected{get;set;}
+    [Parameter] public EventCallback<(PitchLensView View,string EdgeId)> Replay{get;set;}
+    private string FocusValue=>Focus.Kind switch{StoryFocusKind.Club=>"club:"+Focus.Id,StoryFocusKind.Player=>"player:"+Focus.Id,_=>"all"};
+    private Task SetMode(PitchLensMode mode)=>OptionsChanged.InvokeAsync(Options with{Mode=mode,EdgeId=null,Cell=null});
+    private Task WindowChanged(ChangeEventArgs e)=>Enum.TryParse<ObservedRange>(e.Value?.ToString(),out var range)&&Enum.IsDefined(range)
+        ?OptionsChanged.InvokeAsync(Options with{Range=range,EdgeId=null,Cell=null}):throw new ArgumentException("Unknown observed window.");
+    private Task ClubChanged(ChangeEventArgs e)=>OptionsChanged.InvokeAsync(Options with{ClubId=e.Value?.ToString(),EdgeId=null});
+    private Task PlayerChanged(ChangeEventArgs e)=>SelectedPlayer.InvokeAsync(e.Value?.ToString()??"");
+    private Task SelectEdge(string id)=>OptionsChanged.InvokeAsync(Options with{EdgeId=id});
+    private Task SelectCell(int index)=>OptionsChanged.InvokeAsync(Options with{Cell=index});
+    private Task FocusChanged(ChangeEventArgs e)
+    {
+        var value=e.Value?.ToString()??"";
+        var focus=value=="all"?new StoryFocus():value.StartsWith("club:",StringComparison.Ordinal)?new(StoryFocusKind.Club,value[5..]):
+            value.StartsWith("player:",StringComparison.Ordinal)?new StoryFocus(StoryFocusKind.Player,value[7..]):throw new ArgumentException("Unknown story focus.");
+        return FocusSelected.InvokeAsync(focus);
+    }
+}

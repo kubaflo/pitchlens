@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-const { initialize, loadScenario, setClock, diagnostics, dispose, openPopup, closePopup, setCaptionsEnabled, setEvidence, loadFilm, setFilmClock } =
+const { initialize, loadScenario, setClock, diagnostics, dispose, openPopup, closePopup, setCaptionsEnabled, setEvidence, loadFilm, setFilmClock, setLens } =
     await import(process.env.PITCH_TEST_RENDERER || new URL("../../src/PitchLens.App/wwwroot/js/pitch.mjs", import.meta.url));
 import { at } from "../../src/PitchLens.App/wwwroot/js/replay.mjs";
 import { fitView, ARENA } from "../../src/PitchLens.App/wwwroot/js/viewport.mjs";
@@ -13,7 +13,7 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
     const native = [], callbacks = new Map(), documentHandlers = new Map(), observers = [];
     let wall = 0, nextFrame = null, canvasReads = 0, cardReads = 0;
     const caption = { hidden: true, textContent: "", setAttribute() {}, set innerHTML(value) { throw new Error("Model text must not be parsed as HTML"); } };
-    const goalNodes = Object.fromEntries(["goal-banner", "goal-title", "goal-detail", "goal-team", "goal-score", "goal-crest", "goal-replay-tag", "match-score", "evidence-view-tag", "film-position", "film-insight"].map(id => [id, {
+    const goalNodes = Object.fromEntries(["goal-banner", "goal-title", "goal-detail", "goal-team", "goal-score", "goal-crest", "goal-replay-tag", "match-score", "evidence-view-tag", "film-position", "film-insight", "pitch-lens-tag"].map(id => [id, {
         hidden: true, textContent: "", attributes: {}, style: { setProperty(name, value) { this[name] = value; } },
         setAttribute(name, value) { this.attributes[name] = value; }, getAttribute(name) { return this.attributes[name]; }
     }]));
@@ -28,7 +28,7 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
             m[4] += m[0] * x + m[2] * y; m[5] += m[1] * x + m[3] * y;
         }
         scale(x, y) { const m = this.matrix; m[0] *= x; m[1] *= x; m[2] *= y; m[3] *= y; }
-        fillRect(x, y, width, height) { this.fills.push({ x, y, width, height }); } clearRect() { this.labels = []; } drawImage() {}
+        fillRect(x, y, width, height) { this.fills.push({ x, y, width, height, matrix:[...this.matrix] }); } clearRect() { this.labels = []; } drawImage() {}
         strokeRect(x, y, w, h) { if (w === 105 && h === 68) this.field = [...this.matrix]; }
         colors = [];
         beginPath() {} moveTo() {} lineTo() {} stroke() {} arc() {} fill() { this.colors.push(this.fillStyle); }
@@ -397,8 +397,65 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         setClock(JSON.stringify({revision:4,sequence:++sequence,time:48.9,playing:false}));
         assert.equal(goalNodes["match-score"].textContent,"0 : 0");
         assert.equal(layer.children.length,22);
+        const network={window:{revision:4,fixture:"liverpool/chelsea",start:0,cutoff:49},
+            mode:"connections",subjectId:"liverpool",nodes:[
+                {playerId:clubFixture.players[0].id,x:10,y:20,samples:2},
+                {playerId:clubFixture.players[1].id,x:40,y:30,samples:2}],
+            edges:[{id:"pair",from:clubFixture.players[0].id,to:clubFixture.players[1].id,count:2,eventIds:["one","two"],passMetres:[10,20]}],
+            cells:[],selectedEdgeId:"pair"};
+        const beforeLenses=native.length;
+        setClock(JSON.stringify({revision:4,sequence:++sequence,time:49,playing:false,rate:3,highlightsEnabled:true}),JSON.stringify(network));
+        assert.equal(diagnostics().lens.selectedEdgeId,"pair");
+        assert.match(goalNodes["pitch-lens-tag"].textContent,/HISTORICAL CONNECTIONS/);
+        const originalSize={width:rect.width,height:rect.height};
+        for(const [w,h,density] of [[1144,595,1],[700,800,2],[1144,595,2]]){
+            rect.width=w;rect.height=h;window.devicePixelRatio=density;observation();
+            const field=diagnostics().viewport.field,rasterX=canvas.width/rect.width,rasterY=canvas.height/rect.height;
+            const historical=context.labels.find(l=>l.text==="H1");
+            assert.ok(Math.abs(historical.x/rasterX-field.left-10*field.scale)<1e-8);
+            assert.ok(Math.abs(historical.y/rasterY-field.top-20*field.scale)<1e-8);
+            assert.equal(layer.children.length,22,"historical nodes never create/replace live click targets");
+        }
+        const heat={...network,mode:"movement",subjectId:clubFixture.players[0].id,nodes:[],edges:[],selectedCell:7,
+            cells:Array.from({length:28},(_,i)=>({index:i,column:i%7,row:Math.floor(i/7),x:i%7*15,y:Math.floor(i/7)*17,
+                width:15,height:17,seconds:i===7?49:0}))};
+        context.fills=[];setLens(JSON.stringify(heat),sequence);
+        assert.ok(context.fills.some(r=>r.x===0&&r.y===17&&r.width===15&&r.height===17),"exact time-weighted cell is drawn under the player layer");
+        assert.equal(diagnostics().lens.selectedCell,7);
+        for(const [w,h,density] of [[700,800,1],[1144,595,2]]){
+            rect.width=w;rect.height=h;window.devicePixelRatio=density;context.fills=[];observation();
+            const fill=context.fills.find(r=>r.x===0&&r.y===17&&r.width===15&&r.height===17);
+            const field=diagnostics().viewport.field,rasterX=canvas.width/rect.width,rasterY=canvas.height/rect.height;
+            assert.ok(Math.abs(fill.matrix[4]/rasterX-field.left)<1e-8,"heat uses the same camera X transform as players");
+            assert.ok(Math.abs((fill.matrix[3]*17+fill.matrix[5])/rasterY-field.top-17*field.scale)<1e-8,"heat uses the same camera Y transform at both densities");
+        }
+        const overlayBodies=[...layer.children];
+        setLens(JSON.stringify(network),sequence-1);
+        assert.equal(diagnostics().lens.mode,"movement","late query packet cannot replace current selection");
+        assert.deepEqual(layer.children,overlayBodies);
+        assert.equal(native.length,beforeLenses,"all lens drawing and camera changes are local and read-only");
+        layer.children[0].click();
+        assert.deepEqual(native.at(-1),["SelectFromPitch",clubFixture.players[0].id],"movement shading never intercepts the real player target");
+        assert.equal(dialog.open,true);assert.ok(diagnostics().lens);
+        closePopup("player-dialog");
+        setClock(JSON.stringify({revision:4,sequence:++sequence,time:48,playing:false,rate:3,highlightsEnabled:false}));
+        assert.equal(diagnostics().lens,null,"backward seek hides stale later-cutoff data before replacement");
+        setLens(JSON.stringify(network),sequence-1);
+        assert.equal(diagnostics().lens,null);
+        setLens(JSON.stringify({...network,window:{...network.window,cutoff:48}}),sequence);
+        assert.ok(diagnostics().lens);
+        const lensFilm={revision:4,factsHash:"local",scenes:[{sourceStart:39,sourceEnd:49,rate:1,holdSeconds:3,camera:"finish",focusEventId:"g",text:"Observed finish."}]};
+        loadFilm(JSON.stringify(lensFilm));setFilmClock(10,false,++sequence,4);
+        assert.equal(diagnostics().lens,null,"Director never paints lenses using the paused main-match cutoff");
+        assert.equal(goalNodes["pitch-lens-tag"].hidden,true);
+        loadFilm(null);
+        assert.ok(diagnostics().lens,"film exit restores the paused match lens, not film coordinates");
+        setLens(null,sequence-1); // clock's sequence predates the separate film packet
+        assert.equal(diagnostics().lens,null);
+        rect.width=originalSize.width;rect.height=originalSize.height;observation();
         const dense=JSON.parse(readFileSync(new URL("../../src/PitchLens.Generation/Resources/recorded_11v11_dense_narration.json",import.meta.url),"utf8"));
         loadScenario(JSON.stringify({...clip,revision:5,captions:dense.cues}));
+        assert.equal(diagnostics().lens,null,"new revision clears all old fixture metrics");
         const beforeDense=native.length;
         for(const rate of [1,3,5]){
             const anchorWall=wall,seen=new Set();
@@ -422,6 +479,7 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         assert.equal(native.length,beforeDense,"dense captions make no native/model/audio callback");
         dispose();
         assert.equal(caption.hidden, true);
+        assert.equal(goalNodes["pitch-lens-tag"].hidden,true);
         assert.equal(layer.children.length, 0);
         assert.ok(replacementButtons.every(b => b.handlers.size === 0));
         assert.equal(callbacks.size, 0);

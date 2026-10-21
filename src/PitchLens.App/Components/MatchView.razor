@@ -37,6 +37,9 @@
         @if (error is not null) { <div class="error" role="alert">@error</div> }
         @if (evidenceNotice is not null) { <div class="request-status" role="status">@evidenceNotice</div> }
         @if (Session.MomentIntentNotice is { } momentNotice) { <div class="request-status" role="status">@momentNotice</div> }
+        <MatchLenses Match="match" SelectedId="@frame.SelectedId" Options="lensOptions" View="lensView" Focus="storyFocus"
+            FavoriteNotice="@favoriteNotice" FilmActive="Session.FilmActive" OptionsChanged="SetLensOptions"
+            SelectedPlayer="SelectLensPlayer" FocusSelected="SetStoryFocus" Replay="ReplayConnection" />
         <main class="matchday-stage">
             <div class="pitch-slot">
                 <canvas @ref="canvas" id="pitch" tabindex="0" role="img" aria-label="Synthetic football replay. Click a shirt, or use Players for keyboard-accessible selection."></canvas>
@@ -47,10 +50,11 @@
                 </div>
                 <div id="goal-replay-tag" class="goal-replay-tag" hidden aria-live="off"><span></span> GOAL REPLAY <small>Back live at kickoff</small></div>
                 <div id="evidence-view-tag" class="goal-replay-tag" hidden aria-live="off"></div>
+                <div id="pitch-lens-tag" class="pitch-lens-tag" hidden aria-live="off"></div>
                 <div id="commentary-caption" class="commentary-caption" hidden aria-label="AI commentator subtitles" aria-live="off"></div>
                 @if (Session.FilmActive) { <div class="film-heading"><span>DIRECTOR'S CUT · SYNTHETIC IN-APP FILM · @(Session.Director.Current?.Fresh == true ? Session.Director.Current.Cached ? "CACHED SDK EDIT" : "FRESH SDK EDIT" : "RECORDED SDK / NOT FRESH")</span><strong id="film-position"></strong><p id="film-insight" hidden></p></div> }
             </div>
-            <div class="pitch-caption"><span>@(Session.FilmActive ? "Film view · Return to the paused match for player lenses." : "Click a shirt. Get the player lens.")</span><span>@(match.Narrative is null ? frame.Explanations.LastOrDefault()?.Text ?? "Play to reveal the story." : frame.Story.LastOrDefault()?.Heading ?? "The story unfolds as you watch.")</span></div>
+            <div class="pitch-caption"><span>@(Session.FilmActive ? "Film view · Return to the paused match for player lenses." : "Click a shirt. Get the player lens.")</span><span>@(storyFocus.Kind!=StoryFocusKind.All?$"My match · {focusedHeading??"No observed story for this focus yet."}":match.Narrative is null ? frame.Explanations.LastOrDefault()?.Text ?? "Play to reveal the story." : frame.Story.LastOrDefault()?.Heading ?? "The story unfolds as you watch.")</span></div>
         </main>
         @if (Session.FilmFrame is { } filmFrame)
         {
@@ -109,7 +113,7 @@
                 <div class="segments" id="mode"><button id="mode-casual" class="@(frame.Mode == ExplanationMode.Casual ? "selected" : "")" aria-pressed="@(frame.Mode == ExplanationMode.Casual ? "true" : "false")" @onclick="() => Mode(false)">Fan</button><button id="mode-analyst" class="@(frame.Mode == ExplanationMode.Analyst ? "selected" : "")" aria-pressed="@(frame.Mode == ExplanationMode.Analyst ? "true" : "false")" @onclick="() => Mode(true)">Analyst</button></div>
                 @if (match.Narrative is not null)
                 {
-                    <NarrativeStory Match="match" Revision="frame.Revision" Cutoff="snapshot.Time" Score="snapshot.Score" Mode="frame.Mode" Fresh="view!.Fresh" Inspect="InspectStory" />
+                    <NarrativeStory Match="match" Revision="frame.Revision" Cutoff="snapshot.Time" Score="snapshot.Score" Mode="frame.Mode" Fresh="view!.Fresh" Focus="storyFocus" Inspect="InspectStory" />
                 }
                 else
                 {
@@ -237,6 +241,12 @@ else
     private long loadedRevision;
     private PopupRequest? pendingPopup;
     private bool captionsEnabled = true;
+    private LensOptions lensOptions=new();
+    private StoryFocus storyFocus=new();
+    private PitchLensView? lensView;
+    private string? favoriteNotice;
+    private string? focusedHeading;
+    private long lensRevision;
     private sealed record PopupRequest(string Id);
     private static string Crest(string id) => FixtureCatalog.Clubs.Single(t=>t.Id==id).Crest!;
     private static string Club(Match match, string id) => match.Teams.Single(t => t.Id == id).Name;
@@ -244,6 +254,7 @@ else
     {
         view = Session.Sample(true);
         frame = view?.Frame;
+        UpdateLenses();
         Session.Changed += Changed;
     }
     protected override async Task OnAfterRenderAsync(bool first)
@@ -303,6 +314,8 @@ else
         view = next;
         var current = next.Frame;
         frame = current;
+        UpdateLenses();
+        var currentLens=lensView;
         if (Session.FilmFrame is { } sampledFilm) { lastFilmTime = sampledFilm.FilmTime; lastFilmPlaying = Session.FilmPlaying; }
         else { lastFilmTime = double.NaN; lastFilmPlaying = false; }
         try
@@ -314,7 +327,8 @@ else
                     loadedRevision = current.Revision;
                     await module.InvokeVoidAsync("loadScenario", WebContracts.Scenario(current.Match, current.Revision));
                 }
-                await module.InvokeVoidAsync("setClock", WebContracts.Clock(current));
+                await module.InvokeVoidAsync("setClock", WebContracts.Clock(current),
+                    currentLens is null?null:JsonSerializer.Serialize(currentLens,WebJsonContext.Default.PitchLensView));
                 if (Session.FilmFrame is { } filmFrame && Session.Director.Current is { } directed)
                 {
                     if (!ReferenceEquals(loadedFilm, directed.Plan))
@@ -333,6 +347,64 @@ else
         if (id is not ("player-dialog" or "roster-dialog")) Session.Command("pause");
         pendingPopup = new(id);
         StateHasChanged();
+    }
+    private void UpdateLenses()
+    {
+        if(frame is null)return;
+        if(lensRevision!=frame.Revision)
+        {
+            lensRevision=frame.Revision;
+            lensOptions=lensOptions with{EdgeId=null,Cell=null};
+            if(!frame.Match.Teams.Any(t=>t.Id==lensOptions.ClubId))lensOptions=lensOptions with{ClubId=frame.Match.Teams[0].Id};
+            if(!PitchLens.Core.MatchLenses.FocusAvailable(frame.Match,storyFocus))
+            {
+                favoriteNotice="Your previous favorite is not in this match. Showing all observed stories.";
+                storyFocus=new();
+            }
+        }
+        focusedHeading=PitchLens.Core.MatchLenses.Story(frame.Match,frame.Snapshot.Time,storyFocus).LastOrDefault()?.Chapter.Heading;
+        if(Session.FilmActive||lensOptions.Mode==PitchLensMode.Off){lensView=null;return;}
+        var window=ObservedWindow.Capture(frame.Match,frame.Revision,frame.Snapshot.Time,lensOptions.Range);
+        lensView=lensOptions.Mode==PitchLensMode.Connections?
+            PitchLens.Core.MatchLenses.Connections(frame.Match,window,lensOptions.ClubId??frame.Match.Teams[0].Id,lensOptions.EdgeId):
+            PitchLens.Core.MatchLenses.Movement(frame.Match,window,frame.SelectedId,lensOptions.Cell);
+        if(lensOptions.EdgeId!=lensView.SelectedEdgeId)lensOptions=lensOptions with{EdgeId=lensView.SelectedEdgeId};
+    }
+    private async Task SetLensOptions(LensOptions options)
+    {
+        if(Session.FilmActive)return;
+        if(!Enum.IsDefined(options.Mode)||!Enum.IsDefined(options.Range)||frame is null||
+            options.ClubId is not null&&!frame.Match.Teams.Any(t=>t.Id==options.ClubId))
+            throw new ArgumentException("Lens selection must belong to this match.");
+        lensOptions=options;await Refresh(true);
+    }
+    private async Task SelectLensPlayer(string id)
+    {
+        if(Session.FilmActive)return;
+        Session.Command("select",id:id);
+        await Refresh(true);
+    }
+    private async Task SetStoryFocus(StoryFocus focus)
+    {
+        if(frame is null||Session.FilmActive)return;
+        if(!PitchLens.Core.MatchLenses.FocusAvailable(frame.Match,focus))throw new ArgumentException("Favorite is not in this match.");
+        storyFocus=focus;favoriteNotice=null;
+        if(focus.Kind==StoryFocusKind.Player)
+        {
+            Session.Command("select",id:focus.Id);
+            lensOptions=lensOptions with{ClubId=frame.Match.Player(focus.Id!).TeamId,EdgeId=null};
+        }
+        else if(focus.Kind==StoryFocusKind.Club)lensOptions=lensOptions with{ClubId=focus.Id,EdgeId=null};
+        await Refresh(true);
+    }
+    private async Task ReplayConnection((PitchLensView View,string EdgeId) request)
+    {
+        try
+        {
+            var captured=Session.ConnectionEvidence(request.View,request.EdgeId);
+            await InspectEvidence(captured,captured.FocusId);
+        }
+        catch(InvalidOperationException e){evidenceNotice=e.Message;StateHasChanged();}
     }
     private void Command(string command) => Session.Command(command);
     private void Toggle() => Command("toggle");

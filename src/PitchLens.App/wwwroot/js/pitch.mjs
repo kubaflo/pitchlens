@@ -3,6 +3,7 @@ import { broadcastFrame, prepareBroadcast, netPoints } from "./broadcast.mjs";
 import { PopupHost } from "./popups.mjs";
 import { pinnedEvidence, evidenceVisible, drawEvidence } from "./evidence.mjs";
 import { FilmProjection } from "./director.mjs";
+import { validateLens, drawLens } from "./lenses.mjs";
 import { ARENA, viewportMap, backgroundTransform, applyField, fieldToViewport, pointerInDrawnViewport } from "./viewport.mjs";
 
 let engine, canvas, viewport, context, background, observer, reference, frameId = null;
@@ -12,6 +13,7 @@ let map = null, wideMap = null, markerSize = null;
 let playerLayer = null;
 let evidence = null;
 let film = null;
+let pitchLens = null, lensSequence = -1, visibleLens = null;
 let reducedMotion = false, motionQuery = null, motionHandler = null, lastClockTime = 0;
 const playerTargets = new Map();
 const now = () => performance.now();
@@ -162,6 +164,16 @@ function draw() {
     const c = context; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, canvas.width, canvas.height);
     c.setTransform(...backgroundTransform(wideMap, map)); c.drawImage(background, 0, 0);
     applyField(c, map);
+    visibleLens = !film && !pinned && pitchLens && lensSequence===engine.clock.sequence &&
+        pitchLens.window.cutoff<=clockTime+.000001 ? pitchLens : null;
+    if(visibleLens) drawLens(c,visibleLens,engine.scenario.players);
+    const lensTag=document.getElementById("pitch-lens-tag");
+    if(lensTag){
+        lensTag.hidden=!visibleLens;
+        const label=visibleLens?`${visibleLens.mode==="connections"?"HISTORICAL CONNECTIONS · hollow H = historical average":
+            visibleLens.observedSeconds===0?"MOVEMENT · no elapsed player-time":`MOVEMENT · cell-time 0–${Math.max(...visibleLens.cells.map(c=>c.seconds)).toFixed(1)}s`} · ${visibleLens.window.start.toFixed(1)}–${visibleLens.window.cutoff.toFixed(1)}s`:"";
+        if(lensTag.textContent!==label)lensTag.textContent=label;
+    }
     if (pinned) drawEvidence(c, evidence.fact);
     if (filmFrame?.holding) {
         const points = engine.scenario.ball.filter(p => p.time >= filmFrame.scene.sourceStart && p.time <= clockTime);
@@ -267,6 +279,7 @@ export function loadScenario(json) {
     if (engine?.load(JSON.parse(json), now())) {
         film = null;
         evidence = null;
+        pitchLens = visibleLens = null; lensSequence = -1;
         prepareBroadcast(engine.scenario);
         lastClockTime = 0;
         popups?.close("player-dialog", false); popups?.close("roster-dialog", false); lensPlayerId = null;
@@ -321,13 +334,26 @@ function updateTransport(time, broadcast = broadcastFrame(engine.scenario, time,
     if (replayTag) replayTag.hidden = !broadcast.replay;
 }
 export function setCaptionsEnabled(enabled) { engine?.setCaptionsEnabled(enabled); draw(); }
-export function setClock(json) {
+export function setClock(json,lensJson) {
     if (engine?.update(JSON.parse(json), now())) {
+        if(arguments.length>1)applyLens(lensJson,engine.clock.sequence);
         updateTransport(engine.clock.time(now()));
         draw();
     }
 }
-export function diagnostics() { return engine ? { ...engine.diagnostics, viewport: map, time: lastClockTime, renderTime: engine.lastDrawTime } : null; }
+export function diagnostics() { return engine ? { ...engine.diagnostics, viewport: map, time: lastClockTime, renderTime: engine.lastDrawTime, lens: visibleLens } : null; }
+export function setLens(json,sequence) {
+    if(applyLens(json,sequence))draw();
+}
+function applyLens(json,sequence) {
+    if(!engine?.scenario||sequence!==engine.clock.sequence||sequence<lensSequence)return;
+    if(!json){pitchLens=visibleLens=null;lensSequence=sequence;return true;}
+    const view=JSON.parse(json);
+    if(view.window?.revision!==engine.scenario.revision)return;
+    validateLens(view,engine.scenario);
+    if(Math.abs(view.window.cutoff-engine.clock.position)>.000001)return;
+    pitchLens=view;lensSequence=sequence;return true;
+}
 export function openPopup(id, selectedId = engine?.selectedId) {
     popups ??= new PopupHost(document, window);
     if (id === "player-dialog" && !engine?.scenario?.players.some(p => p.id === selectedId)) throw new Error("Selected player is missing.");
@@ -355,11 +381,15 @@ export function setFilmClock(position, playing, sequence, revision) {
 }
 export function setEvidence(revision, json) {
     evidence = pinnedEvidence(revision, json, engine.clock);
+    for(const detail of document.querySelectorAll(".lens-data[open]"))detail.open=false;
     draw();
 }
 export function dispose() {
     film = null;
     evidence = null;
+    pitchLens = visibleLens = null; lensSequence = -1;
+    const lensTag=document.getElementById("pitch-lens-tag");
+    if(lensTag){lensTag.hidden=true;lensTag.textContent="";}
     const evidenceTag = document.getElementById("evidence-view-tag");
     if (evidenceTag) { evidenceTag.hidden = true; evidenceTag.textContent = ""; }
     popups?.dispose(); popups = null; lensPlayerId = null; canvasBox = null;

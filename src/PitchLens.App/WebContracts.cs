@@ -18,6 +18,7 @@ public sealed record WebClock(long Revision, long Sequence, double Time, bool Pl
 [JsonSerializable(typeof(WebScenario))]
 [JsonSerializable(typeof(WebClock))]
 [JsonSerializable(typeof(FilmPlan))]
+[JsonSerializable(typeof(PitchLensView))]
 public partial class WebJsonContext : JsonSerializerContext;
 
 public static class WebContracts

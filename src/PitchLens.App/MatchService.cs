@@ -228,6 +228,23 @@ public sealed partial class MatchService : IDisposable
         }
         Changed?.Invoke();
     }
+    public MomentEvidence ConnectionEvidence(PitchLensView captured,string edgeId)
+    {
+        lock(gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed,this);
+            if(FilmActive||captured.Window.Revision!=presentation.Revision||
+                captured.Window.Fixture!=ObservedWindow.FixtureKey(presentation.Match)||
+                captured.Window.Cutoff>presentation.Position)
+                throw new InvalidOperationException("This connection is from an earlier match or a later cutoff. Refresh the lens before replaying evidence.");
+            var recomputed=MatchLenses.Connections(presentation.Match,captured.Window,captured.SubjectId);
+            var edge=recomputed.Edges.SingleOrDefault(e=>e.Id==edgeId)
+                ??throw new InvalidOperationException("This connection is no longer present in the observed window.");
+            var id=edge.EventIds[^1];
+            var time=presentation.Match.Events.Single(e=>e.Id==id).Time;
+            return MomentEvidence.Capture(presentation.Match,presentation.Revision,time,id,[id]);
+        }
+    }
     public async Task ExplainAsync()
     {
         MomentEvidence captured;
