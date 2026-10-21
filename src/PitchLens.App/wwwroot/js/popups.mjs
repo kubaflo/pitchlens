@@ -24,7 +24,7 @@ export function popupPosition(point, size, viewport, bounds = null, gap = 24) {
 }
 
 const isPlayerFlow = id => id === "player-dialog" || id === "roster-dialog";
-const isNonmodal = id => isPlayerFlow(id) || id === "analysis-dialog";
+const isNonmodal = id => isPlayerFlow(id) || id === "analysis-dialog" || id === "more-dialog";
 
 export class PopupHost {
     constructor(doc, win) {
@@ -36,8 +36,8 @@ export class PopupHost {
             if (button) { this.close(button.closest("dialog")?.id); return; }
             if (this.floating?.open && !this.floating.contains(event.target)) {
                 event.target.closest?.("button, input, select, a, [tabindex]")?.focus({ preventScroll: true });
-                if (this.floating.id === "analysis-dialog" ?
-                    !event.target.closest?.("#analysis-button") :
+                if (this.floating.id === "analysis-dialog" || this.floating.id === "more-dialog" ?
+                    !event.target.closest?.(this.floating.id === "analysis-dialog" ? "#analysis-button" : "#more-button") :
                     !event.target.closest?.(".player-target, #players-button, #roster, .transport"))
                     this.close(this.floating.id, false);
             }

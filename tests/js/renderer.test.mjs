@@ -13,7 +13,7 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
     const native = [], callbacks = new Map(), documentHandlers = new Map(), observers = [];
     let wall = 0, nextFrame = null, canvasReads = 0, cardReads = 0;
     const caption = { hidden: true, textContent: "", setAttribute() {}, set innerHTML(value) { throw new Error("Model text must not be parsed as HTML"); } };
-    const goalNodes = Object.fromEntries(["goal-banner", "goal-title", "goal-detail", "goal-team", "goal-score", "goal-crest", "goal-replay-tag", "match-score", "evidence-view-tag", "film-position", "film-insight", "pitch-lens-tag"].map(id => [id, {
+    const goalNodes = Object.fromEntries(["goal-banner", "goal-title", "goal-detail", "goal-team", "goal-score", "goal-crest", "goal-replay-tag", "match-score", "evidence-view-tag", "film-position", "film-insight", "pitch-lens-tag","effective-speed"].map(id => [id, {
         hidden: true, textContent: "", attributes: {}, style: { setProperty(name, value) { this[name] = value; } },
         setAttribute(name, value) { this.attributes[name] = value; }, getAttribute(name) { return this.attributes[name]; }
     }]));
@@ -76,8 +76,8 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
             return { left: 100, top: 100, width: 376, height: Math.min(460, parseFloat(this.style["--player-lens-height"] ?? "460")) };
         }
     });
-    const dialog = makeDialog("player-dialog"), roster = makeDialog("roster-dialog"), story = makeDialog("story-dialog"),analysis=makeDialog("analysis-dialog");
-    const dialogs = [dialog, roster, story,analysis];
+    const dialog = makeDialog("player-dialog"), roster = makeDialog("roster-dialog"), story = makeDialog("story-dialog"),analysis=makeDialog("analysis-dialog"),more=makeDialog("more-dialog");
+    const dialogs = [dialog, roster, story,analysis,more];
     globalThis.window = { devicePixelRatio: 2, innerWidth: 1280, innerHeight: 900, matchMedia: () => motion, addEventListener() {}, removeEventListener() {} };
     globalThis.document = {
         hidden: false, activeElement: canvas,
@@ -295,6 +295,8 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
             assert.ok(nextFrame); nextFrame();
             assert.equal(diagnostics().time, 49, "one-second actual shot is visible for one wall second at every base rate");
             assert.equal(goalNodes["goal-title"].textContent, "Bukayo Saka");
+            assert.equal(goalNodes["effective-speed"].hidden,false);
+            assert.equal(goalNodes["effective-speed"].textContent,"Goal highlight · 1x");
         }
         setClock(JSON.stringify({ revision: 3, sequence: ++sequence, time: 49, playing: false, rate: 3, highlightsEnabled: true }));
         assert.equal(goalNodes["goal-banner"].hidden, false);
@@ -314,6 +316,8 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         assert.deepEqual(native.at(-1), ["SelectFromPitch", "arsenal-saka"], "replay clicks hit the displayed footage, not later live positions");
         assert.equal(dialog.open, true);
         setClock(JSON.stringify({ revision: 3, sequence: ++sequence, time: 52, playing: false, rate: 3, highlightsEnabled: false }));
+        assert.equal(goalNodes["effective-speed"].hidden,true,"normal3x is shown only by the speed selector, not a duplicate status");
+        assert.equal(goalNodes["effective-speed"].textContent,"");
         assert.equal(diagnostics().renderTime, 52);
         assert.equal(layer.children.find(b => b.dataset.playerId === "arsenal-raya").hidden, false);
         assert.equal(diagnostics().time, 52);
@@ -326,6 +330,7 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         assert.equal(diagnostics().renderTime, 59);
         assert.equal(goalNodes["goal-replay-tag"].hidden, true);
         assert.equal(goalNodes["match-score"].textContent, "1 : 0");
+        assert.equal(goalNodes["effective-speed"].hidden,true,"temporary pace disappears after highlight boundary");
         setClock(JSON.stringify({ revision: 3, sequence: ++sequence, time: 0, playing: false, rate: 5 }));
         assert.equal(goalNodes["goal-banner"].hidden, true);
         assert.equal(goalNodes["match-score"].textContent, "0 : 0");
@@ -447,9 +452,11 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         openPopup("analysis-dialog");
         assert.equal(analysis.nonmodalOpens,1);assert.equal(analysis.modalOpens,0);
         assert.equal(analysis.style.transform,undefined);
+        openPopup("more-dialog");assert.equal(analysis.open,false);assert.equal(more.nonmodalOpens,1);
         const lensFilm={revision:4,factsHash:"local",scenes:[{sourceStart:39,sourceEnd:49,rate:1,holdSeconds:3,camera:"finish",focusEventId:"g",text:"Observed finish."}]};
         loadFilm(JSON.stringify(lensFilm));setFilmClock(10,false,++sequence,4);
         assert.equal(analysis.open,false,"Director transition closes Analysis");
+        assert.equal(more.open,false,"Director transition closes More");
         assert.equal(diagnostics().lens,null,"Director never paints lenses using the paused main-match cutoff");
         assert.equal(goalNodes["pitch-lens-tag"].hidden,true);
         loadFilm(null);
@@ -459,8 +466,10 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         rect.width=originalSize.width;rect.height=originalSize.height;observation();
         const dense=JSON.parse(readFileSync(new URL("../../src/PitchLens.Generation/Resources/recorded_11v11_dense_narration.json",import.meta.url),"utf8"));
         openPopup("analysis-dialog");
+        openPopup("more-dialog");
         loadScenario(JSON.stringify({...clip,revision:5,captions:dense.cues}));
         assert.equal(analysis.open,false,"new fixture closes Analysis rather than reopening stale choices");
+        assert.equal(more.open,false,"new fixture closes More");
         assert.equal(diagnostics().lens,null,"new revision clears all old fixture metrics");
         const beforeDense=native.length;
         for(const rate of [1,3,5]){

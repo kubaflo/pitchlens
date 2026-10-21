@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
+using System.Text.RegularExpressions;
 using PitchLens.App;
 using PitchLens.Core;
 using PitchLens.Generation;
@@ -180,6 +181,66 @@ namespace PitchLens.Core.Tests
             Assert.Equal(3,native.Sample(true)!.Frame.Rate);Assert.True(native.Sample(true)!.Frame.Playing);
             Assert.Equal(otherFixture?1:0,source.Calls);Assert.Equal(0,forbidden.Calls);
         }
+        [Theory]
+        [InlineData(PitchLensMode.Off,false)]
+        [InlineData(PitchLensMode.Movement,false)]
+        [InlineData(PitchLensMode.Connections,false)]
+        [InlineData(PitchLensMode.Off,true)]
+        [InlineData(PitchLensMode.Movement,true)]
+        [InlineData(PitchLensMode.Connections,true)]
+        public async Task Actual_Razor_header_has_exact_analysis_labels_one_fixture_and_three_clear_actions(PitchLensMode mode,bool spurs)
+        {
+            var forbidden=new MatchLensTests.Forbidden();var clock=new Clock();
+            var fixture=FixtureCatalog.Create("arsenal","tottenham-hotspur");
+            var source=new LocalFixture(FixtureTests.Json(fixture));
+            using var native=new MatchService(spurs?source:forbidden,forbidden,(_,_)=>throw new InvalidOperationException("No SDK"),forbidden,replayClock:clock);
+            if(spurs)await native.GenerateAsync();
+            native.Command("seek",150);native.Command("highlights",0);native.Command("play");
+            var capture=new Capture();using var services=Services(native,capture);
+            await using var renderer=new HtmlRenderer(services,services.GetRequiredService<ILoggerFactory>());
+            var root=await renderer.Dispatcher.InvokeAsync(()=>renderer.RenderComponentAsync<Page>());
+            var popup=new PopupModule();
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Page!.AttachPopupForTest(popup));
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Controls!.ModeForLensTest(mode));
+            var html=System.Net.WebUtility.HtmlDecode(await renderer.Dispatcher.InvokeAsync(root.ToHtmlString));
+            var header=Regex.Match(html,"<header class=\"match-header\">(.*?)</header>",RegexOptions.Singleline).Groups[1].Value;
+            Assert.NotEmpty(header);
+            var analysis=Regex.Match(header,"<button id=\"analysis-button\"([^>]*)>(.*?)</button>",RegexOptions.Singleline);
+            var label=Regex.Replace(Regex.Replace(analysis.Groups[2].Value,"<[^>]*>"," "),"\\s+"," ").Trim();
+            Assert.Equal(mode==PitchLensMode.Off?"Analysis":"Analysis "+mode,label);
+            Assert.DoesNotContain("aria-haspopup",analysis.Groups[1].Value);Assert.DoesNotContain("role=",analysis.Groups[1].Value);
+            foreach(var leak in new[]{"@if","lensOptions","PitchLensMode","Session.","frame.","@onclick"})
+                Assert.DoesNotContain(leak,html);
+            var nav=Regex.Match(header,"<nav class=\"match-actions\"[^>]*>(.*?)</nav>",RegexOptions.Singleline).Groups[1].Value;
+            Assert.Equal(new[]{"explain-button","analysis-button","more-button"},Regex.Matches(nav,"<button id=\"([^\"]+)\"")
+                .Select(m=>m.Groups[1].Value));
+            Assert.Contains("Explain this moment",nav);
+            Assert.DoesNotContain("Director",nav);Assert.DoesNotContain(">Players",nav);Assert.DoesNotContain(">Match story",nav);
+            Assert.Single(Regex.Matches(html,"id=\"match-score\""));
+            Assert.DoesNotContain("pitch-scorebug",html);Assert.DoesNotContain("page-heading",html);
+            Assert.Contains($">{native.Match.Teams[1].Name}</strong>",header);
+            var more=Regex.Match(html,"<dialog id=\"more-dialog\"(.*?)</dialog>",RegexOptions.Singleline).Value;
+            Assert.Contains("aria-modal=\"false\"",more);Assert.DoesNotContain("<dialog id=\"more-dialog\" open",html);
+            foreach(var id in new[]{"players-button","story-button","director-button","settings-button"})Assert.Contains($"id=\"{id}\"",more);
+            Assert.Contains("Uses Copilot usage",more);Assert.Contains("class=\"button ghost new-match\"",html);
+            var primary=Regex.Match(header,"<button id=\"explain-button\"[^>]*>").Value;
+            Assert.Contains("Uses Copilot usage",primary);
+            Assert.Contains("id=\"effective-speed\" class=\"effective-speed\" hidden",html);
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Page!.OpenMoreForClarityTest());
+            Assert.Contains("openPopup:more-dialog",popup.Calls);Assert.True(native.Sample(true)!.Frame.Playing);
+            var opens=popup.Calls.Count(c=>c=="openPopup:more-dialog");
+            Assert.NotNull(capture.Page);
+            clock.Seconds=1;await renderer.Dispatcher.InvokeAsync(()=>capture.Page.RefreshForLensTest());
+            Assert.Equal(153,native.Sample(true)!.Frame.Snapshot.Time);
+            Assert.Equal(opens,popup.Calls.Count(c=>c=="openPopup:more-dialog"));
+            Assert.Equal(spurs?1:0,source.Calls);Assert.Equal(0,forbidden.Calls);
+            // Optional session-only rendered document for the coordinator's native layout acceptance.
+            if(Environment.GetEnvironmentVariable("PITCHLENS_RENDER_WITNESS") is {Length:>0} path)
+            {
+                Directory.CreateDirectory(path);
+                await File.WriteAllTextAsync(Path.Combine(path,$"clarity-{(spurs?"spurs":"recorded")}-{mode}.html"),html);
+            }
+        }
         [Fact]
         public async Task Director_hides_and_restores_lenses_and_new_fixture_resets_missing_favorite_with_explicit_notice()
         {
@@ -258,6 +319,7 @@ namespace PitchLens.Core.Tests.Components
         public Task RefreshForLensTest()=>Refresh(true);
         public void AttachPopupForTest(IJSObjectReference popup){module=popup;rendererReady=true;loadedRevision=frame!.Revision;startupRequested=true;}
         public async Task OpenAnalysisForPopupTest(){Open("analysis-dialog");await OnAfterRenderAsync(false);}
+        public async Task OpenMoreForClarityTest(){Open("more-dialog");await OnAfterRenderAsync(false);}
     }
     public partial class MatchLenses
     {

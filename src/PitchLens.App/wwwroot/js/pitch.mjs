@@ -282,7 +282,7 @@ export function loadScenario(json) {
         pitchLens = visibleLens = null; lensSequence = -1;
         prepareBroadcast(engine.scenario);
         lastClockTime = 0;
-        popups?.close("player-dialog", false); popups?.close("roster-dialog", false); popups?.close("analysis-dialog"); lensPlayerId = null;
+        popups?.close("player-dialog", false); popups?.close("roster-dialog", false); popups?.close("analysis-dialog"); popups?.close("more-dialog"); lensPlayerId = null;
         buildPlayerTargets(); updateTransport(0); draw();
     }
 }
@@ -301,13 +301,11 @@ function updateTransport(time, broadcast = broadcastFrame(engine.scenario, time,
     const score = document.getElementById("match-score");
     const value = `${broadcast.score[teams()[0].id]} : ${broadcast.score[teams()[1].id]}`;
     if (score && score.textContent !== value) score.textContent = value;
-    const bugScore = document.getElementById("pitch-bug-score"), bugClock = document.getElementById("pitch-bug-clock");
-    if (bugScore && bugScore.textContent !== value) bugScore.textContent = value;
-    if (bugClock) bugClock.textContent = `${Math.floor(time / 60)}:${String(Math.floor(time % 60)).padStart(2, "0")}`;
     const pace = document.getElementById("effective-speed");
     if (pace) {
         const active = engine.clock.highlightsEnabled && engine.clock.windows.some(w => w.start <= time && time < w.end);
-        const label = film ? `Match ${engine.clock.rate}x saved` : active ? `Highlight ${engine.clock.effectiveRate(now())}x · base ${engine.clock.rate}x` : `${engine.clock.rate}x`;
+        const label = film ? `Match speed saved` : active ? `Goal highlight · ${engine.clock.effectiveRate(now())}x` : "";
+        pace.hidden = !label;
         if (pace.textContent !== label) pace.textContent = label;
     }
     const banner = document.getElementById("goal-banner");
@@ -369,7 +367,7 @@ export function loadFilm(json) {
     const plan = JSON.parse(json);
     if (plan.revision !== engine.scenario.revision) throw new Error("Film belongs to a different scene.");
     film = new FilmProjection(plan);
-    popups?.close("player-dialog", false); popups?.close("roster-dialog", false); popups?.close("analysis-dialog");
+    popups?.close("player-dialog", false); popups?.close("roster-dialog", false); popups?.close("analysis-dialog"); popups?.close("more-dialog");
     draw();
 }
 export function setFilmClock(position, playing, sequence, revision) {

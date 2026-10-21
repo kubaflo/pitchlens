@@ -4,7 +4,7 @@ A macOS football-pitch prototype using **C#/.NET MAUI 10 Blazor Hybrid (Mac Cata
 **GitHub Copilot SDK**. The pitch is the initial, primary view, with clickable
 players, an accessible roster, pinned playback controls and a selected-player
 popup. The approved **01 Matchday** review design is implemented: purple brand
-bar, large white score strip, readable local Barlow typography and sparse,
+bar, one compact fixture/score header, readable local Barlow typography and sparse,
 pitch-first framing. Statistics and event notes are revealed through popups.
 
 **Real clubs/roster names; synthetic match actions.** The supported pool is
@@ -77,6 +77,24 @@ controlled tests. Native visual/readability acceptance remains user-operated.
 
 ## Match lenses / My match
 
+The main screen has one fixture/score header and three actions: **Explain this
+moment** (or **Recorded analysis** in Test), **Analysis**, and **More**.
+More contains Players, Match story, Director's Cut and Settings & source.
+Analysis and More are ordinary accessible buttons opening nonmodal dialogs,
+not popup-select controls; opening either does not pause replay. Player lenses
+remain nonmodal, while story/settings retain their existing explicit pause
+behavior. New match is a secondary action in the brand bar, still labelled as
+usage-consuming. Source/provenance appears once there and is explained fully in
+Settings, rather than repeated fixture and synthetic labels.
+
+The fixture/score uses a single row; at desktop widths up to1150px the three
+actions use their own compact row so club names never compete with buttons.
+At wider sizes both fit in one header row. The normal selected speed appears
+only in the transport selector. A temporary **Goal highlight · 1x** note appears
+beside it during the existing slow highlight, with the selected base rate
+retained in that selector; the note disappears afterward. Score/clock, CC,
+goal seek ticks, restart and immediate Explain behavior are unchanged.
+
 The pitch stays primary. The header's **Analysis** button opens a compact
 **nonmodal popup**, closed by default even with an active lens. There is no
 inline statistics row or expanding panel to push the pitch down.
@@ -110,6 +128,11 @@ staged to the original app path only after the user safely exits existing apps.
 No running bundle or unsaved game is overwritten. Existing duplicate review
 processes are not claimed resolved until the user closes them and one canonical
 app is actually running; a ready build is not permission to launch a third.
+There is currently **no save/export/import of a Live generated match or its
+explanation**. The native preferences store session mode and bounded fixture/
+gameplay-history metadata, not the full game. Restart loses an unsaved Live
+game; the update handoff must preserve the running bundle until the parent has
+resolved safe exit with the user. No persistence feature is silently added.
 
 **Connections:** choose either actual fixture club. Directed edges include only
 completed same-club passes whose **completion time is inside the inclusive

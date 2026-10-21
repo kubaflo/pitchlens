@@ -26,15 +26,15 @@ function harness() {
             return { left: 100, top: 100, right: 476, bottom: 100 + height, width: 376, height };
         }
     });
-    const player = makeDialog("player-dialog"), roster = makeDialog("roster-dialog"), story = makeDialog("story-dialog"), analysis=makeDialog("analysis-dialog");
-    const all = [player, roster, story, analysis];
+    const player = makeDialog("player-dialog"), roster = makeDialog("roster-dialog"), story = makeDialog("story-dialog"), analysis=makeDialog("analysis-dialog"),more=makeDialog("more-dialog");
+    const all = [player, roster, story, analysis,more];
     const doc = {
         activeElement: opener, getElementById: id => all.find(d => d.id === id),
         querySelector: () => all.find(d => d.open), querySelectorAll: () => all.filter(d => d.open),
         addEventListener: (key, fn) => documentHandlers.set(key, fn), removeEventListener: key => documentHandlers.delete(key)
     };
     const flush = () => { while (tasks.length) tasks.shift()(); };
-    return { win, doc, opener, player, roster, story, analysis, observers, documentHandlers, windowHandlers, flush };
+    return { win, doc, opener, player, roster, story, analysis,more, observers, documentHandlers, windowHandlers, flush };
 }
 
 test("lens placement flips/clamps, prefers pitch space and avoids the selected shirt when possible", () => {
@@ -156,5 +156,26 @@ test("Analysis close falls back to pitch focus if its opener becomes disabled du
     host.open("analysis-dialog");h.opener.disabled=true;
     host.close("analysis-dialog");h.flush();
     assert.equal(h.opener.focused,0);assert.equal(pitch.focused,1);
+    host.dispose();
+});
+
+test("More is a plain nonmodal action dialog; Escape/outside and transitions retain one-popup focus origin",()=>{
+    const h=harness(),host=new PopupHost(h.doc,h.win);
+    host.open("more-dialog");assert.equal(h.more.nonmodal,1);assert.equal(h.more.modal,0);
+    assert.equal(h.more.attributes["aria-modal"],"false");
+    host.follow({x:300,y:500},{left:0,top:0,right:800,bottom:700,height:700},40);
+    assert.equal(h.more.style.transform,undefined);
+    const trigger={closest:selector=>selector==="#more-button"?trigger:null};
+    h.documentHandlers.get("click")({target:trigger});assert.equal(h.more.open,true);
+    h.doc.activeElement={parent:h.more,closest:selector=>selector==="dialog"?h.more:null};
+    host.open("roster-dialog");h.flush();
+    assert.equal(h.more.open,false);assert.equal(h.roster.open,true);
+    host.close("roster-dialog");h.flush();assert.equal(h.opener.focused,1);
+    host.open("more-dialog");h.documentHandlers.get("keydown")({key:"Escape",preventDefault(){}});h.flush();
+    assert.equal(h.more.open,false);assert.equal(h.opener.focused,2);
+    host.open("more-dialog");
+    const outside={closest:()=>null};
+    h.documentHandlers.get("click")({target:outside});h.flush();
+    assert.equal(h.more.open,false);assert.equal(h.opener.focused,2);
     host.dispose();
 });

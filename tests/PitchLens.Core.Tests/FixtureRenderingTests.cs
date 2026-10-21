@@ -27,7 +27,7 @@ public sealed class FixtureRenderingTests
         native.Cancel();source.End.SetCanceled();await request;
     }
     [Fact]
-    public async Task Actual_match_Razor_uses_selected_fixture_heading_crests_abbreviations_and_roster()
+    public async Task Actual_match_Razor_uses_one_fixture_score_with_selected_club_names_crests_and_roster()
     {
         var source=new VarietyTests.Source("unused");
         using var native=new MatchService(source,new DirectorTests.NoMoment(),(_,_)=>Task.CompletedTask,readyDemo:false,variety:new MatchVariety());
@@ -40,8 +40,8 @@ public sealed class FixtureRenderingTests
         var html=System.Net.WebUtility.HtmlDecode(await renderer.Dispatcher.InvokeAsync(root.ToHtmlString));
         Assert.Contains(fixture.Home.Name,html);Assert.Contains(fixture.Away.Name,html);
         Assert.Contains($"src=\"{fixture.Home.Crest}\"",html);Assert.Contains($"src=\"{fixture.Away.Crest}\"",html);
-        Assert.Contains($">{fixture.Home.Abbreviation}</span>",html);Assert.Contains($">{fixture.Away.Abbreviation}</span>",html);
-        Assert.DoesNotContain(">ARS</span>",html);Assert.DoesNotContain(">MCI</span>",html);
+        Assert.Contains($">{fixture.Home.Name}</strong>",html);Assert.Contains($">{fixture.Away.Name}</strong>",html);
+        Assert.DoesNotContain("pitch-scorebug",html);Assert.DoesNotContain("score-strip",html);
         foreach(var player in fixture.Players)Assert.Contains(player.Name,html);
     }
     private sealed class NoJs:IJSRuntime
