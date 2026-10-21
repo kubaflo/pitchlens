@@ -3,11 +3,17 @@ using PitchLens.Core;
 namespace PitchLens.Generation;
 
 public sealed record AuthoredShapeIssue(string TeamId, double Time, double Width, double Depth);
-public sealed class AuthoredPathValidationException(IReadOnlyList<AuthoredShapeIssue> issues)
-    : ScenarioValidationException($"AI path shape failed for {issues[0].TeamId} at {issues[0].Time:0.#}s: " +
-        $"width {issues[0].Width:0.###}m (minimum 30), depth {issues[0].Depth:0.###}m (minimum 22).")
+public sealed record AuthoredMotionIssue(string PlayerId,double Time,string Kind,double Actual,double Maximum,Keyframe[] Frames);
+public sealed class AuthoredPathValidationException : ScenarioValidationException
 {
-    public IReadOnlyList<AuthoredShapeIssue> Issues { get; } = issues;
+    public IReadOnlyList<AuthoredShapeIssue> Issues { get; }
+    public IReadOnlyList<AuthoredMotionIssue> MotionIssues { get; }
+    public AuthoredPathValidationException(IReadOnlyList<AuthoredShapeIssue> issues)
+        : base(FormattableString.Invariant($"AI path shape failed for {issues[0].TeamId} at {issues[0].Time:0.#}s: width {issues[0].Width:0.###}m (minimum 30), depth {issues[0].Depth:0.###}m (minimum 22)."))
+    { Issues=issues;MotionIssues=[]; }
+    public AuthoredPathValidationException(IReadOnlyList<AuthoredMotionIssue> issues)
+        : base(FormattableString.Invariant($"AI player motion failed for {issues[0].PlayerId} at {issues[0].Time:0.###}s: {issues[0].Kind} {issues[0].Actual:0.###} (maximum {issues[0].Maximum:0.###})."))
+    { Issues=[];MotionIssues=issues; }
 }
 
 public static class AuthoredPathQuality
@@ -16,20 +22,35 @@ public static class AuthoredPathQuality
     public static void Validate(Match match)
     {
         Require(match.Players.Count == 22 && match.Teams.All(t => match.Players.Count(p => p.TeamId == t.Id) == 11), "Expected 11 players per team.");
-        SustainedQuality.Validate(match);
-        Require(match.Events.Count(e => e.Kind == EventKind.Carry) >= 8, "11v11 action needs varied controlled carries, not only passing.");
         foreach (var player in match.Players)
         {
             var frames = player.Path.Frames;
             Require(frames.Zip(frames.Skip(1), (a, b) => b.Time - a.Time).All(gap => gap <= 12), "Authored knots must cover active detail, max12s gap.");
+        }
+        var motionIssues=new List<AuthoredMotionIssue>();
+        foreach(var player in match.Players)
+        {
+            var frames=player.Path.Frames;
+            for(var i=1;i<frames.Count;i++)
+            {
+                var a=frames[i-1];var b=frames[i];
+                var speed=a.Position.DistanceTo(b.Position)/(b.Time-a.Time);
+                Require(double.IsFinite(speed),$"Nonfinite player speed for {player.Id}; invalid numerical input is not repair eligibility.");
+                if(speed>8+1e-8)motionIssues.Add(new(player.Id,b.Time,"speed m/s",speed,8,[a,b]));
+            }
             for (var i = 2; i < frames.Count; i++)
             {
                 var a = frames[i - 2]; var b = frames[i - 1]; var c = frames[i];
                 var v1 = new Position((b.Position.X - a.Position.X) / (b.Time - a.Time), (b.Position.Y - a.Position.Y) / (b.Time - a.Time));
                 var v2 = new Position((c.Position.X - b.Position.X) / (c.Time - b.Time), (c.Position.Y - b.Position.Y) / (c.Time - b.Time));
-                Require(v1.DistanceTo(v2) / ((c.Time - a.Time) / 2) <= 2.5, $"Unphysical velocity change for {player.Id} at {b.Time}s.");
+                var acceleration=v1.DistanceTo(v2)/((c.Time-a.Time)/2);
+                Require(double.IsFinite(acceleration),$"Nonfinite velocity change for {player.Id}; invalid numerical input is not repair eligibility.");
+                if(acceleration>2.5)motionIssues.Add(new(player.Id,b.Time,"velocity change m/s²",acceleration,2.5,[a,b,c]));
             }
         }
+        if(motionIssues.Count>0)throw new AuthoredPathValidationException(motionIssues.AsReadOnly());
+        SustainedQuality.Validate(match);
+        Require(match.Events.Count(e => e.Kind == EventKind.Carry) >= 8, "11v11 action needs varied controlled carries, not only passing.");
         foreach (var team in match.Teams)
         {
             var outfield = match.Players.Where(p => p.TeamId == team.Id && !match.IsKeeper(p.Id)).ToArray();

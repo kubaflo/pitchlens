@@ -67,7 +67,8 @@ public sealed class MomentExplanationTests
     {
         var evidence = Capture();
         using var cancellation = new CancellationTokenSource();
-        var tools = new MomentTools(evidence, cancellation);
+        var captured=new List<MomentToolRead>();
+        var tools = new MomentTools(evidence, cancellation,capture:captured.Add);
         var config = CopilotMomentSource.CreateConfig(tools);
         Assert.Equal(CopilotScenarioSource.Model, config.Model);
         Assert.Equal(new[] { "observed_match", "observed_event" }, config.AvailableTools);
@@ -79,6 +80,12 @@ public sealed class MomentExplanationTests
         var result = Assert.IsType<JsonElement>(await tools.Event.InvokeAsync(new() { ["eventId"] = evidence.FocusId }));
         Assert.Equal(evidence.FocusId, result.GetProperty("id").GetString());
         Assert.True(tools.ReadIndex); Assert.True(tools.ReadFocus);
+        Assert.Equal(new[]{"observed_match","observed_event"},captured.Select(c=>c.Tool));
+        Assert.Equal(index.GetRawText(),captured[0].Result.GetRawText());
+        Assert.Equal(result.GetRawText(),captured[1].Result.GetRawText());
+        Assert.Equal(evidence.FocusId,captured[1].EventId);
+        var witness=JsonSerializer.Serialize(captured.ToArray(),MomentWitnessJsonContext.Default.MomentToolReadArray);
+        Assert.Contains(evidence.FocusId,witness);
         await Assert.ThrowsAsync<InvalidOperationException>(() => tools.Event.InvokeAsync(new() { ["eventId"] = "future" }).AsTask());
         await Assert.ThrowsAsync<InvalidOperationException>(() => tools.Index.InvokeAsync(new() { ["path"] = "/private" }).AsTask());
         await tools.Index.InvokeAsync(new()); await tools.Index.InvokeAsync(new());

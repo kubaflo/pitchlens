@@ -8,6 +8,8 @@ public sealed class GenerationResponseArchiveTests
     [InlineData("paths")]
     [InlineData("phase-correction")]
     [InlineData("phase-correction-request")]
+    [InlineData("motion-correction")]
+    [InlineData("motion-correction-schema")]
     public async Task Raw_invalid_output_is_preserved_exactly_for_offline_validation_without_logging_requests(string stage)
     {
         var directory = Path.Combine(Path.GetTempPath(), "pitchlens-response-test-" + Guid.NewGuid().ToString("N"));

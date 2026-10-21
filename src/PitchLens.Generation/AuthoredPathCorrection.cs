@@ -11,6 +11,7 @@ public sealed record AuthoredPathCorrection([property: JsonRequired] AuthoredPla
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow)]
 [JsonSerializable(typeof(AuthoredPathCorrection))]
 [JsonSerializable(typeof(AuthoredShapeIssue[]))]
+[JsonSerializable(typeof(AuthoredMotionIssue[]))]
 public partial class CorrectionJsonContext : JsonSerializerContext;
 
 public static class AuthoredPathRefinement
@@ -34,15 +35,23 @@ public static class AuthoredPathRefinement
         Refine this rejected synthetic football geometry. SAME22 IDs,300s and EXACT existing events are IMMUTABLE.
         Return ONLY {"players":[...all22...]} with complete explicit AI-authored [time,x,y] trajectories,31..81knots each.
         No events/title/duration/commentary fields. No seed/solver. Do not move unrelated knots unnecessarily.
-        Original failed at the listed one-second samples. Minimum outfield width30m/depth22m applies throughout linear interpolation,
+        Minimum outfield width30m/depth22m applies throughout linear interpolation,
         NOT only at individual player's knots. Leave a small safe depth/width margin across these intervals, not equality-rounding tricks.
         Correct ALL listed failures together. You author every modified numerical knot. Restoring passing formation is not permission
         to break keeper ends, speed<=8m/s, acceleration<=2.5m/s², running bursts, carry distance, centre restarts, receiver onside,
         crowding, off-ball movement or event causality. The FULL unchanged validator will run again.
         Events cannot be edited and all actors/receivers/times/outcomes stay exactly as below; coordinate the paths with them.
         This is the ONLY correction attempt; no tools, extra requests or markdown.
-        Failure evidence:
-        """ + JsonSerializer.Serialize(failure.Issues.ToArray(), CorrectionJsonContext.Default.AuthoredShapeIssueArray)
+        Measured failure evidence:
+        """ + (failure.MotionIssues.Count>0?
+            """
+            The listed actual AI-authored segments violate speed<=8m/s or discrete velocity-change/mean-adjacent-duration<=2.5m/s².
+            Each issue includes its player, exact knot time, measured value, unchanged maximum and ORIGINAL adjacent knots.
+            Smooth the explicit timings/coordinates through these knots with reachable easing; no local app solver will fix them.
+            Keep every event and phase immutable and preserve all other full shape/physics constraints. No threshold relaxation.
+            """+JsonSerializer.Serialize(failure.MotionIssues.ToArray(),CorrectionJsonContext.Default.AuthoredMotionIssueArray):
+            "Outfield shape failed at these one-second samples:\n"+
+            JsonSerializer.Serialize(failure.Issues.ToArray(), CorrectionJsonContext.Default.AuthoredShapeIssueArray))
         + "\nOriginal safe synthetic scenario:\n" + JsonSerializer.Serialize(original with { Commentary = null }, AuthoredJsonContext.Default.AuthoredMatchDocument);
 
     public static AuthoredMatchDocument Apply(AuthoredMatchDocument original, string json)
@@ -57,6 +66,25 @@ public static class AuthoredPathRefinement
             return original with { Players = correction.Players };
         }
         catch (JsonException e) { throw new ScenarioValidationException("Invalid AI path correction JSON.", e); }
+    }
+    public static async Task<(AuthoredMatchDocument Document,Match Match)> CorrectAsync(AuthoredMatchDocument document,
+        AuthoredPathValidationException failure,
+        Func<AuthoredMatchDocument,AuthoredPathValidationException,CancellationToken,Task<string>> refine,
+        CancellationToken token,GenerationResponseArchive? archive=null,MatchFixture? fixture=null)
+    {
+        var immutable=JsonSerializer.Serialize(document,AuthoredJsonContext.Default.AuthoredMatchDocument);
+        var originalIds=document.Players.Select(p=>p.Id).Order(StringComparer.Ordinal).ToArray();
+        var correction=await refine(document,failure,token).ConfigureAwait(false);
+        token.ThrowIfCancellationRequested();
+        if(JsonSerializer.Serialize(document,AuthoredJsonContext.Default.AuthoredMatchDocument)!=immutable)
+            throw new ScenarioValidationException("AI correction changed immutable scenario/event/time metadata.");
+        var corrected=Apply(document,correction);
+        if(corrected.Players is null||corrected.Players.Any(p=>p is null)||
+            !corrected.Players.Select(p=>p.Id).Order(StringComparer.Ordinal).SequenceEqual(originalIds))
+            throw new ScenarioValidationException("AI correction changed immutable event/time metadata.");
+        if(archive is not null)
+            await archive.SaveAsync("corrected",JsonSerializer.Serialize(corrected,AuthoredJsonContext.Default.AuthoredMatchDocument)).ConfigureAwait(false);
+        return (corrected,AuthoredMatchPlan.Build(corrected,requireCommentary:false,expectedFixture:fixture));
     }
 }
 
@@ -100,25 +128,10 @@ public static class AuthoredGenerationPipeline
         }
         catch (AuthoredPathValidationException failure)
         {
-            progress?.Report("AI refining rejected player paths (one bounded correction; events unchanged)…");
-            var originalEvents = document.Events.ToArray();
-            var originalPhases = document.PhaseKinds.ToArray();
-            var originalIds = document.Players.Select(p => p.Id).Order(StringComparer.Ordinal).ToArray();
-            var duration = document.Duration;
-            var owner = document.InitialOwnerId;
-            var title = document.Title;
-            var correction = await refinePaths(document, failure, token).ConfigureAwait(false);
-            token.ThrowIfCancellationRequested();
-            var corrected = AuthoredPathRefinement.Apply(document, correction);
-            if (!corrected.Events.SequenceEqual(originalEvents) || corrected.Duration != duration ||
-                corrected.InitialOwnerId != owner || corrected.Title != title || !corrected.PhaseKinds.SequenceEqual(originalPhases) ||
-                corrected.Players is null || corrected.Players.Any(p => p is null) ||
-                !corrected.Players.Select(p => p.Id).Order(StringComparer.Ordinal).SequenceEqual(originalIds))
-                throw new ScenarioValidationException("AI correction changed immutable event/time metadata.");
-            if (archive is not null)
-                await archive.SaveAsync("corrected", JsonSerializer.Serialize(corrected, AuthoredJsonContext.Default.AuthoredMatchDocument)).ConfigureAwait(false);
-            document = corrected;
-            match = AuthoredMatchPlan.Build(document, requireCommentary: false,expectedFixture:fixture); // Full validation, no second correction.
+            progress?.Report(failure.MotionIssues.Count>0?
+                "AI correcting measured player speed/velocity changes (one shared correction; events and phases unchanged)…":
+                "AI refining rejected player paths (one bounded correction; events unchanged)…");
+            (document,match)=await AuthoredPathRefinement.CorrectAsync(document,failure,refinePaths,token,archive,fixture).ConfigureAwait(false);
         }
         token.ThrowIfCancellationRequested();
         progress?.Report("Creating contextual narration and Fan/Analyst story for the validated match…");

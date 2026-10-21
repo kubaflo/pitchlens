@@ -17,6 +17,7 @@
     <Using Include="Xunit" />
     <Compile Include="../../src/PitchLens.App/MatchService.cs" Link="Native/MatchService.cs" />
     <Compile Include="../../src/PitchLens.App/WebContracts.cs" Link="Native/WebContracts.cs" />
+    <Compile Include="../../tools/PitchLens.Generate/MotionWitnessInput.cs" Link="Fixtures/MotionWitnessInput.cs" />
     <Content Include="../../src/PitchLens.App/Components/MatchView.razor" Link="Components/MatchView.razor" />
     <Content Include="../../src/PitchLens.App/Components/MatchLenses.razor" Link="Components/MatchLenses.razor" />
     <Content Include="../../src/PitchLens.App/Components/MomentStudio.razor" Link="Components/MomentStudio.razor" />

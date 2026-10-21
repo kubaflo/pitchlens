@@ -11,6 +11,9 @@ namespace PitchLens.Generation;
 public sealed class CopilotScenarioSource(string cliPath, string workingDirectory, string? responseArchiveDirectory = null) : IScenarioSource
 {
     private readonly GenerationResponseArchive? archive = responseArchiveDirectory is null ? null : new(responseArchiveDirectory);
+    private int sendCalls,responses;
+    public int SendCalls=>Volatile.Read(ref sendCalls);
+    public int Responses=>Volatile.Read(ref responses);
     public const string Model = "gpt-6.1-sol";
     public static string Prompt => AuthoredMatchPrompt.Text;
     public Task<string> GeneratePlanAsync(IProgress<string>? progress, CancellationToken cancellationToken) =>
@@ -20,8 +23,7 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
     public Task<string> GenerateAsync(VarietyRequest request, IProgress<string>? progress, CancellationToken token) =>
         AuthoredGenerationPipeline.RunAsync(cancellation => RequestAsync(AuthoredMatchPrompt.For(request.Fixture ?? FixtureCatalog.Historical) +
                 "\n" + request.Instructions, AuthoredMatchPrompt.Schema,"paths",progress,cancellation),
-            (document,failure,cancellation)=>RequestAsync(AuthoredPathRefinement.Prompt(document,failure),
-                AuthoredPathRefinement.Schema,"correction",progress,cancellation),
+            (document,failure,cancellation)=>CorrectPathsAsync(document,failure,progress,cancellation),
             (match,cancellation)=>GenerateNarrationAsync(match,progress,cancellation),progress,token,archive,request.Fixture,
             (document,failure,cancellation)=>RequestAsync(AuthoredPhaseRefinement.Prompt(document,failure),
                 AuthoredPhaseRefinement.Schema,"phase-correction",progress,cancellation));
@@ -32,11 +34,13 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
     }
     private Task<string> PipelineAsync(Func<CancellationToken, Task<string>> paths, IProgress<string>? progress, CancellationToken token) =>
         AuthoredGenerationPipeline.RunAsync(paths,
-            (document, failure, cancellation) => RequestAsync(AuthoredPathRefinement.Prompt(document, failure),
-                AuthoredPathRefinement.Schema, "correction", progress, cancellation),
+            (document, failure, cancellation) => CorrectPathsAsync(document,failure,progress,cancellation),
             (match, cancellation) => GenerateNarrationAsync(match, progress, cancellation),
             progress, token, archive,refinePhases:(document,failure,cancellation)=>RequestAsync(
                 AuthoredPhaseRefinement.Prompt(document,failure),AuthoredPhaseRefinement.Schema,"phase-correction",progress,cancellation));
+    public Task<string> CorrectPathsAsync(AuthoredMatchDocument document,AuthoredPathValidationException failure,IProgress<string>? progress,CancellationToken token)=>
+        RequestAsync(AuthoredPathRefinement.Prompt(document,failure),AuthoredPathRefinement.Schema,
+            failure.MotionIssues.Count>0?"motion-correction":"correction",progress,token);
     public Task<string> GenerateCommentaryAsync(Match match, IProgress<string>? progress, CancellationToken cancellationToken) =>
         RequestAsync(CommentaryPrompt.For(match), CommentaryPrompt.Schema, "commentary", progress, cancellationToken);
     public Task<string> GenerateNarrationAsync(Match match, IProgress<string>? progress, CancellationToken cancellationToken) =>
@@ -103,7 +107,11 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
         var stage = "setup";
         try
         {
-            if (archive is not null) await archive.SaveAsync(responseStage + "-request", prompt).ConfigureAwait(false);
+            if (archive is not null)
+            {
+                await archive.SaveAsync(responseStage + "-request", prompt).ConfigureAwait(false);
+                await archive.SaveAsync(responseStage + "-schema",responseSchema).ConfigureAwait(false);
+            }
             var client = CreateClient();
             await using var owner = new BoundedClient(client, () => progress?.Report("Cleaning up the owned SDK runtime…"));
             await ConnectAsync(client, progress, value => stage = value, cancellationToken).ConfigureAwait(false);
@@ -111,6 +119,7 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
             {
                 "correction" => $"AI refining rejected paths with {Model} (one correction maximum; events unchanged)…",
                 "phase-correction" => $"AI correcting unsupported phase labels with {Model} (one shared correction; paths/events unchanged)…",
+                "motion-correction" => $"AI correcting measured player motion with {Model} (one shared correction; events/phases unchanged)…",
                 "director" => $"Preparing one {Model} editorial request from observed footage…",
                 _ => $"Generating synthetic match content with {Model}…"
             });
@@ -125,16 +134,19 @@ public sealed class CopilotScenarioSource(string cliPath, string workingDirector
                 {
                     "correction" => "Sol is refining player paths (one correction maximum)…",
                     "phase-correction" => "Sol is correcting phase labels (one shared correction; paths/events unchanged)…",
+                    "motion-correction" => "Sol is correcting player speed/velocity changes (one shared correction; events/phases unchanged)…",
                     "commentary" => "Sol is composing contextual narration and match story…",
                     "director" => "Sol is choosing clips, evidence and pacing for Director's Cut…",
                     _ => "Sol is authoring all 22 player paths and match events…"
                 });
+                Interlocked.Increment(ref sendCalls);
                 var response = await session.SendAndWaitAsync(new MessageOptions
                 {
                     Prompt = prompt,
                     ResponseSchema = schema.RootElement.Clone()
                 }, TimeSpan.FromMinutes(4.5), cancellationToken).ConfigureAwait(false);
                 var content = response?.Data.Content ?? throw new CopilotGenerationException("Copilot returned no match plan.");
+                Interlocked.Increment(ref responses);
                 if (archive is not null)
                 {
                     stage = "archive";

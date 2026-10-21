@@ -1,15 +1,25 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using GitHub.Copilot;
 using GitHub.Copilot.Rpc;
 using Microsoft.Extensions.AI;
 
 namespace PitchLens.Generation;
 
+public sealed record MomentToolRead(string Tool,string? EventId,JsonElement Result);
+public sealed record MomentRequestCounts(int SdkSendInvocations,int Responses,int ToolCalls);
+[JsonSourceGenerationOptions(PropertyNamingPolicy=JsonKnownNamingPolicy.CamelCase)]
+[JsonSerializable(typeof(MomentToolRead[]))]
+[JsonSerializable(typeof(MomentRequestCounts))]
+public partial class MomentWitnessJsonContext:JsonSerializerContext;
+
 #pragma warning disable GHCP001
 public sealed class CopilotMomentSource(string cliPath, string workingDirectory,
     string? witnessDirectory = null) : IMomentSource
 {
     public int ToolCalls { get; private set; }
+    public int SendCalls { get; private set; }
+    public int Responses { get; private set; }
     public const string Instructions = """
         You explain synthetic football moments, not real athlete performance.
         First call observed_match, then observed_event for the focusId. You may inspect other IDs from that index.
@@ -41,9 +51,21 @@ public sealed class CopilotMomentSource(string cliPath, string workingDirectory,
         var stage = "setup";
         using var request = CancellationTokenSource.CreateLinkedTokenSource(token);
         request.CancelAfter(TimeSpan.FromSeconds(270));
-        var tools = new MomentTools(evidence, request, progress);
+        var reads=witnessDirectory is null?null:new List<MomentToolRead>();
+        var tools = new MomentTools(evidence, request, progress,reads is null?null:read=>{lock(reads)reads.Add(read);});
+        var prompt=Prompt(evidence);
         try
         {
+            if(witnessDirectory is not null)
+            {
+                Directory.CreateDirectory(witnessDirectory);
+                await SaveWitnessAsync("moment-request.txt",prompt,token).ConfigureAwait(false);
+                await SaveWitnessAsync("moment-instructions.txt",Instructions,token).ConfigureAwait(false);
+                await SaveWitnessAsync("moment-schema.json",Schema,token).ConfigureAwait(false);
+                await SaveWitnessAsync("moment-facts.json",evidence.Json,token).ConfigureAwait(false);
+                await SaveWitnessAsync("observed-match-tool-schema.json",tools.Index.JsonSchema.GetRawText(),token).ConfigureAwait(false);
+                await SaveWitnessAsync("observed-event-tool-schema.json",tools.Event.JsonSchema.GetRawText(),token).ConfigureAwait(false);
+            }
             var client = new CopilotScenarioSource(cliPath, workingDirectory).CreateClient();
             await using var owner = new CopilotScenarioSource.BoundedClient(client,
                 () => progress?.Report(new(RequestStage.Cleanup, "Cleaning up the owned SDK runtime…", tools.Calls)));
@@ -69,17 +91,17 @@ public sealed class CopilotMomentSource(string cliPath, string workingDirectory,
                 using var schema = JsonDocument.Parse(Schema);
                 stage = "response";
                 progress?.Report(new(RequestStage.Thinking, "Waiting for Sol to inspect the captured moment…"));
+                SendCalls++;
                 var response = await session.SendAndWaitAsync(new MessageOptions
                 {
-                    Prompt = $"Explain this captured moment. snapshotHash={evidence.Hash}; cutoff={evidence.Cutoff:R}; focusId={evidence.FocusId}. Inspect the read-only tools before answering.",
+                    Prompt = prompt,
                     ResponseSchema = schema.RootElement.Clone()
                 }, TimeSpan.FromSeconds(270), request.Token).ConfigureAwait(false);
                 var raw = response?.Data.Content ?? throw new CopilotGenerationException("Sol returned no explanation.");
+                Responses++;
                 if (witnessDirectory is not null)
                 {
-                    Directory.CreateDirectory(witnessDirectory);
                     await SaveWitnessAsync("moment-response.json", raw, token).ConfigureAwait(false);
-                    await SaveWitnessAsync("moment-facts.json", evidence.Json, token).ConfigureAwait(false);
                 }
                 if (!tools.ReadIndex || !tools.ReadFocus) throw new CopilotGenerationException("Sol did not inspect both the captured index and selected evidence.");
                 return raw;
@@ -98,8 +120,21 @@ public sealed class CopilotMomentSource(string cliPath, string workingDirectory,
             var diagnostic = CopilotDiagnostics.Describe(stage, e);
             throw new CopilotGenerationException(diagnostic.Message, e, diagnostic.Trace);
         }
-        finally { ToolCalls = tools.Calls; }
+        finally
+        {
+            ToolCalls = tools.Calls;
+            if(reads is not null)
+            {
+                MomentToolRead[] captured;lock(reads)captured=reads.ToArray();
+                await SaveWitnessAsync("moment-tools.json",JsonSerializer.Serialize(captured,MomentWitnessJsonContext.Default.MomentToolReadArray),
+                    CancellationToken.None).ConfigureAwait(false);
+                await SaveWitnessAsync("moment-counts.json",JsonSerializer.Serialize(new MomentRequestCounts(SendCalls,Responses,ToolCalls),
+                    MomentWitnessJsonContext.Default.MomentRequestCounts),CancellationToken.None).ConfigureAwait(false);
+            }
+        }
     }
+    public static string Prompt(MomentEvidence evidence)=>
+        $"Explain this captured moment. snapshotHash={evidence.Hash}; cutoff={evidence.Cutoff:R}; focusId={evidence.FocusId}. Inspect the read-only tools before answering.";
     public static RequestProgress? ProgressForEvent(SessionEvent e, int toolCalls) => e is AssistantTurnStartEvent
         ? new(RequestStage.Thinking, "Sol is working on the explanation…", toolCalls) : null;
 
@@ -141,6 +176,7 @@ public sealed class MomentTools
     private readonly MomentEvidence evidence;
     private readonly CancellationTokenSource request;
     private readonly IProgress<RequestProgress>? progress;
+    private readonly Action<MomentToolRead>? capture;
     private int calls;
     private int readIndex, readFocus;
     public int Calls => Volatile.Read(ref calls);
@@ -148,10 +184,12 @@ public sealed class MomentTools
     public bool ReadFocus => Volatile.Read(ref readFocus) != 0;
     public AIFunction Index { get; }
     public AIFunction Event { get; }
-    public MomentTools(MomentEvidence evidence, CancellationTokenSource request, IProgress<RequestProgress>? progress = null)
+    public MomentTools(MomentEvidence evidence, CancellationTokenSource request, IProgress<RequestProgress>? progress = null,
+        Action<MomentToolRead>? capture=null)
     {
         this.evidence = evidence; this.request = request;
         this.progress = progress;
+        this.capture=capture;
         Index = new ReadTool(this, false); Event = new ReadTool(this, true);
     }
     private object Read(bool detail, AIFunctionArguments arguments, CancellationToken token)
@@ -169,16 +207,20 @@ public sealed class MomentTools
             progress?.Report(new(RequestStage.Evidence, "Inspecting the captured match index…", Calls));
             Interlocked.Exchange(ref readIndex, 1);
             var facts = evidence.Facts;
-            return JsonSerializer.SerializeToElement(new MomentIndex(facts.Revision, facts.Cutoff, facts.FocusId,
+            var result=JsonSerializer.SerializeToElement(new MomentIndex(facts.Revision, facts.Cutoff, facts.FocusId,
                 facts.Events.Select(e => new MomentIndexEvent(e.Id, e.Time, e.Kind, e.Actor, e.Receiver, e.Completed)).ToArray(),
                 facts.Players,facts.Clubs), MomentJsonContext.Default.MomentIndex);
+            capture?.Invoke(new("observed_match",null,result));
+            return result;
         }
         if (!arguments.TryGetValue("eventId", out var value)) throw new InvalidOperationException("Observed event ID required.");
         var id = value switch { string text => text, JsonElement { ValueKind: JsonValueKind.String } element => element.GetString(), _ => null };
         var fact = evidence.Resolve(id ?? "");
         progress?.Report(new(RequestStage.Evidence, $"Inspecting observed event {fact.Id}…", Calls));
         if (fact.Id == evidence.FocusId) Interlocked.Exchange(ref readFocus, 1);
-        return JsonSerializer.SerializeToElement(fact, MomentJsonContext.Default.MomentEvent);
+        var detailResult=JsonSerializer.SerializeToElement(fact, MomentJsonContext.Default.MomentEvent);
+        capture?.Invoke(new("observed_event",fact.Id,detailResult));
+        return detailResult;
     }
     private sealed class ReadTool(MomentTools owner, bool detail) : AIFunction
     {

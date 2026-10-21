@@ -573,7 +573,8 @@ before atomic replacement. Invalid paths are rejected, never auto-corrected;
 missing/invalid cues or story keep the previous valid match. Historical 6v6 trajectories
 and captions are not attached to a new 11v11 game.
 
-If an otherwise valid candidate violates the unchanged team width/depth gate,
+If a candidate violates the unchanged team width/depth or measured speed/
+velocity-change gate,
 the same Sol model gets the rejected safe geometry and exact measured failures
 for **one** targeted correction. It returns all 22 explicit trajectories;
 the event sequence, roster IDs, 300-second duration, initial owner and phase
@@ -581,6 +582,15 @@ metadata cannot be edited. The viewer does not nudge coordinates or weaken
 thresholds. The complete parser/causality/onside/physics/shape validation runs
 again, and the narration/story package is requested only after it passes. Invalid correction,
 transport/auth failure, cancellation or timeout never starts another correction.
+Motion failures report the exact player/knot time, original adjacent knots,
+measured speed or discrete velocity change and the unchanged maximum. The
+limits remain **8m/s** (the existing numerical tolerance is unchanged) and
+**2.5m/s²**, using change in adjacent velocity vectors divided by their mean
+segment duration. Only Sol can author replacement paths; no local easing,
+coordinate nudges, altered timestamps or threshold relaxation is performed.
+The same complete validation runs afterward, and an invalid repair is terminal.
+Malformed/nonfinite input, invalid ownership, authentication and transport
+failures do not become generic retry eligibility.
 
 The **same single optional slot** also handles an unsupported phase tag.
 Phase evidence uses event **completion time in `(start,end]`**: a pass completing
@@ -598,7 +608,7 @@ unknown/reordered IDs, moved bounds, extra scenario fields and unsupported
 labels reject the correction. Only the AI authors revised labels; the viewer
 does not locally fall back to `possession` or erase a rejection. The complete
 unchanged parser/evidence/causality/physics/shape/variety checks then run again.
-Phase correction and path correction are **alternatives**, not a retry chain:
+Phase correction and path correction (shape or motion) are **alternatives**, not a retry chain:
 if another phase or shape defect remains afterward, no second correction or
 narration request starts. Valid first responses still use2model responses;
 either optional correction allows at most3, within the same15minute overall/
@@ -617,6 +627,60 @@ not a reproduction of that particular payload. New sanitized failures identify
 phase ID, exact interval, required evidence and observed event IDs/completion
 times/outcomes, without logging raw prose or credentials. No paid investigation
 request or live success is claimed for this correction.
+
+The subsequent native Arsenal/Liverpool error “Unphysical velocity change for
+liverpool-kerkez at69s” exposed the same admission gap for a numeric path
+failure: its generic exception bypassed the prior shape-only repair.
+The exact failed response was again unavailable. Controlled regressions inject
+a measured6m/s² bend at69s while keeping speed below8m/s, then remove that
+trigger or restore saved paths to prove rejection and bounded recovery. They
+do not claim to reproduce that Live response. Repair eligibility now includes
+these typed finite speed/velocity defects under the **same single slot**, not
+another correction request.
+
+### Actual backend full-test witnesses (2026-10-22)
+
+One authorized production-pipeline attempt accepted **Liverpool1:0Manchester
+United**, Isak at236s:22players,786AI knots,86events,84captions and10chapters.
+Captions cover297/300s (99%,3s head gap, no interior gaps), with4–6words each.
+Measured maximum player speed was7.410803m/s and discrete acceleration
+2.260034m/s². Every final numerical path/event/phase and narration value matched
+the raw AI responses; no correction was needed for that full game.
+Session-only final SHA-256:
+`0332e31623b43f17a6b48c16555076eb0a5c2a52895fc924b6d17aa1ccffc1bf`.
+This new game/answer/edit is **not bundled as a product recording**.
+
+| Actual backend slice | SDK Send invocations / received responses | Verified result |
+|---|---|---|
+| Full generation | 2 / 2 | Production generation admission, all physics/quality/phase gates and matching dense narration passed; no repair/retry. |
+| Explain, same game's236s goal | 1 / 1 | Six read-only tool invocations,2Fan+3Analyst claims; exact evidence hash, references, service cache and backward-seek/revision visibility passed without another Send. |
+| Director, same game's300s capsule | 1 / 1 | Five scenes,58seconds; production service validation/cache passed.233offline production-film-clock samples matched source scores, captions and hold text. |
+| Targeted motion correction | 1 / 1 | Clearly controlled6m/s² deviation at Kerkez69s; actual Sol corrected only Kerkez's path. Original/trigger-removed green, corrupted red, corrected green, reinstated trigger red; no new match or narration request. |
+
+These are **five SDK Send invocations**, not a billing or internal inference-turn
+count. Tool turns occur within the explanation request. No automatic model
+retry or second Director/explanation/correction attempt was made.
+The first Director witness incorrectly read the cached `Playing` flag before
+sampling the terminal frame and reported an end failure. The harness ordering
+was corrected, then the **same unchanged response** passed offline clock
+validation; there was no second paid Director request or changed edit.
+
+Existing headless witness commands now accept an exact validated match:
+`--explain-stored <runtime> <workdir> <witness> <match.json>` and
+`--director-stored <runtime> <workdir> <witness> <match.json>`.
+`--director-validate-stored <match.json> <edit.json> <witness>` validates the film
+mapping offline. `--motion-repair-stored <runtime> <workdir> <witness> <match.json>`
+is an explicitly controlled, one-correction-only diagnostic probe; its shared
+perturbation helper is linked only into tests/tools, never the product.
+Opt-in archives retain exact prompts/schemas/raw responses and counters;
+explanation archives additionally retain the actual six read results.
+Normal app runs do not enable this raw logging.
+
+**Native interaction and video were environment-blocked** during this loop.
+These backend/service/clock results do not establish native playback, popup,
+Explain/Director button acceptance or an app-only video recording. No host UI
+automation, recording workaround, new app identity or active-bundle overwrite
+was used to bypass that blocker.
 
 The UI shows connecting/authentication/model/generation/validation progress and
 a Cancel action. Generation runs off the UI thread, is limited to fifteen minutes

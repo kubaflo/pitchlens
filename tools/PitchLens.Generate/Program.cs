@@ -2,6 +2,66 @@ using PitchLens.Core;
 using PitchLens.Generation;
 using GitHub.Copilot;
 
+string? observedMatchPath=null;
+if(args is ["--explain-stored",var storedExplainRuntime,var storedExplainWork,var storedExplainWitness,var explainMatchPath])
+{
+    observedMatchPath=explainMatchPath;args=["--explain-live",storedExplainRuntime,storedExplainWork,storedExplainWitness];
+}
+if(args is ["--director-stored",var storedDirectorRuntime,var storedDirectorWork,var storedDirectorWitness,var directorMatchPath])
+{
+    observedMatchPath=directorMatchPath;args=["--director",storedDirectorRuntime,storedDirectorWork,storedDirectorWitness];
+}
+if(args is ["--director-validate-stored",var checkMatchPath,var checkPlanPath,var checkWitness])
+{
+    var match=StoredMatch(await File.ReadAllTextAsync(checkMatchPath));
+    var raw=await File.ReadAllTextAsync(checkPlanPath);
+    var evidence=DirectorEvidence.Capture(match,1,300);
+    var plan=evidence.Validate(raw);
+    Directory.CreateDirectory(checkWitness);
+    await File.WriteAllTextAsync(Path.Combine(checkWitness,"offline-film-clock-mapping.json"),FilmMappingJson(match,plan));
+    Console.WriteLine($"STORED DIRECTOR OFFLINE VALIDATED | scenes={plan.Scenes.Length} | duration={FilmTimeline.Duration(plan)} | final source={plan.Scenes[^1].SourceEnd} | SDK Send invocations=0 | no new response");
+    return 0;
+}
+if(args is ["--motion-repair-stored",var motionRuntime,var motionWork,var motionWitness,var motionMatchPath])
+{
+    Directory.CreateDirectory(motionWitness);
+    var original=AuthoredMatchPlan.Document(await File.ReadAllTextAsync(motionMatchPath)) with{Narration=null,Commentary=null};
+    _=AuthoredMatchPlan.Build(original,false); // Uncorrupted accepted input green, without buying narration.
+    _=AuthoredMatchPlan.Build(PitchLens.Tools.MotionWitnessInput.Perturb(original,"liverpool-kerkez",69,0),false);
+    var bad=PitchLens.Tools.MotionWitnessInput.Perturb(original,"liverpool-kerkez",69);
+    AuthoredPathValidationException measured;
+    try{_=AuthoredMatchPlan.Build(bad,false);throw new InvalidOperationException("Controlled trigger did not reproduce a motion failure.");}
+    catch(AuthoredPathValidationException failure){measured=failure;}
+    if(!measured.MotionIssues.Any(i=>i.PlayerId=="liverpool-kerkez"&&i.Time==69&&i.Actual>2.5))
+        throw new InvalidOperationException("Controlled trigger did not reach the intended acceleration gate.");
+    await File.WriteAllTextAsync(Path.Combine(motionWitness,"uncorrupted-input.json"),System.Text.Json.JsonSerializer.Serialize(original,AuthoredJsonContext.Default.AuthoredMatchDocument));
+    await File.WriteAllTextAsync(Path.Combine(motionWitness,"controlled-corrupted-input.json"),System.Text.Json.JsonSerializer.Serialize(bad,AuthoredJsonContext.Default.AuthoredMatchDocument));
+    await File.WriteAllTextAsync(Path.Combine(motionWitness,"measured-issues.json"),System.Text.Json.JsonSerializer.Serialize(measured.MotionIssues.ToArray(),CorrectionJsonContext.Default.AuthoredMotionIssueArray));
+    var motionSource=new CopilotScenarioSource(motionRuntime,motionWork,Path.Combine(motionWitness,"raw-responses"));
+    using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(270));
+    try
+    {
+        var corrected=await AuthoredPathRefinement.CorrectAsync(bad,measured,
+            (document,failure,token)=>motionSource.CorrectPathsAsync(document,failure,new Progress<string>(Console.WriteLine),token),
+            deadline.Token,new GenerationResponseArchive(Path.Combine(motionWitness,"raw-responses")),original.Fixture);
+        await File.WriteAllTextAsync(Path.Combine(motionWitness,"validated-paths.json"),
+            System.Text.Json.JsonSerializer.Serialize(corrected.Document,AuthoredJsonContext.Default.AuthoredMatchDocument));
+        try{_=AuthoredMatchPlan.Build(bad,false);throw new InvalidOperationException("Reinstated trigger no longer rejects.");}
+        catch(AuthoredPathValidationException){ }
+        if(motionSource.SendCalls!=1||motionSource.Responses!=1)throw new InvalidOperationException("Motion repair used unexpected response count.");
+        await File.WriteAllTextAsync(Path.Combine(motionWitness,"outcome.json"),System.Text.Json.JsonSerializer.Serialize(new{
+            State="Actual motion correction validated; paths only",SdkSendInvocations=motionSource.SendCalls,ModelResponses=motionSource.Responses,
+            InitialMatchRequests=0,NarrationRequests=0,UncorruptedGreen=true,TriggerRemovedGreen=true,CorruptedRed=true,CorrectedGreen=true,
+            RevertedRed=true,Fixture=corrected.Match.Teams.Select(t=>t.Name),Players=corrected.Match.Players.Count,
+            Knots=corrected.Match.Players.Sum(p=>p.Path.Frames.Count),Events=corrected.Match.Events.Count,
+            OriginalFailedLivePayload=false,NativeUi=false,Video=false}));
+        Console.WriteLine($"MOTION CORRECTION VALIDATED | model={CopilotScenarioSource.Model} | Send={motionSource.SendCalls} | responses={motionSource.Responses} | initial match/narration requests=0 | causal green/red/green/red=true");
+        return 0;
+    }
+    catch(Exception error) when(error is ScenarioValidationException or CopilotGenerationException or OperationCanceledException or IOException or InvalidOperationException)
+    {Console.Error.WriteLine($"MOTION CORRECTION NOT VERIFIED: {error.Message}. No retry or extra narration.");return 1;}
+    finally{Console.WriteLine($"MOTION COUNTS | SDK Send invocations={motionSource.SendCalls} | responses={motionSource.Responses}");}
+}
 if (args is ["--variety-live", var varietyRuntime, var varietyWork, var varietyWitness])
 {
     Directory.CreateDirectory(varietyWitness);
@@ -9,6 +69,7 @@ if (args is ["--variety-live", var varietyRuntime, var varietyWork, var varietyW
     var capture=new FullRequestCapture(new CopilotScenarioSource(varietyRuntime,varietyWork,Path.Combine(varietyWitness,"raw-responses")));
     var service=new GenerationService(capture,initial,ScenarioOrigin.RecordedSdkExample,CopilotScenarioSource.Model,new MatchVariety());
     await service.GenerateAsync(new Progress<string>(Console.WriteLine),CancellationToken.None);
+    Console.WriteLine($"FULL REQUEST COUNTS | SDK Send invocations={capture.SendCalls} | model responses received={capture.Responses} | state={service.State}");
     if(service.State!=GenerationState.Succeeded)
     { Console.Error.WriteLine($"VARIETY FULL REQUEST NOT VERIFIED: {service.Status}");return 1; }
     var varietyOutput=Path.Combine(varietyWitness,"validated-match.json");
@@ -21,7 +82,8 @@ if (args is ["--variety-live", var varietyRuntime, var varietyWork, var varietyW
 }
 if (args is ["--director", var directorRuntime, var directorWork, var directorWitness])
 {
-    var observed = DirectorEvidence.Capture(NarrationRecording.Create(), 1, 300);
+    var sourceMatch=observedMatchPath is null?NarrationRecording.Create():StoredMatch(await File.ReadAllTextAsync(observedMatchPath));
+    var observed = DirectorEvidence.Capture(sourceMatch, 1, 300);
     Directory.CreateDirectory(directorWitness);
     async Task SaveDirectorWitness(string name, string content)
     {
@@ -34,19 +96,26 @@ if (args is ["--director", var directorRuntime, var directorWork, var directorWi
     await SaveDirectorWitness("request.txt", DirectorPrompt.For(observed));
     await SaveDirectorWitness("facts.json", observed.Json);
     await SaveDirectorWitness("schema.json", DirectorPrompt.Schema);
-    using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(270));
+    var directorSource = new CopilotScenarioSource(directorRuntime, directorWork, Path.Combine(directorWitness, "raw-responses"));
     try
     {
-        var directorSource = new CopilotScenarioSource(directorRuntime, directorWork, Path.Combine(directorWitness, "raw-responses"));
-        var raw = await directorSource.GenerateDirectorAsync(observed, new Progress<string>(Console.WriteLine), deadline.Token);
-        await SaveDirectorWitness("response.json", raw);
-        var plan = observed.Validate(raw);
+        var capture=new CapturedDirectorSource(directorSource);var service=new DirectorService(capture);
+        service.ChangeScene(1);await service.CreateAsync(observed);
+        if(capture.Response is { } response)await SaveDirectorWitness("response.json",response);
+        if(service.Current is not { } current)throw new ScenarioValidationException(service.Status);
+        var raw=capture.Response!;
+        var plan=current.Plan;
         await SaveDirectorWitness("validated.json", raw);
-        Console.WriteLine($"LIVE DIRECTOR VALIDATED | model={CopilotScenarioSource.Model} | factsHash={observed.Hash} | cutoff={observed.Cutoff} | scenes={plan.Scenes.Length} | wallSeconds={FilmTimeline.Duration(plan)} | SDK Send requests=1 | match plan requests=0");
+        await service.CreateAsync(observed);
+        if(directorSource.SendCalls!=1||service.Current?.Cached!=true)throw new InvalidOperationException("Director exact-snapshot cache made unexpected usage.");
+        await SaveDirectorWitness("film-clock-mapping.json",FilmMappingJson(sourceMatch,plan));
+        await SaveDirectorWitness("outcome.json",System.Text.Json.JsonSerializer.Serialize(new{State="Validated backend service",SdkSendInvocations=directorSource.SendCalls,ModelResponses=directorSource.Responses,CacheReused=true,Scenes=plan.Scenes.Length,Duration=FilmTimeline.Duration(plan),SourceFile=observedMatchPath,NativeUi=false,Video=false}));
+        Console.WriteLine($"LIVE DIRECTOR VALIDATED | model={CopilotScenarioSource.Model} | factsHash={observed.Hash} | cutoff={observed.Cutoff} | scenes={plan.Scenes.Length} | wallSeconds={FilmTimeline.Duration(plan)} | SDK Send invocations={directorSource.SendCalls} | responses={directorSource.Responses} | cached=true | match plan requests=0");
         return 0;
     }
-    catch (Exception e) when (e is ScenarioValidationException or CopilotGenerationException or OperationCanceledException or IOException)
+    catch (Exception e) when (e is ScenarioValidationException or CopilotGenerationException or OperationCanceledException or IOException or InvalidOperationException)
     { Console.Error.WriteLine($"DIRECTOR NOT VERIFIED: {e.Message}. No retry or repair."); return 1; }
+    finally{Console.WriteLine($"DIRECTOR COUNTS | SDK Send invocations={directorSource.SendCalls} | responses={directorSource.Responses}");}
 }
 if (args is ["--narration", var narrationRuntime, var narrationWork, var narrationWitness])
 {
@@ -80,20 +149,32 @@ if (args is ["--narration", var narrationRuntime, var narrationWork, var narrati
 }
 if (args is ["--explain-live", var explainRuntime, var explainDirectory, var explainWitness])
 {
-    var match = AuthoredMatchRecording.Create();
+    var match = observedMatchPath is null?AuthoredMatchRecording.Create():StoredMatch(await File.ReadAllTextAsync(observedMatchPath));
     var goal = match.Events.First(e => e.Kind == EventKind.Goal);
     var evidence = MomentEvidence.Capture(match, 1, goal.Time, goal.Id);
     var momentSource = new CopilotMomentSource(explainRuntime, explainDirectory, explainWitness);
     using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(270));
     try
     {
-        var raw = await momentSource.ExplainAsync(evidence, deadline.Token);
-        var answer = evidence.Validate(raw);
-        Console.WriteLine($"LIVE EXPLANATION VALIDATED | model={CopilotScenarioSource.Model} | cutoff={evidence.Cutoff} | hash={evidence.Hash} | tools={momentSource.ToolCalls} | fan={answer.Fan.Length} | analyst={answer.Analyst.Length}");
+        var service=new MomentExplanationService(momentSource);service.ChangeScene(1);
+        await service.GenerateAsync(evidence,deadline.Token);
+        if(service.Current is not { } current)throw new ScenarioValidationException(service.Status);
+        var answer=current.Answer;
+        var raw=await File.ReadAllTextAsync(Path.Combine(explainWitness,"moment-response.json"));
+        await File.WriteAllTextAsync(Path.Combine(explainWitness,"validated.json"),raw);
+        if(!service.TryReuseFresh(evidence)||momentSource.SendCalls!=1||
+            service.VisibleAt(1,evidence.Cutoff-.001) is not null||service.VisibleAt(1,evidence.Cutoff) is null||
+            service.VisibleAt(2,evidence.Cutoff) is not null)
+            throw new InvalidOperationException("Explanation cache/revision/backseek boundaries failed.");
+        foreach(var claim in answer.Fan.Concat(answer.Analyst))
+            foreach(var id in claim.EvidenceIds)if(evidence.Resolve(id).Time>evidence.Cutoff)throw new InvalidOperationException("Future claim evidence.");
+        await File.WriteAllTextAsync(Path.Combine(explainWitness,"outcome.json"),System.Text.Json.JsonSerializer.Serialize(new{State="Validated backend service",evidence.Cutoff,evidence.FocusId,evidence.Hash,SdkSendInvocations=momentSource.SendCalls,ModelResponses=momentSource.Responses,momentSource.ToolCalls,Fan=answer.Fan.Length,Analyst=answer.Analyst.Length,CacheReused=true,BackseekAndRevisionHidden=true,SourceFile=observedMatchPath,NativeUi=false,Video=false}));
+        Console.WriteLine($"LIVE EXPLANATION VALIDATED | model={CopilotScenarioSource.Model} | cutoff={evidence.Cutoff} | hash={evidence.Hash} | tools={momentSource.ToolCalls} | fan={answer.Fan.Length} | analyst={answer.Analyst.Length} | SDK Send invocations={momentSource.SendCalls} | responses={momentSource.Responses} | cached=true | backseek/revision guards=true");
         return 0;
     }
-    catch (Exception e) when (e is ScenarioValidationException or CopilotGenerationException or OperationCanceledException or IOException)
+    catch (Exception e) when (e is ScenarioValidationException or CopilotGenerationException or OperationCanceledException or IOException or InvalidOperationException)
     { Console.Error.WriteLine($"LIVE EXPLANATION NOT VERIFIED: {e.Message} | tools={momentSource.ToolCalls}"); return 1; }
+    finally{Console.WriteLine($"EXPLANATION COUNTS | SDK Send invocations={momentSource.SendCalls} | responses={momentSource.Responses} | tools={momentSource.ToolCalls}");}
 }
 string? fullWorkingDirectory = null;
 string? preservedPathsFile = null;
@@ -276,6 +357,25 @@ static Match StoredMatch(string json)
     using var shape = System.Text.Json.JsonDocument.Parse(json);
     return shape.RootElement.TryGetProperty("phaseKinds", out _) ? AuthoredMatchPlan.Parse(json, requireCommentary: false) :
         shape.RootElement.TryGetProperty("phases", out _) ? FiveMinutePlan.Parse(json, requireCommentary: false) : ScenarioValidator.Parse(json);
+}
+
+static string FilmMappingJson(Match match,FilmPlan plan)
+{
+    var clock=new WitnessClock();var film=new FilmPlayback(plan,clock);film.Play();
+    var mapping=new List<object>();
+    void Capture(double time)
+    {
+        clock.Seconds=time;var frame=film.Frame; // Sample the authoritative position before reading its cached playing flag.
+        if(Math.Abs(frame.FilmTime-time)>1e-8)throw new InvalidOperationException("Film clock changed the authored edit timing.");
+        var caption=CommentaryReplay.At(match.Commentary,frame.SourceTime);
+        if(caption is not null&&caption.Start>frame.SourceTime)throw new InvalidOperationException("Film caption leaked future source time.");
+        mapping.Add(new{frame.FilmTime,frame.SourceTime,frame.SceneIndex,frame.Holding,Score=Replay.At(match,frame.SourceTime).Score,
+            CaptionId=caption?.Id,HoldText=frame.Holding?plan.Scenes[frame.SceneIndex].Text:null});
+    }
+    for(double time=0;time<FilmTimeline.Duration(plan);time+=.25)Capture(time);
+    Capture(FilmTimeline.Duration(plan));
+    if(film.Playing||film.Frame.SourceTime!=plan.Scenes[^1].SourceEnd)throw new InvalidOperationException("Film final hold/end did not complete.");
+    return System.Text.Json.JsonSerializer.Serialize(mapping);
 }
 
 static void PrintStory(Match match)
