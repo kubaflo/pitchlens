@@ -83,8 +83,13 @@ public sealed class DirectorEvidence
                         !scene.EvidenceIds.Any(id => facts.Events.Any(e => e.Id == id && (e.ActorId == player.Id || e.ReceiverId == player.Id))))
                         throw new ArgumentException("Named film player is not in that scene's observed evidence.");
                 var words = NarrativeText.Words(scene.Text);
-                if (focus.Kind != "goal" && words.Any(w => w is "goal" or "scores" or "scored" or "equalizer" or "equaliser" or "lead" or "opener"))
-                    throw new ArgumentException("Outcome wording requires this scene's observed goal.");
+                if (focus.Kind != "goal" && (NarrativeText.HasScoringClaim(scene.Text) || words.Any(w => w is "lead" or "level")))
+                    throw new ArgumentException($"Scene '{scene.Id}' at source {scene.SourceEnd:0.###}s (cutoff {Cutoff:0.###}s): outcome wording requires its observed goal.");
+                var homeId=facts.Clubs?[0].Id ?? "arsenal";
+                var geometry = facts.Events.Where(e=>scene.EvidenceIds.Contains(e.Id)).Select(e=>new NarrativeText.GoalGeometry(
+                    e.Ball.Select(p=>new Position(p.X,p.Y)).ToArray(),facts.Players.Single(p=>p.Id==e.ActorId).TeamId==homeId));
+                if(!NarrativeText.SpatialGoalReferencesSupported(scene.Text,geometry))
+                    throw new ArgumentException($"Scene '{scene.Id}' at source {scene.SourceEnd:0.###}s (cutoff {Cutoff:0.###}s): spatial goal wording lacks observed geometry.");
                 if (words.Any(w => w is "equalizer" or "equaliser") && focus.HomeGoals != focus.AwayGoals)
                     throw new ArgumentException("Equalizer language requires a locally tied score.");
                 previousStart = scene.SourceStart;

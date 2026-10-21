@@ -45,9 +45,12 @@ public sealed class NarrativeTrack
             foreach (var p in match.Players)
                 Require(!(c.Heading + " " + c.Fan + " " + c.Analyst).Contains(p.Name, StringComparison.OrdinalIgnoreCase) ||
                     c.PlayerIds.Contains(p.Id), "Named story player must be in its evidence.");
-            var words = NarrativeText.Words(c.Heading + " " + c.Fan + " " + c.Analyst);
-            Require(events.Any(e => e!.Kind == EventKind.Goal) || !words.Any(w => w is "goal" or "scores" or "scored" or "opener" or "equaliser" or "equalizer"),
-                "Goal language needs observed goal evidence.");
+            var prose = c.Heading + " " + c.Fan + " " + c.Analyst;
+            var words = NarrativeText.Words(prose);
+            Require(events.Any(e => e!.Kind == EventKind.Goal) || !NarrativeText.HasScoringClaim(prose),
+                $"Chapter '{c.Id}' at {c.RevealTime:0.###}s: scoring language needs observed goal evidence.");
+            Require(NarrativeText.SpatialGoalReferencesSupported(prose, match, events.OfType<MatchEvent>()),
+                $"Chapter '{c.Id}' at {c.RevealTime:0.###}s: spatial goal wording lacks observed geometry.");
             if (words.Any(w => w is "equaliser" or "equalizer"))
             {
                 var score = Replay.At(match, c.RevealTime).Score.Values.ToArray();
@@ -65,6 +68,56 @@ public sealed class NarrativeTrack
 
 public static class NarrativeText
 {
+    public static bool SpatialGoalReferencesSupported(string text, Match match, IEnumerable<MatchEvent> evidence)
+        => SpatialGoalReferencesSupported(text, evidence.Select(e => new GoalGeometry(
+            [match.Ball.At(e.StartTime ?? e.Time), match.Ball.At(e.Time)], match.AttacksRight(match.Player(e.ActorId).TeamId))));
+
+    public sealed record GoalGeometry(Position[] Points, bool AttacksRight);
+    public static bool SpatialGoalReferencesSupported(string text, IEnumerable<GoalGeometry> evidence)
+    {
+        var events = evidence.ToArray();
+        var words = Words(text);
+        for (var i = 0; i < words.Length; i++)
+        {
+            if (words[i] != "goal") continue;
+            var suffix = i + 1 < words.Length ? words[i + 1] : "";
+            bool NearGoal(Position p, GoalGeometry e, double depth, double halfWidth) =>
+                Math.Abs(p.X - (e.AttacksRight ? 105 : 0)) <= depth &&
+                Math.Abs(p.Y - 34) <= halfWidth;
+            if (suffix is "area" or "mouth" or "line")
+            {
+                var supported = events.Any(e => e.Points.Any(p =>
+                    suffix == "area" ? NearGoal(p,e,5.5,9.16) :
+                    suffix == "mouth" ? NearGoal(p,e,1,3.66) : p.X <= 1 || p.X >= 104));
+                if (!supported) return false;
+            }
+            var directed = i > 0 && words[i-1] is "toward" or "towards" ||
+                i > 1 && words[i-1] == "the" && words[i-2] is "toward" or "towards";
+            if (directed && !events.Any(e => e.Points.Length > 1 &&
+                e.Points[^1].DistanceTo(new(e.AttacksRight ? 105 : 0,34)) <
+                e.Points[0].DistanceTo(new(e.AttacksRight ? 105 : 0,34)) - .1))
+                return false;
+            var front = i > 2 && words[i-1] == "of" && words[i-2] == "front" && words[i-3] == "in";
+            if (front && !events.Any(e => e.Points.Length > 0 && NearGoal(e.Points[^1],e,16.5,9.16))) return false;
+        }
+        return true;
+    }
+    public static bool HasScoringClaim(string text)
+    {
+        var words = Words(text);
+        for (var i = 0; i < words.Length; i++)
+        {
+            if (words[i] is "scores" or "scored" or "scoring" or "goals" or "opener" or "equaliser" or "equalizer")
+                return true;
+            if (words[i] != "goal") continue;
+            var spatialSuffix = i + 1 < words.Length && words[i + 1] is "area" or "mouth" or "line";
+            var direction = i > 0 && words[i - 1] is "toward" or "towards";
+            var directedArticle = i > 1 && words[i - 1] == "the" && words[i - 2] is "toward" or "towards";
+            var inFront = i > 2 && words[i - 1] == "of" && words[i - 2] == "front" && words[i - 3] == "in";
+            if (!spatialSuffix && !direction && !directedArticle && !inFront) return true;
+        }
+        return false;
+    }
     public static string[] Words(string text) => text.ToLowerInvariant().Split([' ', '.', ',', '!', '?', ';', ':', '—', '-'], StringSplitOptions.RemoveEmptyEntries);
     public static void Validate(string text, int minimum, int maximum)
     {

@@ -39,7 +39,9 @@ public static class NarrationPrompt
         Use action-first, clipped reactions and connected setup/payoff, not full-roster roll calls or repeated pass notifications.
         Short familiar names are fine; names should earn their place. No fake broadcast quotation/attribution.
         Earlier pass/carry geometry can explain how THIS observed move developed. Do not announce a later goal beforehand.
-        Goal/scores/scored/opener/lead/level/equalizer language ONLY on primary goal events.
+        Scoring claims (goal scored, scores, scored, opener, lead, level, equalizer) ONLY on primary goal events.
+        Spatial descriptions such as "toward the goal", "goal area", "goal mouth", "goal line" or "in front of goal"
+        are not scoring claims, but must still describe the supplied observed geometry. Never use them to imply an unseen finish.
         Be expressive about observed action, never invent crowd/noise/power/corner/shot quality/assists.
 
         CHAPTERS: eight-twelve chronological turning points, not a chapter every thirty seconds or every pass.

@@ -550,6 +550,11 @@ Unknown references, early/overlapping cues, markup, numeric statistics and
 explicit prediction/unsupported goal wording are rejected. This is a bounded
 grounding contract, not a claim that a validator proves every natural-language
 meaning. Model text is rendered with `textContent`, never HTML.
+Scoring-language checks distinguish a completed scoring claim from bounded
+spatial wording such as “toward the goal” or “goal area”. Scoring verbs, an
+unqualified goal, an opener or an equalizer still require completed goal
+evidence; the same temporal/reference gates remain in force. Rejected story
+chapters and cues identify their ID/time so a narration failure is actionable.
 
 The existing generation budget remains two responses, or three with the one
 optional path correction: the storytelling package **replaces** the caption

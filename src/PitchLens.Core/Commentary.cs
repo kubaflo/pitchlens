@@ -39,8 +39,10 @@ public sealed class CommentaryTrack
             var words = cue.Text!.ToLowerInvariant().Split([' ', '.', ',', '!', '?', ';', ':'], StringSplitOptions.RemoveEmptyEntries);
             Require(!words.Any(w => w is "will" or "later" or "eventually" or "winner" or "prediction" or "finally"),
                 "Commentary cannot predict future outcomes.");
-            Require(evidence!.Kind == EventKind.Goal || !words.Any(w => w is "goal" or "scores" or "scored"),
-                "Goal commentary requires goal evidence.");
+            Require(evidence!.Kind == EventKind.Goal || !NarrativeText.HasScoringClaim(cue.Text),
+                $"Cue '{cue.Id}' at {cue.Start:0.###}s: scoring commentary requires goal evidence.");
+            Require(NarrativeText.SpatialGoalReferencesSupported(cue.Text,match,contextEvents.OfType<MatchEvent>()),
+                $"Cue '{cue.Id}' at {cue.Start:0.###}s: spatial goal wording lacks observed geometry.");
             var remainingNames = cue.Text;
             foreach (var player in match.Players.OrderByDescending(p => p.Name.Length))
                 if (remainingNames.Contains(player.Name, StringComparison.OrdinalIgnoreCase))
