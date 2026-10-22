@@ -27,14 +27,15 @@ function harness() {
         }
     });
     const player = makeDialog("player-dialog"), roster = makeDialog("roster-dialog"), story = makeDialog("story-dialog"), analysis=makeDialog("analysis-dialog"),more=makeDialog("more-dialog");
-    const all = [player, roster, story, analysis,more];
+    const view=makeDialog("view-dialog");
+    const all = [player, roster, story, analysis,more,view];
     const doc = {
         activeElement: opener, getElementById: id => all.find(d => d.id === id),
         querySelector: () => all.find(d => d.open), querySelectorAll: () => all.filter(d => d.open),
         addEventListener: (key, fn) => documentHandlers.set(key, fn), removeEventListener: key => documentHandlers.delete(key)
     };
     const flush = () => { while (tasks.length) tasks.shift()(); };
-    return { win, doc, opener, player, roster, story, analysis,more, observers, documentHandlers, windowHandlers, flush };
+    return { win, doc, opener, player, roster, story, analysis,more,view, observers, documentHandlers, windowHandlers, flush };
 }
 
 test("lens placement flips/clamps, prefers pitch space and avoids the selected shirt when possible", () => {
@@ -177,5 +178,20 @@ test("More is a plain nonmodal action dialog; Escape/outside and transitions ret
     const outside={closest:()=>null};
     h.documentHandlers.get("click")({target:outside});h.flush();
     assert.equal(h.more.open,false);assert.equal(h.opener.focused,2);
+    host.dispose();
+});
+test("View settings is nonmodal, never follows a player, and retains one-popup/keyboard/outside focus behavior",()=>{
+    const h=harness(),host=new PopupHost(h.doc,h.win);
+    host.open("view-dialog");assert.equal(h.view.nonmodal,1);assert.equal(h.view.modal,0);
+    assert.equal(h.view.attributes["aria-modal"],"false");
+    host.follow({x:900,y:500},{left:0,top:0,right:1200,bottom:700,height:700},40);
+    assert.equal(h.view.style.transform,undefined);
+    const opener={closest:selector=>selector==="#view-button"?opener:null};
+    h.documentHandlers.get("click")({target:opener});assert.equal(h.view.open,true);
+    h.documentHandlers.get("keydown")({key:"Escape",preventDefault(){}});h.flush();
+    assert.equal(h.view.open,false);assert.equal(h.opener.focused,1);
+    host.open("view-dialog");host.open("player-dialog");h.flush();assert.equal(h.view.open,false);
+    host.open("view-dialog");h.flush();assert.equal(h.player.open,false);
+    h.documentHandlers.get("click")({target:{closest:()=>null}});h.flush();assert.equal(h.view.open,false);
     host.dispose();
 });

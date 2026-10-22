@@ -4,6 +4,7 @@ import { PopupHost } from "./popups.mjs";
 import { pinnedEvidence, evidenceVisible, drawEvidence } from "./evidence.mjs";
 import { FilmProjection } from "./director.mjs";
 import { validateLens, drawLens } from "./lenses.mjs";
+import { PlayerView, DEFAULT_VIEW, validateView, smartView, pickTarget } from "./player-view.mjs";
 import { ARENA, viewportMap, backgroundTransform, applyField, fieldToViewport, pointerInDrawnViewport } from "./viewport.mjs";
 
 let engine, canvas, viewport, context, background, observer, reference, frameId = null;
@@ -14,6 +15,9 @@ let playerLayer = null;
 let evidence = null;
 let film = null;
 let pitchLens = null, lensSequence = -1, visibleLens = null;
+let playerView = null, viewSettings = DEFAULT_VIEW, drawnTargets = [], cameraOwner = "user", selectedGeometry = null;
+let viewCameraStatus = null, viewImageStatus = null, viewWide = null, viewDetail = null, lastOwner = null;
+let ui = {};
 let reducedMotion = false, motionQuery = null, motionHandler = null, lastClockTime = 0;
 const playerTargets = new Map();
 const now = () => performance.now();
@@ -29,6 +33,14 @@ export function initialize(element, dotnet) {
     playerLayer = document.getElementById("pitch-players");
     if (!playerLayer) throw new Error("Pitch player controls are missing.");
     playerLayer.hidden = true;
+    viewCameraStatus=document.getElementById("view-camera-status");viewImageStatus=document.getElementById("view-image-status");
+    viewWide=document.getElementById("view-wide-camera");viewDetail=document.getElementById("view-detail-camera");
+    ui=Object.fromEntries(["pitch-lens-tag","evidence-view-tag","film-position","film-insight","replay-clock",
+        "commentary-caption","match-score","effective-speed","goal-banner","goal-title","goal-detail",
+        "goal-crest","goal-team","goal-score","goal-replay-tag"].map(id=>[id,document.getElementById(id)]));
+    playerView=new PlayerView(draw,message=>{
+        console.error(message);if(viewImageStatus)viewImageStatus.textContent=message;
+    });
     background = document.createElement("canvas");
     motionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)") ?? null;
     reducedMotion = motionQuery?.matches ?? false;
@@ -51,7 +63,10 @@ export function initialize(element, dotnet) {
         if (film) return;
         const box = canvas.getBoundingClientRect();
         const point = map && pointerInDrawnViewport(map, box, event.clientX, event.clientY);
-        if (point) engine?.select(point.x, point.y, map.width, map.height, now(), map.field);
+        if (point) {
+            const id=pickTarget(drawnTargets,point,width,height);
+            if(id)engine?.selectPlayer(id);
+        }
     };
     canvas.addEventListener("pointerdown", pointerHandler);
     visibilityHandler = () => {
@@ -155,11 +170,25 @@ function draw() {
             replay: false, deadBall: false, contact: goal && filmFrame.holding ? { goal, age: 0 } : null };
     }
     const time = broadcast.time;
+    const ballPoint=at(engine.scenario.ball,time);
+    const selected = engine.scenario.players.find(p => p.id === engine.selectedId);
+    cameraOwner=film?"film":pinned?"pinned":broadcast.phase!=="live"?"goal":"user";
+    const detail=viewSettings.style===5&&viewSettings.smartDetail&&cameraOwner==="user";
+    const camera=detail?smartView(selected?at(selected.frames,time):null,ballPoint):broadcast.view;
+    const portraitDetail=detail||camera.width<ARENA.width*.9;
+    if(lastOwner!==cameraOwner) {
+        lastOwner=cameraOwner;
+        if(viewCameraStatus)viewCameraStatus.textContent=cameraOwner==="user"?
+            "Your camera is active. Detail follows the selected player and ball.":
+            `${cameraOwner==="film"?"Director's Cut":cameraOwner==="goal"?"Goal highlight":"Pinned evidence"} owns the camera. Your Smart zoom choice resumes afterward.`;
+        if(viewWide)viewWide.disabled=cameraOwner!=="user";
+        if(viewDetail)viewDetail.disabled=cameraOwner!=="user";
+    }
     engine.lastDrawTime = time; // Hit testing and following lenses use the actual replay camera, not a future live position.
     const following = popups?.floating?.id === "player-dialog";
     let lensPoint = null;
-    map = viewportMap(width, height, canvas.width, canvas.height, broadcast.view);
-    const size = `${Math.max(24, 4 * map.field.scale)}px`;
+    map = viewportMap(width, height, canvas.width, canvas.height, camera);
+    const size = `${Math.max(24, 4 * viewSettings.markerScale * map.field.scale)}px`;
     if (markerSize !== size) { playerLayer.style.setProperty("--player-size", size); markerSize = size; }
     const c = context; c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, canvas.width, canvas.height);
     c.setTransform(...backgroundTransform(wideMap, map)); c.drawImage(background, 0, 0);
@@ -167,7 +196,7 @@ function draw() {
     visibleLens = !film && !pinned && pitchLens && lensSequence===engine.clock.sequence &&
         pitchLens.window.cutoff<=clockTime+.000001 ? pitchLens : null;
     if(visibleLens) drawLens(c,visibleLens,engine.scenario.players);
-    const lensTag=document.getElementById("pitch-lens-tag");
+    const lensTag=ui["pitch-lens-tag"];
     if(lensTag){
         lensTag.hidden=!visibleLens;
         const label=visibleLens?`${visibleLens.mode==="connections"?"HISTORICAL CONNECTIONS · hollow H = historical average":
@@ -179,31 +208,24 @@ function draw() {
         const points = engine.scenario.ball.filter(p => p.time >= filmFrame.scene.sourceStart && p.time <= clockTime);
         drawEvidence(c, { ball: [at(engine.scenario.ball, filmFrame.scene.sourceStart), ...points, at(engine.scenario.ball, clockTime)] });
     }
-    const evidenceTag = document.getElementById("evidence-view-tag");
+    const evidenceTag = ui["evidence-view-tag"];
     if (evidenceTag) {
         evidenceTag.hidden = !pinned;
         evidenceTag.textContent = pinned ? `PINNED EVIDENCE · ${evidence.fact.id} · ${evidence.fact.time.toFixed(1)}s · Paused historical view` : "";
     }
-    const selected = engine.scenario.players.find(p => p.id === engine.selectedId);
     if (selected) {
         c.beginPath();
         const points = selected.frames.filter(f => f.time < time).concat(at(selected.frames, time));
         points.forEach((p, i) => i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y));
         c.strokeStyle = "#d7b8ff"; c.lineWidth = .4; c.stroke();
     }
+    drawnTargets=[];selectedGeometry=null;
     for (const p of engine.drawPlayers) {
         const point = at(p.frames, time);
+        const geometry=playerView.geometry(p,point,ballPoint,engine.selectedId,viewSettings,map.field.scale,portraitDetail);
+        if(p.id===engine.selectedId)selectedGeometry=geometry;
         if (following && p.id === lensPlayerId) lensPoint = point;
-        if (p.id === broadcast.goal?.scorerId) {
-            c.lineWidth = .45;
-            circle(c, point.x, point.y, 3, null, "#05f0ff");
-        }
-        if (p.id === engine.selectedId) { c.lineWidth = .6; circle(c, point.x, point.y, 2.8, null, "#fff"); }
-        circle(c, point.x + .15, point.y + .3, 2.2, "#23382b", null);
-        c.lineWidth = .18; circle(c, point.x, point.y, 2, club(p.teamId).color, "#f4f4ef");
-        if(p.teamId===teams()[1].id){c.strokeStyle="#fff";c.lineWidth=.25;c.beginPath();c.moveTo(point.x-1.5,point.y+1.1);c.lineTo(point.x+1.5,point.y+1.1);c.stroke();}
-        c.fillStyle = "#37003c"; c.font = "700 2.5px Barlow, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
-        c.fillText(String(p.number), point.x, point.y);
+        playerView.draw(c,p,point,club(p.teamId).color,p.teamId===teams()[1].id,geometry,p.id===engine.selectedId,p.id===broadcast.goal?.scorerId);
         if (p.id === broadcast.goal?.scorerId && broadcast.phase === "reaction") {
             c.strokeStyle = "#f4f8ee"; c.lineWidth = .35;
             c.beginPath(); c.moveTo(point.x - 1, point.y - .5); c.lineTo(point.x - 2, point.y - 2);
@@ -214,8 +236,16 @@ function draw() {
         const target = playerTargets.get(p.id);
         if (target) {
             const centre = fieldToViewport(map, point);
+            const tw=Math.max(24,geometry.width*map.field.scale),th=Math.max(24,geometry.height*map.field.scale);
+            const targetWidth=`${tw}px`,targetHeight=`${th}px`;
+            if(target.button.style.width!==targetWidth)target.button.style.width=targetWidth;
+            if(target.button.style.height!==targetHeight)target.button.style.height=targetHeight;
+            target.button.style.borderRadius=geometry.style===2||geometry.style===3?"6px":"50%";
             target.button.style.transform = `translate(${centre.x}px, ${centre.y}px) translate(-50%, -50%)`;
             target.button.hidden = centre.x < 0 || centre.x > width || centre.y < 0 || centre.y > height;
+            if(!target.button.hidden&&!film)drawnTargets.push({id:p.id,x:centre.x,y:centre.y,width:tw,height:th,
+                round:geometry.style===0||geometry.style===1,photo:!!geometry.image,style:geometry.style,number:geometry.number,
+                portraitPath:geometry.image?p.portrait.imagePath:null});
         }
     }
     const shot = (engine.scenario.goals ?? []).find(g => g.shotStart <= time && time <= g.time);
@@ -229,7 +259,7 @@ function draw() {
         const settle = reducedMotion ? 1.5 : 1.8 * (1 - Math.exp(-age * 5));
         circle(c, (goal.goalX ?? (right ? 105 : 0)) + (right ? settle : -settle), goal.goalY ?? 34, .65, "#fff", "#14281c");
     } else if (!broadcast.deadBall || broadcast.replay) {
-        const ball = at(engine.scenario.ball, time); c.lineWidth = .2; circle(c, ball.x, ball.y, .85, "#fff", "#000");
+        c.lineWidth = .2; circle(c, ballPoint.x, ballPoint.y, .85, "#fff", "#000");
     }
     c.globalAlpha = 1;
     updateTransport(clockTime, broadcast);
@@ -239,10 +269,10 @@ function draw() {
         const visible = local.x >= 0 && local.x <= width && local.y >= 0 && local.y <= height;
         popups.hidePlayer(!visible);
         if (visible) popups.follow({ x: canvasBox.left + local.x * scaleX, y: canvasBox.top + local.y * scaleY },
-                canvasBox, Math.max(12, 2.8 * map.field.scale * Math.max(scaleX, scaleY)) + 12);
+                canvasBox, Math.max(12, (selectedGeometry?Math.max(selectedGeometry.width,selectedGeometry.height)/2+.8:2.8) * map.field.scale * Math.max(scaleX, scaleY)) + 12);
     }
     playerLayer.hidden = !!film;
-    const filmLabel = document.getElementById("film-position"), filmText = document.getElementById("film-insight");
+    const filmLabel = ui["film-position"], filmText = ui["film-insight"];
     if (filmLabel && filmFrame) filmLabel.textContent = `FILM ${filmFrame.filmTime.toFixed(1)} / ${filmFrame.duration.toFixed(1)}s · SOURCE ${clockTime.toFixed(1)}s · ${filmFrame.holding ? "FREEZE / EVIDENCE" : `RECORDED FOOTAGE ${filmFrame.scene.rate}x`}`;
     if (filmText) { filmText.hidden = !filmFrame?.holding; filmText.textContent = filmFrame?.holding ? filmFrame.scene.text : ""; }
     if (film ? film.playing && filmFrame.filmTime < filmFrame.duration : engine.clock.playing && clockTime < engine.clock.duration)
@@ -280,6 +310,9 @@ export function loadScenario(json) {
         film = null;
         evidence = null;
         pitchLens = visibleLens = null; lensSequence = -1;
+        drawnTargets=[];
+        if(viewImageStatus)viewImageStatus.textContent="";
+        playerView.prepare(engine.scenario);
         prepareBroadcast(engine.scenario);
         lastClockTime = 0;
         popups?.close("player-dialog", false); popups?.close("roster-dialog", false); popups?.close("analysis-dialog"); popups?.close("more-dialog"); lensPlayerId = null;
@@ -287,10 +320,10 @@ export function loadScenario(json) {
     }
 }
 function updateTransport(time, broadcast = broadcastFrame(engine.scenario, time, engine.clock.highlightsEnabled && !reducedMotion)) {
-    const output = document.getElementById("replay-clock");
+    const output = ui["replay-clock"];
     if (output) output.textContent = `${time.toFixed(1).padStart(4, "0")} / ${engine.scenario.duration.toFixed(1)} s`;
     if (range && !dragging) range.value = String(time);
-    const caption = document.getElementById("commentary-caption");
+    const caption = ui["commentary-caption"];
     if (caption) {
         const cue = engine.caption(time);
         caption.hidden = !cue;
@@ -298,20 +331,20 @@ function updateTransport(time, broadcast = broadcastFrame(engine.scenario, time,
         if (cue && caption.textContent !== cue.text) caption.textContent = cue.text;
         if (!cue && caption.textContent) caption.textContent = "";
     }
-    const score = document.getElementById("match-score");
+    const score = ui["match-score"];
     const value = `${broadcast.score[teams()[0].id]} : ${broadcast.score[teams()[1].id]}`;
     if (score && score.textContent !== value) score.textContent = value;
-    const pace = document.getElementById("effective-speed");
+    const pace = ui["effective-speed"];
     if (pace) {
         const active = engine.clock.highlightsEnabled && engine.clock.windows.some(w => w.start <= time && time < w.end);
         const label = film ? `Match speed saved` : active ? `Goal highlight · ${engine.clock.effectiveRate(now())}x` : "";
         pace.hidden = !label;
         if (pace.textContent !== label) pace.textContent = label;
     }
-    const banner = document.getElementById("goal-banner");
+    const banner = ui["goal-banner"];
     if (banner) {
         banner.hidden = !broadcast.goal;
-        const title = document.getElementById("goal-title"), detail = document.getElementById("goal-detail");
+        const title = ui["goal-title"], detail = ui["goal-detail"];
         if (broadcast.goal) {
             const heading = broadcast.goal.scorer;
             const facts = `${broadcast.goal.time.toFixed(1)}s · Synthetic match`;
@@ -320,7 +353,7 @@ function updateTransport(time, broadcast = broadcastFrame(engine.scenario, time,
             if (banner.getAttribute("data-team") !== broadcast.goal.teamId) banner.setAttribute("data-team", broadcast.goal.teamId);
             if (banner.getAttribute("data-phase") !== broadcast.phase) banner.setAttribute("data-phase", broadcast.phase);
             banner.style.setProperty("--goal-fade", String(broadcast.fade));
-            const crest = document.getElementById("goal-crest"), team = document.getElementById("goal-team"), goalScore = document.getElementById("goal-score");
+            const crest = ui["goal-crest"], team = ui["goal-team"], goalScore = ui["goal-score"];
             banner.style.setProperty("--goal-accent", club(broadcast.goal.teamId).color);
             const image = club(broadcast.goal.teamId).crest;
             if (crest.getAttribute("src") !== image) { crest.setAttribute("src", image); crest.alt = broadcast.goal.teamName; }
@@ -328,7 +361,7 @@ function updateTransport(time, broadcast = broadcastFrame(engine.scenario, time,
             if (goalScore.textContent !== value) goalScore.textContent = value;
         }
     }
-    const replayTag = document.getElementById("goal-replay-tag");
+    const replayTag = ui["goal-replay-tag"];
     if (replayTag) replayTag.hidden = !broadcast.replay;
 }
 export function setCaptionsEnabled(enabled) { engine?.setCaptionsEnabled(enabled); draw(); }
@@ -339,7 +372,12 @@ export function setClock(json,lensJson) {
         draw();
     }
 }
-export function diagnostics() { return engine ? { ...engine.diagnostics, viewport: map, time: lastClockTime, renderTime: engine.lastDrawTime, lens: visibleLens } : null; }
+export function diagnostics() { return engine ? { ...engine.diagnostics, viewport: map, time: lastClockTime, renderTime: engine.lastDrawTime, lens: visibleLens,
+    viewSettings,cameraOwner,drawnTargets:drawnTargets.map(t=>({...t})),imagesConstructed:playerView.constructed,imageFailures:playerView.failures } : null; }
+export function setViewSettings(json) {
+    const value=validateView(JSON.parse(json));
+    viewSettings=value;draw();
+}
 export function setLens(json,sequence) {
     if(applyLens(json,sequence))draw();
 }
@@ -386,6 +424,9 @@ export function setEvidence(revision, json) {
 export function dispose() {
     film = null;
     evidence = null;
+    playerView?.dispose();playerView=null;viewSettings=DEFAULT_VIEW;drawnTargets=[];selectedGeometry=null;
+    ui={};
+    viewCameraStatus=viewImageStatus=viewWide=viewDetail=null;lastOwner=null;cameraOwner="user";
     pitchLens = visibleLens = null; lensSequence = -1;
     const lensTag=document.getElementById("pitch-lens-tag");
     if(lensTag){lensTag.hidden=true;lensTag.textContent="";}

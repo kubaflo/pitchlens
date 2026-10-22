@@ -24,7 +24,7 @@ export function popupPosition(point, size, viewport, bounds = null, gap = 24) {
 }
 
 const isPlayerFlow = id => id === "player-dialog" || id === "roster-dialog";
-const isNonmodal = id => isPlayerFlow(id) || id === "analysis-dialog" || id === "more-dialog";
+const isNonmodal = id => isPlayerFlow(id) || id === "analysis-dialog" || id === "more-dialog" || id === "view-dialog";
 
 export class PopupHost {
     constructor(doc, win) {
@@ -36,8 +36,8 @@ export class PopupHost {
             if (button) { this.close(button.closest("dialog")?.id); return; }
             if (this.floating?.open && !this.floating.contains(event.target)) {
                 event.target.closest?.("button, input, select, a, [tabindex]")?.focus({ preventScroll: true });
-                if (this.floating.id === "analysis-dialog" || this.floating.id === "more-dialog" ?
-                    !event.target.closest?.(this.floating.id === "analysis-dialog" ? "#analysis-button" : "#more-button") :
+                if (["analysis-dialog","more-dialog","view-dialog"].includes(this.floating.id) ?
+                    !event.target.closest?.({"analysis-dialog":"#analysis-button","more-dialog":"#more-button","view-dialog":"#view-button"}[this.floating.id]) :
                     !event.target.closest?.(".player-target, #players-button, #roster, .transport"))
                     this.close(this.floating.id, false);
             }
@@ -73,7 +73,7 @@ export class PopupHost {
         this.position();
     }
     hidePlayer(hidden) {
-        const player = this.doc.getElementById("player-dialog");
+        const player = this.floating?.id === "player-dialog" ? this.floating : null;
         if (player?.open) player.style.visibility = hidden ? "hidden" : "";
     }
     open(id) {

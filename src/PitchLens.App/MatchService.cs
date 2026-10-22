@@ -36,6 +36,9 @@ public sealed partial class MatchService : IDisposable
     public bool HasMatch { get; private set; }
     public SessionMode Mode { get; private set; }=SessionMode.Live;
     private readonly Action<SessionMode>? saveMode;
+    private readonly Action<PitchViewSettings>? saveViewSettings;
+    public PitchViewSettings ViewSettings{get;private set;}=PitchViewSettings.Default;
+    public string? ViewSettingsNotice{get;private set;}
     private Task? momentRequest;
     public string? MomentIntentNotice { get; private set; }
     public bool CanExplainCurrent
@@ -62,12 +65,15 @@ public sealed partial class MatchService : IDisposable
 
     public MatchService(IScenarioSource scenarios, IMomentSource moments, Func<IProgress<string>, CancellationToken, Task> connection,
         IDirectorSource? director = null, IMonotonicClock? filmClock = null, bool readyDemo = true, MatchVariety? variety = null,
-        SessionMode mode=SessionMode.Live,Action<SessionMode>? saveMode=null,IMonotonicClock? replayClock=null)
+        SessionMode mode=SessionMode.Live,Action<SessionMode>? saveMode=null,IMonotonicClock? replayClock=null,
+        PitchViewSettings? viewSettings=null,Action<PitchViewSettings>? saveViewSettings=null,string? viewSettingsNotice=null)
     {
         if(replayClock is not null)presentation=new(DenseNarrationRecording.Create(),replayClock);
         generation = new(scenarios, presentation.Match, ScenarioOrigin.RecordedSdkExample, AuthoredMatchRecording.Model, variety);
         HasMatch = readyDemo;
         Mode=mode;this.saveMode=saveMode;
+        ViewSettings=viewSettings??PitchViewSettings.Default;ViewSettings.Validate();
+        this.saveViewSettings=saveViewSettings;ViewSettingsNotice=viewSettingsNotice;
         Explainer = new(moments);
         Director = new(director ?? new UnavailableDirectorSource());
         if (filmClock is not null) this.filmClock = filmClock;
@@ -84,6 +90,17 @@ public sealed partial class MatchService : IDisposable
         presentation.Select(presentation.Match.Players.First(p=>p.Role=="midfielder").Id);
     }
     private void NotifyChanged() { if (!disposed) Changed?.Invoke(); }
+    public void SetViewSettings(PitchViewSettings value)
+    {
+        lock(gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed,this);value.Validate();
+            if(value==ViewSettings&&ViewSettingsNotice is null)return;
+            saveViewSettings?.Invoke(value); // Failed persistence leaves the old settings intact; the UI reports the error.
+            ViewSettings=value;ViewSettingsNotice=null;
+        }
+        NotifyChanged();
+    }
     public Task StartSessionAsync()
     {
         lock (gate)

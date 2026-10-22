@@ -1,19 +1,21 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-const { initialize, loadScenario, setClock, diagnostics, dispose, openPopup, closePopup, setCaptionsEnabled, setEvidence, loadFilm, setFilmClock, setLens } =
+import { readFileSync, writeFileSync } from "node:fs";
+const { initialize, loadScenario, setClock, diagnostics, dispose, openPopup, closePopup, setCaptionsEnabled, setEvidence, loadFilm, setFilmClock, setLens, setViewSettings } =
     await import(process.env.PITCH_TEST_RENDERER || new URL("../../src/PitchLens.App/wwwroot/js/pitch.mjs", import.meta.url));
 import { at } from "../../src/PitchLens.App/wwwroot/js/replay.mjs";
 import { fitView, ARENA } from "../../src/PitchLens.App/wwwroot/js/viewport.mjs";
 
-test("production renderer aligns22 accessible player buttons with shirts and dispatches click→popup at changing1x/2x", () => {
-    const keys = ["window", "document", "ResizeObserver", "requestAnimationFrame", "cancelAnimationFrame", "performance"];
+test("production renderer aligns22 accessible player buttons with shirts and dispatches click→popup at changing1x/2x", async () => {
+    const keys = ["window", "document", "ResizeObserver", "requestAnimationFrame", "cancelAnimationFrame", "performance","Image"];
     const originals = Object.fromEntries(keys.map(k => [k, globalThis[k]]));
     const rect = { left: 40, top: 187, width: 1144, height: 595 };
     const native = [], callbacks = new Map(), documentHandlers = new Map(), observers = [];
-    let wall = 0, nextFrame = null, canvasReads = 0, cardReads = 0;
+    let wall = 0, nextFrame = null, canvasReads = 0, cardReads = 0, domQueries = 0;
+    const loadedImages=[];
+    globalThis.Image=class{constructor(){this.naturalWidth=220;this.naturalHeight=280;loadedImages.push(this);}async decode(){}};
     const caption = { hidden: true, textContent: "", setAttribute() {}, set innerHTML(value) { throw new Error("Model text must not be parsed as HTML"); } };
-    const goalNodes = Object.fromEntries(["goal-banner", "goal-title", "goal-detail", "goal-team", "goal-score", "goal-crest", "goal-replay-tag", "match-score", "evidence-view-tag", "film-position", "film-insight", "pitch-lens-tag","effective-speed"].map(id => [id, {
+    const goalNodes = Object.fromEntries(["goal-banner", "goal-title", "goal-detail", "goal-team", "goal-score", "goal-crest", "goal-replay-tag", "match-score", "evidence-view-tag", "film-position", "film-insight", "pitch-lens-tag","effective-speed","view-camera-status","view-image-status","view-wide-camera","view-detail-camera"].map(id => [id, {
         hidden: true, textContent: "", attributes: {}, style: { setProperty(name, value) { this[name] = value; } },
         setAttribute(name, value) { this.attributes[name] = value; }, getAttribute(name) { return this.attributes[name]; }
     }]));
@@ -21,14 +23,15 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
     const motion = { matches: false, addEventListener: (name, fn) => motionHandlers.set(name, fn), removeEventListener: name => motionHandlers.delete(name) };
     let observation;
     class Context {
-        matrix = [1, 0, 0, 1, 0, 0]; labels = []; field = null; fills = [];
+        matrix = [1, 0, 0, 1, 0, 0]; labels = []; field = null; fills = []; images=[]; stack=[];
         setTransform(...m) { this.matrix = m; }
         translate(x, y) {
             const m = this.matrix;
             m[4] += m[0] * x + m[2] * y; m[5] += m[1] * x + m[3] * y;
         }
         scale(x, y) { const m = this.matrix; m[0] *= x; m[1] *= x; m[2] *= y; m[3] *= y; }
-        fillRect(x, y, width, height) { this.fills.push({ x, y, width, height, matrix:[...this.matrix] }); } clearRect() { this.labels = []; } drawImage() {}
+        fillRect(x, y, width, height) { this.fills.push({ x, y, width, height, matrix:[...this.matrix] }); } clearRect() { this.labels = []; } drawImage(image,...args) {this.images.push({image,args,matrix:[...this.matrix]});}
+        save(){this.stack.push([...this.matrix]);}restore(){this.matrix=this.stack.pop();}clip(){}roundRect(){}ellipse(){}
         strokeRect(x, y, w, h) { if (w === 105 && h === 68) this.field = [...this.matrix]; }
         colors = [];
         beginPath() {} moveTo() {} lineTo() {} stroke() {} arc() {} fill() { this.colors.push(this.fillStyle); }
@@ -52,8 +55,8 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         click() { this.focus(); this.handlers.get("click")?.({ detail: 0 }); }
         getBoundingClientRect() {
             const [, x, y] = this.style.transform.match(/translate\(([-\d.e]+)px, ([-\d.e]+)px\)/);
-            const size = parseFloat(layer.style["--player-size"]);
-            return { left: rect.left + Number(x) - size / 2, top: rect.top + Number(y) - size / 2, width: size, height: size };
+            const width = parseFloat(this.style.width??layer.style["--player-size"]),height=parseFloat(this.style.height??layer.style["--player-size"]);
+            return { left: rect.left + Number(x) - width / 2, top: rect.top + Number(y) - height / 2, width, height };
         }
     }
     const canvas = {
@@ -81,7 +84,7 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
     globalThis.window = { devicePixelRatio: 2, innerWidth: 1280, innerHeight: 900, matchMedia: () => motion, addEventListener() {}, removeEventListener() {} };
     globalThis.document = {
         hidden: false, activeElement: canvas,
-        getElementById: id => dialogs.find(d => d.id === id) ?? goalNodes[id] ?? (id === "pitch-players" ? layer : id === "commentary-caption" ? caption : null),
+        getElementById: id => {domQueries++;return dialogs.find(d => d.id === id) ?? goalNodes[id] ?? (id === "pitch-players" ? layer : id === "commentary-caption" ? caption : null);},
         querySelector: selector => dialogs.find(d => d.open && (!selector.includes("aria-modal") || d.attributes["aria-modal"] === "true")),
         querySelectorAll: () => dialogs.filter(d => d.open),
         addEventListener: (name, fn) => documentHandlers.set(name, fn), removeEventListener: name => documentHandlers.delete(name),
@@ -492,6 +495,97 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         assert.equal(nextFrame,null,"paused captions do not keep an animation or audio loop alive");
         assert.equal(diagnostics().time,densePausedTime);
         assert.equal(native.length,beforeDense,"dense captions make no native/model/audio callback");
+        const portraits={...clip,revision:6,players:clip.players.map(p=>({...p,portrait:{
+            playerId:p.id,teamId:p.teamId,name:p.name,imagePath:`images/players/${p.id}.png`}}))};
+        loadScenario(JSON.stringify(portraits));
+        setClock(JSON.stringify({revision:6,sequence:++sequence,time:100,playing:false,rate:3,selectedId:"arsenal-saka",highlightsEnabled:false}));
+        assert.equal(loadedImages.length,22);
+        await Promise.all(loadedImages.map(image=>image.onload()));
+        const viewBase={version:1,style:0,markerScale:1,showNumbers:true,smartDetail:false};
+        const viewCalls=native.length;
+        const viewWitness=[];
+        for(let style=0;style<6;style++) {
+            context.images=[];
+            setViewSettings(JSON.stringify({...viewBase,style,markerScale:1.25,smartDetail:style===5}));
+            assert.equal(diagnostics().time,100,"visual settings never seek");
+            assert.equal(nextFrame,null,"paused settings redraw once without starting a timer");
+            assert.equal(layer.children.length,22);
+            if(style===0)assert.equal(diagnostics().drawnTargets.filter(t=>t.photo).length,0);
+            else assert.ok(diagnostics().drawnTargets.some(t=>t.photo),"each approved style actually paints portraits on the production pitch");
+            if(style>0)assert.ok(context.images.some(draw=>loadedImages.includes(draw.image)));
+            for(const [w,h,dpr] of [[1144,595,1],[700,800,2],[1144,595,2]]) {
+                rect.width=w;rect.height=h;window.devicePixelRatio=dpr;observation();
+                for(const target of diagnostics().drawnTargets) {
+                    const p=portraits.players.find(p=>p.id===target.id),point=at(p.frames,diagnostics().renderTime);
+                    const field=diagnostics().viewport.field;
+                    assert.ok(Math.abs(target.x-field.left-point.x*field.scale)<1e-8);
+                    assert.ok(Math.abs(target.y-field.top-point.y*field.scale)<1e-8);
+                    const button=layer.children.find(b=>b.dataset.playerId===target.id),box=button.getBoundingClientRect();
+                    assert.ok(Math.abs(box.left+box.width/2-rect.left-target.x)<1e-8);
+                    assert.ok(Math.abs(box.top+box.height/2-rect.top-target.y)<1e-8);
+                }
+                viewWitness.push({style,width:w,height:h,dpr,sourceTime:diagnostics().renderTime,
+                    viewport:diagnostics().viewport,targets:diagnostics().drawnTargets,
+                    portraitDrawCalls:context.images.filter(draw=>loadedImages.includes(draw.image)).length});
+            }
+            setViewSettings(JSON.stringify({...viewBase,style,showNumbers:false,smartDetail:style===5}));
+            assert.ok(diagnostics().drawnTargets.filter(t=>t.photo).every(t=>!t.number));
+            assert.ok(diagnostics().drawnTargets.filter(t=>!t.photo).every(t=>t.number));
+            assert.equal(loadedImages.length,22,"no image construction in rAF or style switches");
+        }
+        assert.equal(native.length,viewCalls,"settings never generate interop/model interactions");
+        assert.ok(diagnostics().viewport.view.width<ARENA.width,"Smart detail changes the actual shared pitch camera");
+        const hitTarget=diagnostics().drawnTargets.find(t=>t.id==="arsenal-saka");
+        callbacks.get("pointerdown")({clientX:rect.left+hitTarget.x,clientY:rect.top+hitTarget.y});
+        assert.deepEqual(native.at(-1),["SelectFromPitch","arsenal-saka"]);
+        assert.equal(dialog.open,true);
+        const playingViewCalls=native.length;
+        for(let style=0;style<6;style++) {
+            setClock(JSON.stringify({revision:6,sequence:++sequence,time:100,playing:true,rate:3,selectedId:"arsenal-saka",highlightsEnabled:false}));
+            setViewSettings(JSON.stringify({...viewBase,style,markerScale:.8,showNumbers:false,smartDetail:true}));
+            const queriesBeforeFrame=domQueries;
+            wall+=1000;nextFrame();assert.equal(diagnostics().time,103);
+            assert.equal(domQueries,queriesBeforeFrame,"production animation uses cached DOM nodes, not per-frame queries");
+            assert.equal(loadedImages.length,22);assert.equal(native.length,playingViewCalls);
+            assert.ok(diagnostics().drawnTargets.filter(t=>!t.photo).every(t=>t.number));
+        }
+        setViewSettings(JSON.stringify({...viewBase,style:2,markerScale:.8}));
+        setClock(JSON.stringify({revision:6,sequence:++sequence,time:100,playing:false,rate:3,selectedId:"arsenal-saka",highlightsEnabled:false}));
+        loadedImages[0].onerror();
+        assert.equal(diagnostics().imageFailures,1);assert.equal(nextFrame,null);
+        assert.equal(diagnostics().drawnTargets.find(t=>t.id===portraits.players[0].id).photo,false);
+        assert.match(goalNodes["view-image-status"].textContent,/Photo unavailable/);
+        const themedGoals={...goalClip,revision:7,players:portraits.players};
+        loadScenario(JSON.stringify(themedGoals));
+        setViewSettings(JSON.stringify({...viewBase,style:5,smartDetail:true}));
+        setClock(JSON.stringify({revision:7,sequence:++sequence,time:45,playing:false,rate:3,selectedId:"arsenal-saka",highlightsEnabled:true}));
+        assert.equal(diagnostics().cameraOwner,"goal");
+        const goalView=diagnostics().viewport.view;
+        setViewSettings(JSON.stringify({...viewBase,style:5,smartDetail:true,markerScale:1.5}));
+        assert.deepEqual(diagnostics().viewport.view,goalView,"user zoom cannot fight the goal camera");
+        assert.equal(goalNodes["view-detail-camera"].disabled,true);
+        setClock(JSON.stringify({revision:7,sequence:++sequence,time:60,playing:false,rate:3,selectedId:"arsenal-saka",highlightsEnabled:false}));
+        assert.equal(diagnostics().cameraOwner,"user");assert.equal(goalNodes["view-detail-camera"].disabled,false);
+        setEvidence(7,JSON.stringify({id:"pin",start:59,time:60,ball:[{time:59,x:50,y:34},{time:60,x:52,y:34}]}));
+        assert.equal(diagnostics().cameraOwner,"pinned");assert.deepEqual(diagnostics().viewport.view,ARENA);
+        setViewSettings(JSON.stringify({...viewBase,style:1}));assert.deepEqual(diagnostics().viewport.view,ARENA);
+        loadFilm(JSON.stringify({...edit,revision:7}));setFilmClock(10,false,++sequence,7);
+        assert.equal(diagnostics().cameraOwner,"film");
+        assert.equal(diagnostics().renderTime,49);
+        setViewSettings(JSON.stringify({...viewBase,style:5,smartDetail:true}));assert.equal(diagnostics().renderTime,49);
+        assert.equal(diagnostics().cameraOwner,"film");
+        loadFilm(null);setClock(JSON.stringify({revision:7,sequence:++sequence,time:61,playing:false,rate:3,selectedId:"arsenal-saka",highlightsEnabled:false}));
+        assert.equal(diagnostics().cameraOwner,"user");assert.ok(diagnostics().viewport.view.width<ARENA.width);
+        assert.equal(loadedImages.length,22,"fixture revisions reuse the verified cache, not reload loops");
+        assert.throws(()=>setViewSettings(JSON.stringify({...viewBase,style:99})),/Invalid/);
+        assert.equal(diagnostics().viewSettings.style,5);
+        loadScenario(JSON.stringify({...clubFixture,revision:8}));
+        setClock(JSON.stringify({revision:8,sequence:++sequence,time:100,playing:false,rate:3,selectedId:clubFixture.players[0].id,highlightsEnabled:false}));
+        assert.ok(diagnostics().drawnTargets.every(t=>!t.photo),"old fixture faces cannot leak into unmapped new identities");
+        assert.equal(nextFrame,null);
+        if(process.env.PITCHLENS_VIEW_RENDERER_WITNESS)writeFileSync(process.env.PITCHLENS_VIEW_RENDERER_WITNESS,
+            JSON.stringify({kind:"Actual production renderer with controlled DOM/canvas recording; not browser pixels or native acceptance",
+                styles:viewWitness,imagesConstructed:loadedImages.length,pausedAnimationScheduled:nextFrame!==null},null,2));
         dispose();
         assert.equal(caption.hidden, true);
         assert.equal(goalNodes["pitch-lens-tag"].hidden,true);

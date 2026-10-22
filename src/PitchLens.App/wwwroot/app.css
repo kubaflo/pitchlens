@@ -266,6 +266,32 @@ dialog::backdrop { background: #20002680; backdrop-filter: blur(3px); }
 .more-actions button:hover:not(:disabled) { background: #f5f2f7; }
 .more-actions strong { font-size: 16px; }
 .more-actions small { font-size: 13px; line-height: 1.3; }
+.view-dialog { position: fixed; margin: 0; right: 20px; left: auto; top: 88px; width: min(510px, calc(100vw - 32px)); max-height: calc(100dvh - 108px); overflow: auto; z-index: 32; border-radius: 12px; box-shadow: 0 16px 48px #18002038; }
+.view-dialog .dialog-head { position: sticky; top: 0; background: white; z-index: 2; padding: 18px 22px; align-items: center; }
+.view-dialog .eyebrow { font-size: 12px; color: var(--muted); }
+.view-dialog h2 { font-size: 28px; }
+.view-dialog .dialog-body { gap: 14px; padding: 18px 22px; }
+.view-styles { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+.view-styles button { display: grid; justify-items: center; gap: 8px; padding: 10px 4px; color: var(--purple); background: #f8f5fa; border: 1px solid var(--line); border-radius: 7px; font: inherit; }
+.view-styles button.selected { border: 2px solid var(--purple); background: #ede3f3; padding: 9px 3px; }
+.view-styles strong { font-size: 12px; }
+.style-sample { position: relative; width: 34px; height: 42px; }
+.style-sample .player-portrait { width: 34px; height: 42px; border: 2px solid var(--mint); border-radius: 50%; }
+.style-sample > span:last-child { position: absolute; right: -2px; bottom: -1px; background: var(--mint); font-size: 10px; font-weight: 700; padding: 1px 3px; border-radius: 4px; }
+.style-0 { height: 42px; border-radius: 50%; background: var(--mint); }
+.style-0 > span:last-child { inset: 0; display: grid; place-items: center; background: transparent; font-size: 16px; }
+.style-2 .player-portrait { border: 0; border-bottom: 4px solid var(--mint); border-radius: 0; background: none; }
+.style-3 .player-portrait { border-radius: 4px; }
+.style-4 .player-portrait { border-color: #ac8fb7; }
+.style-5 .player-portrait { border: 2px dashed var(--purple); }
+.view-dialog .view-size { margin: 0; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 14px; }
+.view-size output { margin-left: auto; }
+.view-dialog .view-size input { width: 100%; padding: 0; accent-color: var(--purple); }
+.view-dialog .view-numbers { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 0; }
+.view-dialog .view-numbers input { width: 18px; height: 18px; margin: 0; }
+.view-dialog .camera-controls[hidden] { display: none; }
+.view-dialog .segments button { font-size: 13px; padding: 8px; flex: 1; }
+@media(max-height:640px) { .view-dialog { top: 16px; max-height: calc(100dvh - 32px); } }
 @media (max-height: 640px) { .analysis-dialog { top: 16px; max-height: calc(100dvh - 32px); } }
 .player-identity { display: flex; align-items: center; gap: 16px; }
 .player-portrait { display: inline-flex; width: 88px; height: 112px; flex: 0 0 88px; align-items: center; justify-content: center; overflow: hidden; border-radius: 8px; background: #f0eaf3; }

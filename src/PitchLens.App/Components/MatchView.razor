@@ -48,6 +48,7 @@
         <MatchLenses Match="match" SelectedId="@frame.SelectedId" Options="lensOptions" View="lensView" Focus="storyFocus"
             FavoriteNotice="@favoriteNotice" FilmActive="Session.FilmActive" OptionsChanged="SetLensOptions"
             SelectedPlayer="SelectLensPlayer" FocusSelected="SetStoryFocus" Replay="ReplayConnection" />
+        <ViewSettings SelectedPlayer="player" Value="Session.ViewSettings" Notice="@(viewError??Session.ViewSettingsNotice)" Changed="ApplyViewSettings" />
         <main class="matchday-stage">
             <div class="pitch-slot">
                 <canvas @ref="canvas" id="pitch" tabindex="0" role="img" aria-label="Synthetic football replay. Click a shirt, or use Players for keyboard-accessible selection."></canvas>
@@ -59,7 +60,7 @@
                 <div id="evidence-view-tag" class="goal-replay-tag" hidden aria-live="off"></div>
                 <div id="pitch-lens-tag" class="pitch-lens-tag" hidden aria-live="off"></div>
                 <div id="commentary-caption" class="commentary-caption" hidden aria-label="AI commentator subtitles" aria-live="off"></div>
-                @if (Session.FilmActive) { <div class="film-heading"><span>DIRECTOR'S CUT · SYNTHETIC IN-APP FILM · @(Session.Director.Current?.Fresh == true ? Session.Director.Current.Cached ? "CACHED SDK EDIT" : "FRESH SDK EDIT" : "RECORDED SDK / NOT FRESH")</span><strong id="film-position"></strong><p id="film-insight" hidden></p></div> }
+                <div class="film-heading" hidden="@(!Session.FilmActive)"><span>DIRECTOR'S CUT · SYNTHETIC IN-APP FILM · @(Session.Director.Current?.Fresh == true ? Session.Director.Current.Cached ? "CACHED SDK EDIT" : "FRESH SDK EDIT" : "RECORDED SDK / NOT FRESH")</span><strong id="film-position"></strong><p id="film-insight" hidden></p></div>
             </div>
             <div class="pitch-caption"><span>@(Session.FilmActive ? "Film view · Return to the paused match for player lenses." : "Click a shirt. Get the player lens.")</span><span>@(storyFocus.Kind!=StoryFocusKind.All?$"My match · {focusedHeading??"No observed story for this focus yet."}":match.Narrative is null ? frame.Explanations.LastOrDefault()?.Text ?? "Play to reveal the story." : frame.Story.LastOrDefault()?.Heading ?? "The story unfolds as you watch.")</span></div>
         </main>
@@ -96,6 +97,7 @@
         <dialog id="more-dialog" class="more-dialog" aria-modal="false" aria-labelledby="more-title">
             <header class="dialog-head"><h2 id="more-title">More</h2><button class="close" data-close-popup aria-label="Close more actions">Close</button></header>
             <div class="more-actions">
+                <button id="view-button" aria-controls="view-dialog" @onclick='() => Open("view-dialog")'><strong>View settings</strong><small>Player photos, size, numbers and Smart zoom</small></button>
                 <button id="players-button" disabled="@Session.FilmActive" @onclick='() => Open("roster-dialog")'><strong>Players</strong><small>Choose a shirt and open its player lens</small></button>
                 <button id="story-button" disabled="@Session.FilmActive" @onclick='() => Open("story-dialog")'><strong>Match story</strong><small>Observed Fan / Analyst chapters</small></button>
                 <button id="director-button" disabled="@(Session.Mode!=SessionMode.Live||!Session.CanDirect)" aria-label="Director's Cut. Uses Copilot usage." title="Uses Copilot usage. Test mode has a recorded preview in Settings." @onclick="OpenDirector"><strong>Director's Cut</strong><small>@(Session.Mode==SessionMode.Test?"Live only · Recorded preview in Settings":"Uses Copilot usage · Create an in-app film")</small></button>
@@ -264,6 +266,8 @@ else
     private long loadedRevision;
     private PopupRequest? pendingPopup;
     private bool captionsEnabled = true;
+    private PitchViewSettings? loadedViewSettings;
+    private string? viewError;
     private LensOptions lensOptions=new();
     private StoryFocus storyFocus=new();
     private PitchLensView? lensView;
@@ -351,6 +355,11 @@ else
                     loadedRevision = current.Revision;
                     await module.InvokeVoidAsync("loadScenario", WebContracts.Scenario(current.Match, current.Revision));
                 }
+                if(loadedViewSettings!=Session.ViewSettings)
+                {
+                    loadedViewSettings=Session.ViewSettings;
+                    await module.InvokeVoidAsync("setViewSettings",PitchViewSettings.Serialize(loadedViewSettings));
+                }
                 await module.InvokeVoidAsync("setClock", WebContracts.Clock(current),
                     currentLens is null?null:JsonSerializer.Serialize(currentLens,WebJsonContext.Default.PitchLensView));
                 if (Session.FilmFrame is { } filmFrame && Session.Director.Current is { } directed)
@@ -368,7 +377,7 @@ else
     }
     private void Open(string id)
     {
-        if (id is not ("player-dialog" or "roster-dialog" or "analysis-dialog" or "more-dialog")) Session.Command("pause");
+        if (id is not ("player-dialog" or "roster-dialog" or "analysis-dialog" or "more-dialog" or "view-dialog")) Session.Command("pause");
         pendingPopup = new(id,frame?.Revision??0);
         StateHasChanged();
     }
@@ -393,6 +402,13 @@ else
             PitchLens.Core.MatchLenses.Connections(frame.Match,window,lensOptions.ClubId??frame.Match.Teams[0].Id,lensOptions.EdgeId):
             PitchLens.Core.MatchLenses.Movement(frame.Match,window,frame.SelectedId,lensOptions.Cell);
         if(lensOptions.EdgeId!=lensView.SelectedEdgeId)lensOptions=lensOptions with{EdgeId=lensView.SelectedEdgeId};
+    }
+    private Task ApplyViewSettings(PitchViewSettings settings)
+    {
+        try{Session.SetViewSettings(settings);viewError=null;}
+        catch(Exception e) when(e is ArgumentException or IOException or UnauthorizedAccessException or InvalidOperationException)
+        {viewError=$"View settings unchanged: {e.Message}";}
+        StateHasChanged();return Task.CompletedTask;
     }
     private async Task SetLensOptions(LensOptions options)
     {

@@ -84,8 +84,36 @@ Design-only alternatives for putting those portraits **on the pitch** are in
 Open the gallery or any of its five standalone pages directly in Safari;
 they use only existing local assets, classic JavaScript and the same22-player
 Arsenal/Liverpool layout. Photo tokens, cut-out players, portrait tiles,
-focus-first and smart zoom are visual options—not a production marker change.
-The production app retains its numbered markers until a direction is chosen.
+focus-first and smart zoom remain the original design references. All five are
+now available in the production app alongside the original **Numbers** default.
+
+Open **More → View settings** for a compact nonmodal camera-style panel.
+Choose **Numbers**, **Photo tokens** (round face crops), **Cut-out players**
+(transparent busts), **Portrait tiles**, **Focus first** (selected player and
+players within9m of the current ball), or **Smart zoom**. Smart zoom's **Wide**
+keeps the whole pitch numbered; **Detail** genuinely zooms the main pitch around
+the selected player and ball and reveals portraits. It expands when they are
+far apart rather than hiding either. Size75–150% and shirt-number badges update
+immediately while playing or paused; reset restores Numbers/100%/badges on/Wide.
+Numbers-only and unavailable-photo markers always retain their shirt numbers,
+even with badges off, so they never become anonymous dots.
+
+View changes do not pause, seek, change speed or selection, or make AI requests.
+Validated settings are remembered on this device, separately from match facts,
+generation and gameplay hashes. Invalid stored settings restore safe Numbers
+defaults with an explicit notice in View settings; a failed save shows an error
+and leaves the previous settings intact. Escape, outside click and Close return
+focus; View settings never follows a player or opens a second popup stack.
+
+Director's Cut, pinned evidence and an active goal highlight own the existing
+camera ahead of user Smart zoom. Wide/Detail controls are temporarily disabled
+with a reason; the saved user choice resumes afterward. Smart zoom can reveal
+portraits in an editorial close-up without moving that editorial camera.
+Field, sprites,22accessible player targets, hit tests, overlays and the following
+player popup share the same camera transform at either display density.
+Verified local images load/decode once per renderer lifetime; completion redraws
+a paused frame without a continuing paused timer. Missing, identity-mismatched
+or failed images keep explicit numbered fallbacks, never another player's face.
 
 Player cards and the roster use a shared, presentation-only mapping for the
 **66 selected identities** across the six clubs. **65 genuine official PL PNGs**
@@ -94,7 +122,8 @@ portrait is **Emiliano Martínez / Chelsea** (`98980`): the official image CDN
 returned **403 Forbidden**. That card shows a calm shirt-number/photo-unavailable
 fallback; no alternate host, credentials, proxy or another person's face is used.
 Unknown/mismatched identities and local image-load errors use the same fallback.
-The22numbered pitch markers remain unchanged.
+Numbers remain the compatibility default on the pitch; the same mapping supplies
+the optional on-pitch portrait styles.
 
 Identity records were checked on **2026-10-22** against the official public
 selected-club squad feeds: exact name, club, shirt number and official player ID.
@@ -140,7 +169,7 @@ be considered separately; the repository remains private.
 
 The main screen has one fixture/score header and three actions: **Explain this
 moment** (or **Recorded analysis** in Test), **Analysis**, and **More**.
-More contains Players, Match story, Director's Cut and Settings & source.
+More contains Players, View settings, Match story, Director's Cut and Settings & source.
 Analysis and More are ordinary accessible buttons opening nonmodal dialogs,
 not popup-select controls; opening either does not pause replay. Player lenses
 remain nonmodal, while story/settings retain their existing explicit pause

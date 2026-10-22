@@ -1,0 +1,51 @@
+<dialog id="view-dialog" class="view-dialog" aria-modal="false" aria-labelledby="view-title">
+    <header class="dialog-head"><div><span class="eyebrow">Your camera, your markers</span><h2 id="view-title">View settings</h2></div><button class="close" data-close-popup aria-label="Close view settings">Close</button></header>
+    <div class="dialog-body">
+        <div class="view-styles" role="group" aria-label="On-pitch player style">
+            @foreach(var style in Enum.GetValues<PlayerMarkerStyle>())
+            {
+                <button class="@(Value.Style==style?"selected":"")" aria-pressed="@(Value.Style==style?"true":"false")" @onclick="()=>Apply(Value with{Style=style})">
+                    <span class="style-sample style-@((int)style)" aria-hidden="true">
+                        @if(style!=PlayerMarkerStyle.Numbers){<PlayerPortrait Player="SelectedPlayer" Lazy="true" />}
+                        <span>#@SelectedPlayer.Number</span>
+                    </span>
+                    <strong>@Label(style)</strong>
+                </button>
+            }
+        </div>
+        <label class="view-size">Marker size <output>@Value.MarkerScale.ToString("P0")</output>
+            <input type="range" min="0.75" max="1.5" step="0.05" aria-label="Player marker size" value="@Value.MarkerScale.ToString(System.Globalization.CultureInfo.InvariantCulture)" @oninput="SizeChanged" />
+        </label>
+        <label class="view-numbers"><input type="checkbox" checked="@Value.ShowNumbers" @onchange="NumbersChanged" /> Shirt-number badges</label>
+        <div class="segments camera-controls" hidden="@(Value.Style!=PlayerMarkerStyle.SmartZoom)" aria-label="Smart zoom camera"><button id="view-wide-camera" aria-pressed="@(!Value.SmartDetail?"true":"false")" class="@(!Value.SmartDetail?"selected":"")" @onclick="()=>Apply(Value with{SmartDetail=false})">Wide · Numbers</button><button id="view-detail-camera" aria-pressed="@(Value.SmartDetail?"true":"false")" class="@(Value.SmartDetail?"selected":"")" @onclick="()=>Apply(Value with{SmartDetail=true})">Detail · Portraits</button></div>
+        <p class="caption">Focus first shows faces for the selected player and players within9m of the ball. Numbers-only and unavailable-photo markers stay numbered even with badges off.</p>
+        <p id="view-camera-status" class="caption" role="status">Goal highlights, pinned evidence and Director's Cut own their cameras. Your Smart zoom choice resumes afterward.</p>
+        <p id="view-image-status" class="caption" role="status"></p>
+        @if((inputError??Notice) is not null){<p class="error" role="alert">@(inputError??Notice)</p>}
+        <button class="button" @onclick="()=>Apply(PitchViewSettings.Default)">Reset to Numbers</button>
+        <span class="caption">Applied immediately, saved on this device. No pause, seek, speed change or AI usage.</span>
+    </div>
+</dialog>
+
+@code {
+    [Parameter,EditorRequired] public Player SelectedPlayer{get;set;}=null!;
+    [Parameter] public PitchViewSettings Value{get;set;}=PitchViewSettings.Default;
+    [Parameter] public string? Notice{get;set;}
+    [Parameter] public EventCallback<PitchViewSettings> Changed{get;set;}
+    private static string Label(PlayerMarkerStyle style)=>style switch{
+        PlayerMarkerStyle.Numbers=>"Numbers",PlayerMarkerStyle.PhotoTokens=>"Photo tokens",PlayerMarkerStyle.CutOutPlayers=>"Cut-out players",
+        PlayerMarkerStyle.PortraitTiles=>"Portrait tiles",PlayerMarkerStyle.FocusFirst=>"Focus first",_=>"Smart zoom"};
+    private string? inputError;
+    private Task Apply(PitchViewSettings value){inputError=null;return Changed.InvokeAsync(value);}
+    private Task SizeChanged(ChangeEventArgs e)
+    {
+        if(double.TryParse(e.Value?.ToString(),System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out var scale))
+            return Apply(Value with{MarkerScale=scale});
+        inputError="Invalid marker size. View unchanged.";StateHasChanged();return Task.CompletedTask;
+    }
+    private Task NumbersChanged(ChangeEventArgs e)
+    {
+        if(e.Value is bool show)return Apply(Value with{ShowNumbers=show});
+        inputError="Invalid shirt-number preference. View unchanged.";StateHasChanged();return Task.CompletedTask;
+    }
+}
