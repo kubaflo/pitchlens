@@ -79,6 +79,14 @@ controlled tests. Native visual/readability acceptance remains user-operated.
 
 ### Official player portraits
 
+Design-only alternatives for putting those portraits **on the pitch** are in
+[`design/pitch-portraits/index.html`](design/pitch-portraits/index.html).
+Open the gallery or any of its five standalone pages directly in Safari;
+they use only existing local assets, classic JavaScript and the same22-player
+Arsenal/Liverpool layout. Photo tokens, cut-out players, portrait tiles,
+focus-first and smart zoom are visual options—not a production marker change.
+The production app retains its numbered markers until a direction is chosen.
+
 Player cards and the roster use a shared, presentation-only mapping for the
 **66 selected identities** across the six clubs. **65 genuine official PL PNGs**
 are bundled for offline display: **6,708,397 bytes** total. The only unavailable
