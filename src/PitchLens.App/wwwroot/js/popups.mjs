@@ -37,7 +37,7 @@ export class PopupHost {
             if (this.floating?.open && !this.floating.contains(event.target)) {
                 event.target.closest?.("button, input, select, a, [tabindex]")?.focus({ preventScroll: true });
                 if (["analysis-dialog","more-dialog","view-dialog"].includes(this.floating.id) ?
-                    !event.target.closest?.({"analysis-dialog":"#analysis-button","more-dialog":"#more-button","view-dialog":"#view-button"}[this.floating.id]) :
+                    !event.target.closest?.({"analysis-dialog":"#analysis-button","more-dialog":"#more-button","view-dialog":"#view-button, #settings-camera-button"}[this.floating.id]) :
                     !event.target.closest?.(".player-target, #players-button, #roster, .transport"))
                     this.close(this.floating.id, false);
             }

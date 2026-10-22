@@ -271,6 +271,8 @@ dialog::backdrop { background: #20002680; backdrop-filter: blur(3px); }
 .view-dialog .eyebrow { font-size: 12px; color: var(--muted); }
 .view-dialog h2 { font-size: 28px; }
 .view-dialog .dialog-body { gap: 14px; padding: 18px 22px; }
+.camera-entry { padding: 16px; border: 1px solid var(--line); border-left: 4px solid var(--purple); border-radius: 8px; background: #f8f5fa; }
+.camera-entry p { margin: 6px 0 12px; }
 .view-styles { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
 .view-styles button { display: grid; justify-items: center; gap: 8px; padding: 10px 4px; color: var(--purple); background: #f8f5fa; border: 1px solid var(--line); border-radius: 7px; font: inherit; }
 .view-styles button.selected { border: 2px solid var(--purple); background: #ede3f3; padding: 9px 3px; }
@@ -289,7 +291,6 @@ dialog::backdrop { background: #20002680; backdrop-filter: blur(3px); }
 .view-dialog .view-size input { width: 100%; padding: 0; accent-color: var(--purple); }
 .view-dialog .view-numbers { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 0; }
 .view-dialog .view-numbers input { width: 18px; height: 18px; margin: 0; }
-.view-dialog .camera-controls[hidden] { display: none; }
 .view-dialog .segments button { font-size: 13px; padding: 8px; flex: 1; }
 @media(max-height:640px) { .view-dialog { top: 16px; max-height: calc(100dvh - 32px); } }
 @media (max-height: 640px) { .analysis-dialog { top: 16px; max-height: calc(100dvh - 32px); } }

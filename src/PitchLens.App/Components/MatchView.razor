@@ -97,7 +97,7 @@
         <dialog id="more-dialog" class="more-dialog" aria-modal="false" aria-labelledby="more-title">
             <header class="dialog-head"><h2 id="more-title">More</h2><button class="close" data-close-popup aria-label="Close more actions">Close</button></header>
             <div class="more-actions">
-                <button id="view-button" aria-controls="view-dialog" @onclick='() => Open("view-dialog")'><strong>View settings</strong><small>Player photos, size, numbers and Smart zoom</small></button>
+                <button id="view-button" aria-controls="view-dialog" @onclick='() => Open("view-dialog")'><strong>Camera &amp; player appearance</strong><small>Change zoom, portraits, marker size and shirt numbers</small></button>
                 <button id="players-button" disabled="@Session.FilmActive" @onclick='() => Open("roster-dialog")'><strong>Players</strong><small>Choose a shirt and open its player lens</small></button>
                 <button id="story-button" disabled="@Session.FilmActive" @onclick='() => Open("story-dialog")'><strong>Match story</strong><small>Observed Fan / Analyst chapters</small></button>
                 <button id="director-button" disabled="@(Session.Mode!=SessionMode.Live||!Session.CanDirect)" aria-label="Director's Cut. Uses Copilot usage." title="Uses Copilot usage. Test mode has a recorded preview in Settings." @onclick="OpenDirector"><strong>Director's Cut</strong><small>@(Session.Mode==SessionMode.Test?"Live only · Recorded preview in Settings":"Uses Copilot usage · Create an in-app film")</small></button>
@@ -199,8 +199,9 @@
             </div>
         </dialog>
         <dialog id="settings-dialog" aria-labelledby="settings-title">
-            <header class="dialog-head"><div><h2 id="settings-title">Replay settings</h2><span class="caption">Source, model and local runtime</span></div><button class="close" data-close-popup>Close</button></header>
+            <header class="dialog-head"><div><h2 id="settings-title">Replay settings</h2><span class="caption">Camera, playback and source</span></div><button class="close" data-close-popup>Close</button></header>
             <div class="dialog-body">
+                <section class="camera-entry"><h3>Camera &amp; player appearance</h3><p>Change zoom, portraits, marker size and shirt numbers.</p><button id="settings-camera-button" class="button purple" aria-controls="view-dialog" @onclick='() => Open("view-dialog")'>Open camera &amp; player appearance</button></section>
                 <RequestActivityView Activity="Session.ConnectionActivity" Title="SDK connection check · No AI request" Budget="45-second check · No generation or model usage" Cancel="Session.CancelConnection" />
                 <section><h3>@Session.Mode mode</h3><p>Test blocks all SDK requests. Switching modes preserves your current game; generating a new Live match is an explicit separate action.</p><div class="actions"><button class="button" disabled="@(Session.Generating||Session.Explainer.Busy||Session.Director.Busy||Session.CheckingConnection)" @onclick="UseTest">Use Test mode · No AI calls</button><button class="button" disabled="@(Session.Generating||Session.Explainer.Busy||Session.Director.Busy||Session.CheckingConnection)" @onclick="UseLive">Use Live mode · Keep current match</button></div></section>
                 <section id="scenario-provenance"><h3>@(view!.Origin == ScenarioOrigin.DeterministicDemo ? "Authored five-minute demo" : view.Fresh ? "New SDK-generated match" : "Recorded SDK example")</h3><p>Source model: @(view.Model ?? "None — authored locally"). @(view.Fresh ? "Generated in this session." : "Not a fresh request.")</p><p>All actions are synthetic. Real 2026/27 roster names; no real match result or athlete performance claim.</p></section>

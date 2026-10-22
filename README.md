@@ -87,7 +87,11 @@ Arsenal/Liverpool layout. Photo tokens, cut-out players, portrait tiles,
 focus-first and smart zoom remain the original design references. All five are
 now available in the production app alongside the original **Numbers** default.
 
-Open **More → View settings** for a compact nonmodal camera-style panel.
+Open **Replay settings → Camera & player appearance**, the first entry above
+mode/source details, or **More → Camera & player appearance** for the same
+compact nonmodal panel. Its **Camera framing** section is always visible at the
+top: **Wide · Smart zoom** and **Detail · Smart zoom** explicitly select Smart
+zoom while changing framing. Other styles do not hide these controls.
 Choose **Numbers**, **Photo tokens** (round face crops), **Cut-out players**
 (transparent busts), **Portrait tiles**, **Focus first** (selected player and
 players within9m of the current ball), or **Smart zoom**. Smart zoom's **Wide**
@@ -101,9 +105,11 @@ even with badges off, so they never become anonymous dots.
 View changes do not pause, seek, change speed or selection, or make AI requests.
 Validated settings are remembered on this device, separately from match facts,
 generation and gameplay hashes. Invalid stored settings restore safe Numbers
-defaults with an explicit notice in View settings; a failed save shows an error
+defaults with an explicit notice in Camera & player appearance; a failed save shows an error
 and leaves the previous settings intact. Escape, outside click and Close return
-focus; View settings never follows a player or opens a second popup stack.
+focus; Camera & player appearance never follows a player or opens a second popup
+stack. Opening it from paused Replay settings closes that dialog and keeps the
+match paused; the direct More entry preserves playing/paused state.
 
 Director's Cut, pinned evidence and an active goal highlight own the existing
 camera ahead of user Smart zoom. Wide/Detail controls are temporarily disabled
@@ -169,7 +175,7 @@ be considered separately; the repository remains private.
 
 The main screen has one fixture/score header and three actions: **Explain this
 moment** (or **Recorded analysis** in Test), **Analysis**, and **More**.
-More contains Players, View settings, Match story, Director's Cut and Settings & source.
+More contains Players, Camera & player appearance, Match story, Director's Cut and Settings & source.
 Analysis and More are ordinary accessible buttons opening nonmodal dialogs,
 not popup-select controls; opening either does not pause replay. Player lenses
 remain nonmodal, while story/settings retain their existing explicit pause
