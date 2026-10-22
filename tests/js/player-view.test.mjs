@@ -1,10 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
 import {PlayerView,DEFAULT_VIEW,validateView,smartView,pickTarget} from "../../src/PitchLens.App/wwwroot/js/player-view.mjs";
 import {ARENA} from "../../src/PitchLens.App/wwwroot/js/viewport.mjs";
 
 const player={id:"arsenal-saka",teamId:"arsenal",name:"Bukayo Saka",number:7,
     portrait:{playerId:"arsenal-saka",teamId:"arsenal",name:"Bukayo Saka",imagePath:"images/players/arsenal-saka.png"}};
+const inkFixture=JSON.parse(readFileSync(new URL("./fixtures/barlow-number-ink.json",import.meta.url),"utf8")).numbers;
 function cacheHarness() {
     const images=[],messages=[];let invalidations=0;
     const view=new PlayerView(()=>invalidations++,m=>messages.push(m),()=>{
@@ -65,13 +67,16 @@ test("smart camera is genuinely tighter and contains selected player/ball; hit t
 });
 test("production cut-outs and tiles preserve actual image aspect and number badges scale with bounded portraits",async()=>{
     const h=cacheHarness();h.view.prepare({players:[player]});await h.images[0].onload();
-    const images=[],fonts=[],c={drawImage:(...args)=>images.push(args),fillText:()=>fonts.push(c.font)};
-    for(const name of ["beginPath","arc","fill","stroke","save","restore","clip","ellipse","roundRect"])c[name]=()=>{};
+    let textScale=1;const scales=[];
+    const images=[],fonts=[],c={drawImage:(...args)=>images.push(args),fillText:()=>fonts.push(parseFloat(c.font.split(" ")[1])*textScale),
+        measureText:text=>inkFixture[text],translate(){},scale(x){textScale*=x;},
+        save(){scales.push(textScale);},restore(){textScale=scales.pop();}};
+    for(const name of ["beginPath","arc","fill","stroke","clip","ellipse","roundRect"])c[name]=()=>{};
     for(const style of [1,2,3])for(const scale of [8,100]){
         const g=h.view.geometry(player,{x:50,y:34},{x:50,y:34},player.id,{...DEFAULT_VIEW,style},scale,true);
         h.view.draw(c,player,{x:50,y:34},"mint",false,g,true,false);
         const image=images.at(-1),width=image.at(-2),height=image.at(-1);
         assert.ok(Math.abs(width/height-(style===1?1:220/280))<1e-12,"no squashed headshots");
-        assert.ok(parseFloat(fonts.at(-1).split(" ")[1])*scale<=12.4,"badge remains proportional at detail pixel cap");
+        assert.ok(fonts.at(-1)*scale<=12.4,"badge remains proportional at detail pixel cap");
     }
 });

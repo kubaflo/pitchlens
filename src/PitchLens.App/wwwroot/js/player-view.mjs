@@ -30,10 +30,31 @@ function circle(c,x,y,r,fill,stroke) {
 }
 function box(c,x,y,w,h,r) {c.beginPath();c.roundRect(x,y,w,h,r);}
 
+export function drawShirtNumber(c,number,x,y,fontSize,maxWidth,maxHeight,cache) {
+    const text=String(number);
+    // Measure and draw the same fixed-size font; scale its ink bounds with the shared field transform.
+    c.save();c.font="700 100px Barlow, sans-serif";c.textAlign="left";c.textBaseline="alphabetic";
+    let m=cache.get(text);
+    if(!m) {
+        const measured=c.measureText(text);
+        m={left:measured.actualBoundingBoxLeft,right:measured.actualBoundingBoxRight,
+            ascent:measured.actualBoundingBoxAscent,descent:measured.actualBoundingBoxDescent};
+        if(!Object.values(m).every(Number.isFinite)||m.left+m.right<=0||m.ascent+m.descent<=0) {
+            c.restore();
+            throw new Error("Shirt-number ink metrics are unavailable.");
+        }
+        cache.set(text,m);
+    }
+    const scale=Math.min(fontSize/100,maxWidth/(m.left+m.right),maxHeight/(m.ascent+m.descent));
+    c.translate(x-(m.right-m.left)*scale/2,y+(m.ascent-m.descent)*scale/2);
+    c.scale(scale,scale);c.fillText(text,0,0);c.restore();
+}
+
 export class PlayerView {
     constructor(invalidate,report=()=>{},createImage=()=>new Image()) {
         this.invalidate=invalidate;this.report=report;this.createImage=createImage;
         this.assets=new Map();this.bindings=new Map();this.disposed=false;this.constructed=0;this.failures=0;
+        this.numberMetrics=new Map();
     }
     prepare(scenario) {
         this.bindings.clear();
@@ -95,9 +116,8 @@ export class PlayerView {
             if(selected){c.lineWidth=.6;circle(c,x,y,g.r+.8,null,"#fff");}
             circle(c,x+.15,y+.3,g.r+.2,"#23382b");
             c.lineWidth=.18;circle(c,x,y,g.r,color,"#f4f4ef");
-            if(away){c.strokeStyle="#fff";c.lineWidth=.25;c.beginPath();c.moveTo(x-g.r*.75,y+g.r*.55);c.lineTo(x+g.r*.75,y+g.r*.55);c.stroke();}
-            c.fillStyle="#37003c";c.font=`700 ${g.r*1.25}px Barlow, sans-serif`;c.textAlign="center";c.textBaseline="middle";
-            c.fillText(String(p.number),x,y);return;
+            c.fillStyle="#37003c";
+            drawShirtNumber(c,p.number,x,y,g.r*1.25,g.r*1.6,g.r*1.4,this.numberMetrics);return;
         }
         const left=x-g.width/2,top=y-g.height/2,u=g.r/2.6;
         c.save();
@@ -127,14 +147,15 @@ export class PlayerView {
                 {x:x+g.width*.3,y:y+g.height*.38,w:1.7*u,h:1.3*u};
             box(c,badge.x-badge.w/2,badge.y-badge.h/2,badge.w,badge.h,.22*u);c.fillStyle=color;c.fill();
             c.lineWidth=.12*u;c.strokeStyle="#fff";c.stroke();
-            c.fillStyle="#37003c";c.font=`700 ${1.15*u}px Barlow, sans-serif`;c.textAlign="center";c.textBaseline="middle";
-            c.fillText(String(p.number),badge.x,badge.y);
+            c.fillStyle="#37003c";
+            drawShirtNumber(c,p.number,badge.x,badge.y,1.15*u,badge.w*.84,badge.h*.8,this.numberMetrics);
         }
         c.restore();
     }
+    clearNumberMetrics(){this.numberMetrics.clear();}
     dispose() {
         this.disposed=true;
         for(const asset of this.assets.values()){asset.image.onload=null;asset.image.onerror=null;}
-        this.assets.clear();this.bindings.clear();
+        this.assets.clear();this.bindings.clear();this.numberMetrics.clear();
     }
 }

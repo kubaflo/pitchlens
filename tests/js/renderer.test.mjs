@@ -13,6 +13,11 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
     const native = [], callbacks = new Map(), documentHandlers = new Map(), observers = [];
     let wall = 0, nextFrame = null, canvasReads = 0, cardReads = 0, domQueries = 0;
     const loadedImages=[];
+    const fontFixture=JSON.parse(readFileSync(new URL("./fixtures/barlow-number-ink.json",import.meta.url),"utf8"));
+    let inkFixture=fontFixture.fallbackNumbers;
+    let metricCalls=0,resolveFonts;
+    const fontHandlers=new Map(),fonts={ready:new Promise(resolve=>{resolveFonts=resolve;}),
+        addEventListener:(name,fn)=>fontHandlers.set(name,fn),removeEventListener:name=>fontHandlers.delete(name)};
     globalThis.Image=class{constructor(){this.naturalWidth=220;this.naturalHeight=280;loadedImages.push(this);}async decode(){}};
     const caption = { hidden: true, textContent: "", setAttribute() {}, set innerHTML(value) { throw new Error("Model text must not be parsed as HTML"); } };
     const goalNodes = Object.fromEntries(["goal-banner", "goal-title", "goal-detail", "goal-team", "goal-score", "goal-crest", "goal-replay-tag", "match-score", "evidence-view-tag", "film-position", "film-insight", "pitch-lens-tag","effective-speed","view-camera-status","view-image-status","view-wide-camera","view-detail-camera"].map(id => [id, {
@@ -31,12 +36,19 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         }
         scale(x, y) { const m = this.matrix; m[0] *= x; m[1] *= x; m[2] *= y; m[3] *= y; }
         fillRect(x, y, width, height) { this.fills.push({ x, y, width, height, matrix:[...this.matrix] }); } clearRect() { this.labels = []; } drawImage(image,...args) {this.images.push({image,args,matrix:[...this.matrix]});}
-        save(){this.stack.push([...this.matrix]);}restore(){this.matrix=this.stack.pop();}clip(){}roundRect(){}ellipse(){}
+        save(){this.stack.push({matrix:[...this.matrix],font:this.font,textAlign:this.textAlign,textBaseline:this.textBaseline});}
+        restore(){Object.assign(this,this.stack.pop());}clip(){}roundRect(){}ellipse(){}
         strokeRect(x, y, w, h) { if (w === 105 && h === 68) this.field = [...this.matrix]; }
         colors = [];
         beginPath() {} moveTo() {} lineTo() {} stroke() {} arc() {} fill() { this.colors.push(this.fillStyle); }
+        measureText(text){metricCalls++;assert.ok(inkFixture[text],`No measured font fixture for ${text}`);return inkFixture[text];}
         fillText(text, x, y) {
             const m = this.matrix;
+            if(this.textBaseline==="alphabetic"&&this.textAlign==="left"&&/^\d+$/.test(text)){
+                const ink=inkFixture[text];
+                x+=(ink.actualBoundingBoxRight-ink.actualBoundingBoxLeft)/2;
+                y+=(ink.actualBoundingBoxDescent-ink.actualBoundingBoxAscent)/2;
+            }
             this.labels.push({ text, x: m[0] * x + m[2] * y + m[4], y: m[1] * x + m[3] * y + m[5] });
         }
     }
@@ -83,7 +95,7 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
     const dialogs = [dialog, roster, story,analysis,more];
     globalThis.window = { devicePixelRatio: 2, innerWidth: 1280, innerHeight: 900, matchMedia: () => motion, addEventListener() {}, removeEventListener() {} };
     globalThis.document = {
-        hidden: false, activeElement: canvas,
+        hidden: false, activeElement: canvas, fonts,
         getElementById: id => {domQueries++;return dialogs.find(d => d.id === id) ?? goalNodes[id] ?? (id === "pitch-players" ? layer : id === "commentary-caption" ? caption : null);},
         querySelector: selector => dialogs.find(d => d.open && (!selector.includes("aria-modal") || d.attributes["aria-modal"] === "true")),
         querySelectorAll: () => dialogs.filter(d => d.open),
@@ -583,6 +595,27 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         setClock(JSON.stringify({revision:8,sequence:++sequence,time:100,playing:false,rate:3,selectedId:clubFixture.players[0].id,highlightsEnabled:false}));
         assert.ok(diagnostics().drawnTargets.every(t=>!t.photo),"old fixture faces cannot leak into unmapped new identities");
         assert.equal(nextFrame,null);
+        const beforeFontReady=metricCalls;
+        inkFixture=fontFixture.numbers;
+        resolveFonts();await fonts.ready;await Promise.resolve();
+        assert.ok(metricCalls>beforeFontReady,"late font readiness discards fallback metrics and redraws a paused frame");
+        assert.equal(nextFrame,null);
+        const fontMap=diagnostics().viewport,ordered=[...clubFixture.players].sort((a,b)=>a.id<b.id?1:-1);
+        const glyphs=context.labels.filter(l=>/^\d+$/.test(l.text));
+        for(const target of diagnostics().drawnTargets){
+            const glyph=glyphs[ordered.findIndex(p=>p.id===target.id)];
+            assert.ok(Math.abs(glyph.x/(fontMap.pixelWidth/fontMap.width)-target.x)<1e-8);
+            assert.ok(Math.abs(glyph.y/(fontMap.pixelHeight/fontMap.height)-target.y)<1e-8,
+                "fallback→actual Barlow load keeps measured ink centered while paused");
+        }
+        const beforeLateLoad=metricCalls;
+        fontHandlers.get("loadingdone")();
+        assert.ok(metricCalls>beforeLateLoad);assert.equal(nextFrame,null);
+        setClock(JSON.stringify({revision:8,sequence:++sequence,time:100,playing:true,rate:3,selectedId:clubFixture.players[0].id,highlightsEnabled:false}));
+        const warmedMetrics=metricCalls;
+        for(let i=0;i<120;i++){wall+=10;nextFrame();}
+        assert.equal(metricCalls,warmedMetrics,"warmed shirt metrics are not recomputed per animation frame");
+        setClock(JSON.stringify({revision:8,sequence:++sequence,time:100,playing:false,rate:3,selectedId:clubFixture.players[0].id,highlightsEnabled:false}));
         if(process.env.PITCHLENS_VIEW_RENDERER_WITNESS)writeFileSync(process.env.PITCHLENS_VIEW_RENDERER_WITNESS,
             JSON.stringify({kind:"Actual production renderer with controlled DOM/canvas recording; not browser pixels or native acceptance",
                 styles:viewWitness,imagesConstructed:loadedImages.length,pausedAnimationScheduled:nextFrame!==null},null,2));
@@ -595,6 +628,7 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         assert.equal(documentHandlers.size, 0);
         assert.ok(observers.every(o => o.disconnected));
         assert.equal(motionHandlers.size, 0);
+        assert.equal(fontHandlers.size,0);
     } finally {
         dispose();
         for (const [key, value] of Object.entries(originals))

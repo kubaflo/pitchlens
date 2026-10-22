@@ -1,0 +1,1199 @@
+{
+  "fallbackFont" : "Helvetica-Bold",
+  "fallbackNumbers" : {
+    "1" : {
+      "actualBoundingBoxAscent" : 70.80078125,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -6.93359375,
+      "actualBoundingBoxRight" : 37.841796875
+    },
+    "2" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -3.125,
+      "actualBoundingBoxRight" : 51.611328125
+    },
+    "3" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.7578125,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 51.611328125
+    },
+    "4" : {
+      "actualBoundingBoxAscent" : 70.361328125,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 52.294921875
+    },
+    "5" : {
+      "actualBoundingBoxAscent" : 69.873046875,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 51.611328125
+    },
+    "6" : {
+      "actualBoundingBoxAscent" : 71.484375,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -3.125,
+      "actualBoundingBoxRight" : 52.05078125
+    },
+    "7" : {
+      "actualBoundingBoxAscent" : 69.873046875,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -2.5390625,
+      "actualBoundingBoxRight" : 52.734375
+    },
+    "8" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 51.806640625
+    },
+    "9" : {
+      "actualBoundingBoxAscent" : 71.38671875,
+      "actualBoundingBoxDescent" : 2.05078125,
+      "actualBoundingBoxLeft" : -2.978515625,
+      "actualBoundingBoxRight" : 52.197265625
+    },
+    "10" : {
+      "actualBoundingBoxAscent" : 71.2890625,
+      "actualBoundingBoxDescent" : 1.7578125,
+      "actualBoundingBoxLeft" : -6.93359375,
+      "actualBoundingBoxRight" : 107.568359375
+    },
+    "11" : {
+      "actualBoundingBoxAscent" : 70.80078125,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -6.93359375,
+      "actualBoundingBoxRight" : 87.98828125
+    },
+    "12" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -6.93359375,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "13" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.7578125,
+      "actualBoundingBoxLeft" : -6.93359375,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "14" : {
+      "actualBoundingBoxAscent" : 70.80078125,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -6.93359375,
+      "actualBoundingBoxRight" : 107.91015625
+    },
+    "15" : {
+      "actualBoundingBoxAscent" : 70.80078125,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -6.93359375,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "16" : {
+      "actualBoundingBoxAscent" : 71.484375,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -6.93359375,
+      "actualBoundingBoxRight" : 107.666015625
+    },
+    "17" : {
+      "actualBoundingBoxAscent" : 70.80078125,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -6.93359375,
+      "actualBoundingBoxRight" : 108.349609375
+    },
+    "18" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -6.93359375,
+      "actualBoundingBoxRight" : 107.421875
+    },
+    "19" : {
+      "actualBoundingBoxAscent" : 71.38671875,
+      "actualBoundingBoxDescent" : 2.05078125,
+      "actualBoundingBoxLeft" : -6.93359375,
+      "actualBoundingBoxRight" : 107.8125
+    },
+    "20" : {
+      "actualBoundingBoxAscent" : 71.2890625,
+      "actualBoundingBoxDescent" : 1.7578125,
+      "actualBoundingBoxLeft" : -3.125,
+      "actualBoundingBoxRight" : 107.568359375
+    },
+    "21" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -3.125,
+      "actualBoundingBoxRight" : 93.45703125
+    },
+    "22" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -3.125,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "23" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.7578125,
+      "actualBoundingBoxLeft" : -3.125,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "24" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -3.125,
+      "actualBoundingBoxRight" : 107.91015625
+    },
+    "25" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -3.125,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "26" : {
+      "actualBoundingBoxAscent" : 71.484375,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -3.125,
+      "actualBoundingBoxRight" : 107.666015625
+    },
+    "27" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -3.125,
+      "actualBoundingBoxRight" : 108.349609375
+    },
+    "28" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -3.125,
+      "actualBoundingBoxRight" : 107.421875
+    },
+    "29" : {
+      "actualBoundingBoxAscent" : 71.38671875,
+      "actualBoundingBoxDescent" : 2.05078125,
+      "actualBoundingBoxLeft" : -3.125,
+      "actualBoundingBoxRight" : 107.8125
+    },
+    "30" : {
+      "actualBoundingBoxAscent" : 71.2890625,
+      "actualBoundingBoxDescent" : 1.7578125,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.568359375
+    },
+    "31" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.7578125,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 93.45703125
+    },
+    "32" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.7578125,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "33" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.7578125,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "34" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.7578125,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.91015625
+    },
+    "35" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "36" : {
+      "actualBoundingBoxAscent" : 71.484375,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.666015625
+    },
+    "37" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.7578125,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 108.349609375
+    },
+    "38" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.421875
+    },
+    "39" : {
+      "actualBoundingBoxAscent" : 71.38671875,
+      "actualBoundingBoxDescent" : 2.05078125,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.8125
+    },
+    "40" : {
+      "actualBoundingBoxAscent" : 71.2890625,
+      "actualBoundingBoxDescent" : 1.7578125,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.568359375
+    },
+    "41" : {
+      "actualBoundingBoxAscent" : 70.80078125,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 93.45703125
+    },
+    "42" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "43" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.7578125,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "44" : {
+      "actualBoundingBoxAscent" : 70.361328125,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.91015625
+    },
+    "45" : {
+      "actualBoundingBoxAscent" : 70.361328125,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "46" : {
+      "actualBoundingBoxAscent" : 71.484375,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.666015625
+    },
+    "47" : {
+      "actualBoundingBoxAscent" : 70.361328125,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 108.349609375
+    },
+    "48" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.421875
+    },
+    "49" : {
+      "actualBoundingBoxAscent" : 71.38671875,
+      "actualBoundingBoxDescent" : 2.05078125,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.8125
+    },
+    "50" : {
+      "actualBoundingBoxAscent" : 71.2890625,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.568359375
+    },
+    "51" : {
+      "actualBoundingBoxAscent" : 70.80078125,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 93.45703125
+    },
+    "52" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "53" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "54" : {
+      "actualBoundingBoxAscent" : 70.361328125,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.91015625
+    },
+    "55" : {
+      "actualBoundingBoxAscent" : 69.873046875,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "56" : {
+      "actualBoundingBoxAscent" : 71.484375,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.666015625
+    },
+    "57" : {
+      "actualBoundingBoxAscent" : 69.873046875,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 108.349609375
+    },
+    "58" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.421875
+    },
+    "59" : {
+      "actualBoundingBoxAscent" : 71.38671875,
+      "actualBoundingBoxDescent" : 2.05078125,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.8125
+    },
+    "60" : {
+      "actualBoundingBoxAscent" : 71.484375,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -3.125,
+      "actualBoundingBoxRight" : 107.568359375
+    },
+    "61" : {
+      "actualBoundingBoxAscent" : 71.484375,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -3.125,
+      "actualBoundingBoxRight" : 93.45703125
+    },
+    "62" : {
+      "actualBoundingBoxAscent" : 71.484375,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -3.125,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "63" : {
+      "actualBoundingBoxAscent" : 71.484375,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -3.125,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "64" : {
+      "actualBoundingBoxAscent" : 71.484375,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -3.125,
+      "actualBoundingBoxRight" : 107.91015625
+    },
+    "65" : {
+      "actualBoundingBoxAscent" : 71.484375,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -3.125,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "66" : {
+      "actualBoundingBoxAscent" : 71.484375,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -3.125,
+      "actualBoundingBoxRight" : 107.666015625
+    },
+    "67" : {
+      "actualBoundingBoxAscent" : 71.484375,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -3.125,
+      "actualBoundingBoxRight" : 108.349609375
+    },
+    "68" : {
+      "actualBoundingBoxAscent" : 71.484375,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -3.125,
+      "actualBoundingBoxRight" : 107.421875
+    },
+    "69" : {
+      "actualBoundingBoxAscent" : 71.484375,
+      "actualBoundingBoxDescent" : 2.05078125,
+      "actualBoundingBoxLeft" : -3.125,
+      "actualBoundingBoxRight" : 107.8125
+    },
+    "70" : {
+      "actualBoundingBoxAscent" : 71.2890625,
+      "actualBoundingBoxDescent" : 1.7578125,
+      "actualBoundingBoxLeft" : -2.5390625,
+      "actualBoundingBoxRight" : 107.568359375
+    },
+    "71" : {
+      "actualBoundingBoxAscent" : 70.80078125,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -2.5390625,
+      "actualBoundingBoxRight" : 93.45703125
+    },
+    "72" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -2.5390625,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "73" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.7578125,
+      "actualBoundingBoxLeft" : -2.5390625,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "74" : {
+      "actualBoundingBoxAscent" : 70.361328125,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -2.5390625,
+      "actualBoundingBoxRight" : 107.91015625
+    },
+    "75" : {
+      "actualBoundingBoxAscent" : 69.873046875,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.5390625,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "76" : {
+      "actualBoundingBoxAscent" : 71.484375,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.5390625,
+      "actualBoundingBoxRight" : 107.666015625
+    },
+    "77" : {
+      "actualBoundingBoxAscent" : 69.873046875,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -2.5390625,
+      "actualBoundingBoxRight" : 108.349609375
+    },
+    "78" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.5390625,
+      "actualBoundingBoxRight" : 107.421875
+    },
+    "79" : {
+      "actualBoundingBoxAscent" : 71.38671875,
+      "actualBoundingBoxDescent" : 2.05078125,
+      "actualBoundingBoxLeft" : -2.5390625,
+      "actualBoundingBoxRight" : 107.8125
+    },
+    "80" : {
+      "actualBoundingBoxAscent" : 71.2890625,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.568359375
+    },
+    "81" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 93.45703125
+    },
+    "82" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "83" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "84" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.91015625
+    },
+    "85" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "86" : {
+      "actualBoundingBoxAscent" : 71.484375,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.666015625
+    },
+    "87" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 108.349609375
+    },
+    "88" : {
+      "actualBoundingBoxAscent" : 71.142578125,
+      "actualBoundingBoxDescent" : 1.85546875,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.421875
+    },
+    "89" : {
+      "actualBoundingBoxAscent" : 71.38671875,
+      "actualBoundingBoxDescent" : 2.05078125,
+      "actualBoundingBoxLeft" : -2.63671875,
+      "actualBoundingBoxRight" : 107.8125
+    },
+    "90" : {
+      "actualBoundingBoxAscent" : 71.38671875,
+      "actualBoundingBoxDescent" : 2.05078125,
+      "actualBoundingBoxLeft" : -2.978515625,
+      "actualBoundingBoxRight" : 107.568359375
+    },
+    "91" : {
+      "actualBoundingBoxAscent" : 71.38671875,
+      "actualBoundingBoxDescent" : 2.05078125,
+      "actualBoundingBoxLeft" : -2.978515625,
+      "actualBoundingBoxRight" : 93.45703125
+    },
+    "92" : {
+      "actualBoundingBoxAscent" : 71.38671875,
+      "actualBoundingBoxDescent" : 2.05078125,
+      "actualBoundingBoxLeft" : -2.978515625,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "93" : {
+      "actualBoundingBoxAscent" : 71.38671875,
+      "actualBoundingBoxDescent" : 2.05078125,
+      "actualBoundingBoxLeft" : -2.978515625,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "94" : {
+      "actualBoundingBoxAscent" : 71.38671875,
+      "actualBoundingBoxDescent" : 2.05078125,
+      "actualBoundingBoxLeft" : -2.978515625,
+      "actualBoundingBoxRight" : 107.91015625
+    },
+    "95" : {
+      "actualBoundingBoxAscent" : 71.38671875,
+      "actualBoundingBoxDescent" : 2.05078125,
+      "actualBoundingBoxLeft" : -2.978515625,
+      "actualBoundingBoxRight" : 107.2265625
+    },
+    "96" : {
+      "actualBoundingBoxAscent" : 71.484375,
+      "actualBoundingBoxDescent" : 2.05078125,
+      "actualBoundingBoxLeft" : -2.978515625,
+      "actualBoundingBoxRight" : 107.666015625
+    },
+    "97" : {
+      "actualBoundingBoxAscent" : 71.38671875,
+      "actualBoundingBoxDescent" : 2.05078125,
+      "actualBoundingBoxLeft" : -2.978515625,
+      "actualBoundingBoxRight" : 108.349609375
+    },
+    "98" : {
+      "actualBoundingBoxAscent" : 71.38671875,
+      "actualBoundingBoxDescent" : 2.05078125,
+      "actualBoundingBoxLeft" : -2.978515625,
+      "actualBoundingBoxRight" : 107.421875
+    },
+    "99" : {
+      "actualBoundingBoxAscent" : 71.38671875,
+      "actualBoundingBoxDescent" : 2.05078125,
+      "actualBoundingBoxLeft" : -2.978515625,
+      "actualBoundingBoxRight" : 107.8125
+    }
+  },
+  "font" : "Barlow-Bold",
+  "fontSHA256" : "84e6a4d61e7c3e21f3c50ea6a4f7e5303a3467864c038be6ea3759bab8d547f9",
+  "fontSize" : 100,
+  "measurement" : "CoreText CTLine glyph-path bounds, not browser raster pixels",
+  "numbers" : {
+    "1" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -3.6000000000000001,
+      "actualBoundingBoxRight" : 29.800000000000001
+    },
+    "2" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -4.1000000000000005,
+      "actualBoundingBoxRight" : 51.900000000000006
+    },
+    "3" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.3000000000000003,
+      "actualBoundingBoxRight" : 49.700000000000003
+    },
+    "4" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -3.3000000000000003,
+      "actualBoundingBoxRight" : 55.800000000000004
+    },
+    "5" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : 0.70000000000000007,
+      "actualBoundingBoxLeft" : -4.2999999999999998,
+      "actualBoundingBoxRight" : 50.600000000000001
+    },
+    "6" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 0.70000000000000007,
+      "actualBoundingBoxLeft" : -4.2000000000000002,
+      "actualBoundingBoxRight" : 50.400000000000006
+    },
+    "7" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -2,
+      "actualBoundingBoxRight" : 48.200000000000003
+    },
+    "8" : {
+      "actualBoundingBoxAscent" : 71.299999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.7000000000000002,
+      "actualBoundingBoxRight" : 50.300000000000004
+    },
+    "9" : {
+      "actualBoundingBoxAscent" : 70.700000000000003,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -2.6000000000000001,
+      "actualBoundingBoxRight" : 48.800000000000004
+    },
+    "10" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 1.1000000000000001,
+      "actualBoundingBoxLeft" : -3.6000000000000001,
+      "actualBoundingBoxRight" : 87.700000000000003
+    },
+    "11" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -3.6000000000000001,
+      "actualBoundingBoxRight" : 65.900000000000006
+    },
+    "12" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -3.6000000000000001,
+      "actualBoundingBoxRight" : 87.300000000000011
+    },
+    "13" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.6000000000000001,
+      "actualBoundingBoxRight" : 85.099999999999994
+    },
+    "14" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -3.6000000000000001,
+      "actualBoundingBoxRight" : 91.200000000000003
+    },
+    "15" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : 0.70000000000000007,
+      "actualBoundingBoxLeft" : -3.6000000000000001,
+      "actualBoundingBoxRight" : 86
+    },
+    "16" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 0.70000000000000007,
+      "actualBoundingBoxLeft" : -3.6000000000000001,
+      "actualBoundingBoxRight" : 85.800000000000011
+    },
+    "17" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -3.6000000000000001,
+      "actualBoundingBoxRight" : 83.599999999999994
+    },
+    "18" : {
+      "actualBoundingBoxAscent" : 71.299999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.6000000000000001,
+      "actualBoundingBoxRight" : 85.700000000000003
+    },
+    "19" : {
+      "actualBoundingBoxAscent" : 70.700000000000003,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.6000000000000001,
+      "actualBoundingBoxRight" : 84.200000000000003
+    },
+    "20" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 1.1000000000000001,
+      "actualBoundingBoxLeft" : -4.1000000000000005,
+      "actualBoundingBoxRight" : 108.30000000000001
+    },
+    "21" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -4.1000000000000005,
+      "actualBoundingBoxRight" : 85.200000000000003
+    },
+    "22" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -4.1000000000000005,
+      "actualBoundingBoxRight" : 107.90000000000001
+    },
+    "23" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -4.1000000000000005,
+      "actualBoundingBoxRight" : 104.30000000000001
+    },
+    "24" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -4.1000000000000005,
+      "actualBoundingBoxRight" : 111.80000000000001
+    },
+    "25" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 0.70000000000000007,
+      "actualBoundingBoxLeft" : -4.1000000000000005,
+      "actualBoundingBoxRight" : 106.59999999999999
+    },
+    "26" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 0.70000000000000007,
+      "actualBoundingBoxLeft" : -4.1000000000000005,
+      "actualBoundingBoxRight" : 106.40000000000001
+    },
+    "27" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -4.1000000000000005,
+      "actualBoundingBoxRight" : 104.2
+    },
+    "28" : {
+      "actualBoundingBoxAscent" : 71.299999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -4.1000000000000005,
+      "actualBoundingBoxRight" : 106.30000000000001
+    },
+    "29" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -4.1000000000000005,
+      "actualBoundingBoxRight" : 104.80000000000001
+    },
+    "30" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 1.1000000000000001,
+      "actualBoundingBoxLeft" : -3.3000000000000003,
+      "actualBoundingBoxRight" : 106.30000000000001
+    },
+    "31" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.3000000000000003,
+      "actualBoundingBoxRight" : 83.5
+    },
+    "32" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.3000000000000003,
+      "actualBoundingBoxRight" : 105.90000000000001
+    },
+    "33" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.3000000000000003,
+      "actualBoundingBoxRight" : 103.7
+    },
+    "34" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.3000000000000003,
+      "actualBoundingBoxRight" : 109.80000000000001
+    },
+    "35" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.3000000000000003,
+      "actualBoundingBoxRight" : 104.59999999999999
+    },
+    "36" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.3000000000000003,
+      "actualBoundingBoxRight" : 104.40000000000001
+    },
+    "37" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.3000000000000003,
+      "actualBoundingBoxRight" : 102.2
+    },
+    "38" : {
+      "actualBoundingBoxAscent" : 71.299999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.3000000000000003,
+      "actualBoundingBoxRight" : 104.30000000000001
+    },
+    "39" : {
+      "actualBoundingBoxAscent" : 70.700000000000003,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.3000000000000003,
+      "actualBoundingBoxRight" : 102.80000000000001
+    },
+    "40" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 1.1000000000000001,
+      "actualBoundingBoxLeft" : -3.3000000000000003,
+      "actualBoundingBoxRight" : 112.8
+    },
+    "41" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -3.3000000000000003,
+      "actualBoundingBoxRight" : 80.700000000000003
+    },
+    "42" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -3.3000000000000003,
+      "actualBoundingBoxRight" : 112.40000000000001
+    },
+    "43" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.3000000000000003,
+      "actualBoundingBoxRight" : 110.2
+    },
+    "44" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -3.3000000000000003,
+      "actualBoundingBoxRight" : 116.30000000000001
+    },
+    "45" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : 0.70000000000000007,
+      "actualBoundingBoxLeft" : -3.3000000000000003,
+      "actualBoundingBoxRight" : 111.09999999999999
+    },
+    "46" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 0.70000000000000007,
+      "actualBoundingBoxLeft" : -3.3000000000000003,
+      "actualBoundingBoxRight" : 110.90000000000001
+    },
+    "47" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -3.3000000000000003,
+      "actualBoundingBoxRight" : 101.5
+    },
+    "48" : {
+      "actualBoundingBoxAscent" : 71.299999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.3000000000000003,
+      "actualBoundingBoxRight" : 110.80000000000001
+    },
+    "49" : {
+      "actualBoundingBoxAscent" : 70.700000000000003,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.3000000000000003,
+      "actualBoundingBoxRight" : 109.30000000000001
+    },
+    "50" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 1.1000000000000001,
+      "actualBoundingBoxLeft" : -4.2999999999999998,
+      "actualBoundingBoxRight" : 106.20000000000002
+    },
+    "51" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : 0.70000000000000007,
+      "actualBoundingBoxLeft" : -4.2999999999999998,
+      "actualBoundingBoxRight" : 82.600000000000009
+    },
+    "52" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 0.70000000000000007,
+      "actualBoundingBoxLeft" : -4.2999999999999998,
+      "actualBoundingBoxRight" : 105.80000000000001
+    },
+    "53" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -4.2999999999999998,
+      "actualBoundingBoxRight" : 103.60000000000001
+    },
+    "54" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : 0.70000000000000007,
+      "actualBoundingBoxLeft" : -4.2999999999999998,
+      "actualBoundingBoxRight" : 109.70000000000002
+    },
+    "55" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : 0.70000000000000007,
+      "actualBoundingBoxLeft" : -4.2999999999999998,
+      "actualBoundingBoxRight" : 104.5
+    },
+    "56" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 0.70000000000000007,
+      "actualBoundingBoxLeft" : -4.2999999999999998,
+      "actualBoundingBoxRight" : 104.30000000000001
+    },
+    "57" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : 0.70000000000000007,
+      "actualBoundingBoxLeft" : -4.2999999999999998,
+      "actualBoundingBoxRight" : 102.10000000000001
+    },
+    "58" : {
+      "actualBoundingBoxAscent" : 71.299999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -4.2999999999999998,
+      "actualBoundingBoxRight" : 104.20000000000002
+    },
+    "59" : {
+      "actualBoundingBoxAscent" : 70.700000000000003,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -4.2999999999999998,
+      "actualBoundingBoxRight" : 102.70000000000002
+    },
+    "60" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 1.1000000000000001,
+      "actualBoundingBoxLeft" : -4.2000000000000002,
+      "actualBoundingBoxRight" : 106
+    },
+    "61" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 0.70000000000000007,
+      "actualBoundingBoxLeft" : -4.2000000000000002,
+      "actualBoundingBoxRight" : 82.799999999999997
+    },
+    "62" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 0.70000000000000007,
+      "actualBoundingBoxLeft" : -4.2000000000000002,
+      "actualBoundingBoxRight" : 105.60000000000001
+    },
+    "63" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -4.2000000000000002,
+      "actualBoundingBoxRight" : 103.40000000000001
+    },
+    "64" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 0.70000000000000007,
+      "actualBoundingBoxLeft" : -4.2000000000000002,
+      "actualBoundingBoxRight" : 109.5
+    },
+    "65" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 0.70000000000000007,
+      "actualBoundingBoxLeft" : -4.2000000000000002,
+      "actualBoundingBoxRight" : 104.30000000000001
+    },
+    "66" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 0.70000000000000007,
+      "actualBoundingBoxLeft" : -4.2000000000000002,
+      "actualBoundingBoxRight" : 104.10000000000001
+    },
+    "67" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 0.70000000000000007,
+      "actualBoundingBoxLeft" : -4.2000000000000002,
+      "actualBoundingBoxRight" : 101.90000000000001
+    },
+    "68" : {
+      "actualBoundingBoxAscent" : 71.299999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -4.2000000000000002,
+      "actualBoundingBoxRight" : 104
+    },
+    "69" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -4.2000000000000002,
+      "actualBoundingBoxRight" : 102.5
+    },
+    "70" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 1.1000000000000001,
+      "actualBoundingBoxLeft" : -2,
+      "actualBoundingBoxRight" : 101.90000000000001
+    },
+    "71" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -2,
+      "actualBoundingBoxRight" : 80.100000000000009
+    },
+    "72" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -2,
+      "actualBoundingBoxRight" : 101.5
+    },
+    "73" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -2,
+      "actualBoundingBoxRight" : 99.300000000000011
+    },
+    "74" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -2,
+      "actualBoundingBoxRight" : 105.40000000000001
+    },
+    "75" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : 0.70000000000000007,
+      "actualBoundingBoxLeft" : -2,
+      "actualBoundingBoxRight" : 100.2
+    },
+    "76" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 0.70000000000000007,
+      "actualBoundingBoxLeft" : -2,
+      "actualBoundingBoxRight" : 100
+    },
+    "77" : {
+      "actualBoundingBoxAscent" : 70,
+      "actualBoundingBoxDescent" : -0,
+      "actualBoundingBoxLeft" : -2,
+      "actualBoundingBoxRight" : 97.800000000000011
+    },
+    "78" : {
+      "actualBoundingBoxAscent" : 71.299999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -2,
+      "actualBoundingBoxRight" : 99.900000000000006
+    },
+    "79" : {
+      "actualBoundingBoxAscent" : 70.700000000000003,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -2,
+      "actualBoundingBoxRight" : 98.400000000000006
+    },
+    "80" : {
+      "actualBoundingBoxAscent" : 71.299999999999997,
+      "actualBoundingBoxDescent" : 1.1000000000000001,
+      "actualBoundingBoxLeft" : -3.7000000000000002,
+      "actualBoundingBoxRight" : 106.40000000000001
+    },
+    "81" : {
+      "actualBoundingBoxAscent" : 71.299999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.7000000000000002,
+      "actualBoundingBoxRight" : 82.799999999999997
+    },
+    "82" : {
+      "actualBoundingBoxAscent" : 71.299999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.7000000000000002,
+      "actualBoundingBoxRight" : 106
+    },
+    "83" : {
+      "actualBoundingBoxAscent" : 71.299999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.7000000000000002,
+      "actualBoundingBoxRight" : 103.80000000000001
+    },
+    "84" : {
+      "actualBoundingBoxAscent" : 71.299999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.7000000000000002,
+      "actualBoundingBoxRight" : 109.90000000000001
+    },
+    "85" : {
+      "actualBoundingBoxAscent" : 71.299999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.7000000000000002,
+      "actualBoundingBoxRight" : 104.7
+    },
+    "86" : {
+      "actualBoundingBoxAscent" : 71.299999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.7000000000000002,
+      "actualBoundingBoxRight" : 104.5
+    },
+    "87" : {
+      "actualBoundingBoxAscent" : 71.299999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.7000000000000002,
+      "actualBoundingBoxRight" : 102.30000000000001
+    },
+    "88" : {
+      "actualBoundingBoxAscent" : 71.299999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.7000000000000002,
+      "actualBoundingBoxRight" : 104.40000000000001
+    },
+    "89" : {
+      "actualBoundingBoxAscent" : 71.299999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -3.7000000000000002,
+      "actualBoundingBoxRight" : 102.90000000000001
+    },
+    "90" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 1.1000000000000001,
+      "actualBoundingBoxLeft" : -2.6000000000000001,
+      "actualBoundingBoxRight" : 105.40000000000001
+    },
+    "91" : {
+      "actualBoundingBoxAscent" : 70.700000000000003,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -2.6000000000000001,
+      "actualBoundingBoxRight" : 80.900000000000006
+    },
+    "92" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -2.6000000000000001,
+      "actualBoundingBoxRight" : 105
+    },
+    "93" : {
+      "actualBoundingBoxAscent" : 70.700000000000003,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -2.6000000000000001,
+      "actualBoundingBoxRight" : 102.80000000000001
+    },
+    "94" : {
+      "actualBoundingBoxAscent" : 70.700000000000003,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -2.6000000000000001,
+      "actualBoundingBoxRight" : 108.90000000000001
+    },
+    "95" : {
+      "actualBoundingBoxAscent" : 70.700000000000003,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -2.6000000000000001,
+      "actualBoundingBoxRight" : 103.7
+    },
+    "96" : {
+      "actualBoundingBoxAscent" : 70.799999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -2.6000000000000001,
+      "actualBoundingBoxRight" : 103.5
+    },
+    "97" : {
+      "actualBoundingBoxAscent" : 70.700000000000003,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -2.6000000000000001,
+      "actualBoundingBoxRight" : 101.30000000000001
+    },
+    "98" : {
+      "actualBoundingBoxAscent" : 71.299999999999997,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -2.6000000000000001,
+      "actualBoundingBoxRight" : 103.40000000000001
+    },
+    "99" : {
+      "actualBoundingBoxAscent" : 70.700000000000003,
+      "actualBoundingBoxDescent" : 0.80000000000000004,
+      "actualBoundingBoxLeft" : -2.6000000000000001,
+      "actualBoundingBoxRight" : 101.90000000000001
+    }
+  }
+}

@@ -142,6 +142,9 @@ far apart rather than hiding either. Size75–150% and shirt-number badges updat
 immediately while playing or paused; reset restores Numbers/100%/badges on/Wide.
 Numbers-only and unavailable-photo markers always retain their shirt numbers,
 even with badges off, so they never become anonymous dots.
+Marker numbers and photo badges center the actual numeral ink using cached
+font bounds, including two-digit shirts; away-only decorative underlines are
+removed. Team colors, portrait kit artwork and selection rings are retained.
 
 View changes do not pause, seek, change speed or selection, or make AI requests.
 Validated settings are remembered on this device, separately from match facts,

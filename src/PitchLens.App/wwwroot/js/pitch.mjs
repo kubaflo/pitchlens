@@ -17,6 +17,7 @@ let film = null;
 let pitchLens = null, lensSequence = -1, visibleLens = null;
 let playerView = null, viewSettings = DEFAULT_VIEW, drawnTargets = [], cameraOwner = "user", selectedGeometry = null;
 let viewCameraStatus = null, viewImageStatus = null, viewWide = null, viewDetail = null, lastOwner = null;
+let fontSet = null, fontLoadedHandler = null;
 let ui = {};
 let reducedMotion = false, motionQuery = null, motionHandler = null, lastClockTime = 0;
 const playerTargets = new Map();
@@ -99,7 +100,11 @@ export function initialize(element, dotnet) {
     geometryHandler = () => { if (canvas) { cacheGeometry(); draw(); } };
     document.addEventListener("scroll", geometryHandler, true);
     resize();
-    document.fonts?.ready.then(() => { if (canvas) draw(); });
+    const currentPlayerView=playerView;
+    fontSet=document.fonts;
+    fontLoadedHandler=()=>{if(playerView===currentPlayerView){currentPlayerView.clearNumberMetrics();draw();}};
+    fontSet?.addEventListener?.("loadingdone",fontLoadedHandler);
+    fontSet?.ready.then(fontLoadedHandler);
 }
 function stop() { if (frameId !== null) cancelAnimationFrame(frameId); frameId = null; }
 function cacheGeometry() {
@@ -231,6 +236,7 @@ function draw() {
             c.beginPath(); c.moveTo(point.x - 1, point.y - .5); c.lineTo(point.x - 2, point.y - 2);
             c.moveTo(point.x + 1, point.y - .5); c.lineTo(point.x + 2, point.y - 2); c.stroke();
             c.font = `600 ${Math.max(1.6, 16 / map.field.scale)}px Barlow, sans-serif`;
+            c.textAlign="center";c.textBaseline="middle";
             c.fillStyle = "#fff"; c.fillText(broadcast.goal.scorer, point.x, point.y + 3.8);
         }
         const target = playerTargets.get(p.id);
@@ -424,6 +430,7 @@ export function setEvidence(revision, json) {
 export function dispose() {
     film = null;
     evidence = null;
+    fontSet?.removeEventListener?.("loadingdone",fontLoadedHandler);fontSet=fontLoadedHandler=null;
     playerView?.dispose();playerView=null;viewSettings=DEFAULT_VIEW;drawnTargets=[];selectedGeometry=null;
     ui={};
     viewCameraStatus=viewImageStatus=viewWide=viewDetail=null;lastOwner=null;cameraOwner="user";
