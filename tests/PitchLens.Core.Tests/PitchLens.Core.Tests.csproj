@@ -21,6 +21,7 @@
     <Compile Include="../../src/PitchLens.App/PlayerPortraitCatalog.cs" Link="Native/PlayerPortraitCatalog.cs" />
     <Compile Include="../../src/PitchLens.App/PitchViewSettings.cs" Link="Native/PitchViewSettings.cs" />
     <Compile Include="../../tools/PitchLens.Generate/MotionWitnessInput.cs" Link="Fixtures/MotionWitnessInput.cs" />
+    <Compile Include="../../tools/PitchLens.Generate/ActivityWitnessInput.cs" Link="Fixtures/ActivityWitnessInput.cs" />
     <Content Include="../../src/PitchLens.App/Components/MatchView.razor" Link="Components/MatchView.razor" />
     <Content Include="../../src/PitchLens.App/Components/PlayerPortrait.razor" Link="Components/PlayerPortrait.razor" />
     <Content Include="../../src/PitchLens.App/Components/ViewSettings.razor" Link="Components/ViewSettings.razor" />

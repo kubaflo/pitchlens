@@ -3,6 +3,16 @@ using PitchLens.Generation;
 using GitHub.Copilot;
 
 string? observedMatchPath=null;
+var activityProbe=false;
+var activityOffline=false;
+if(args is ["--activity-check-stored",var activityInput,var activityOutput])
+{
+    activityProbe=true;activityOffline=true;args=["--motion-repair-stored","","",activityOutput,activityInput];
+}
+if(args is ["--activity-repair-stored",var activityRuntime,var activityWork,var activityWitness,var activityMatch])
+{
+    activityProbe=true;args=["--motion-repair-stored",activityRuntime,activityWork,activityWitness,activityMatch];
+}
 if(args is ["--personalized-stored",var personalRuntime,var personalWork,var personalWitness,var personalMatch])
 {
     var stored=await File.ReadAllTextAsync(personalMatch);
@@ -63,16 +73,29 @@ if(args is ["--motion-repair-stored",var motionRuntime,var motionWork,var motion
     Directory.CreateDirectory(motionWitness);
     var original=AuthoredMatchPlan.Document(await File.ReadAllTextAsync(motionMatchPath)) with{Narration=null,Commentary=null};
     _=AuthoredMatchPlan.Build(original,false); // Uncorrupted accepted input green, without buying narration.
-    _=AuthoredMatchPlan.Build(PitchLens.Tools.MotionWitnessInput.Perturb(original,"liverpool-kerkez",69,0),false);
-    var bad=PitchLens.Tools.MotionWitnessInput.Perturb(original,"liverpool-kerkez",69);
+    if(!activityProbe)_=AuthoredMatchPlan.Build(PitchLens.Tools.MotionWitnessInput.Perturb(original,"liverpool-kerkez",69,0),false);
+    var bad=activityProbe?PitchLens.Tools.ActivityWitnessInput.FreezeAwayWindow(original):
+        PitchLens.Tools.MotionWitnessInput.Perturb(original,"liverpool-kerkez",69);
     AuthoredPathValidationException measured;
     try{_=AuthoredMatchPlan.Build(bad,false);throw new InvalidOperationException("Controlled trigger did not reproduce a motion failure.");}
     catch(AuthoredPathValidationException failure){measured=failure;}
-    if(!measured.MotionIssues.Any(i=>i.PlayerId=="liverpool-kerkez"&&i.Time==69&&i.Actual>2.5))
+    if(activityProbe&&!measured.QualityIssues.Any(i=>i.Kind=="visible-movement"&&i.Start==200&&i.End==220&&i.QualifyingDistanceMetres==8))
+        throw new InvalidOperationException("Controlled trigger did not reach the intended rolling activity gate.");
+    if(!activityProbe&&!measured.MotionIssues.Any(i=>i.PlayerId=="liverpool-kerkez"&&i.Time==69&&i.Actual>2.5))
         throw new InvalidOperationException("Controlled trigger did not reach the intended acceleration gate.");
     await File.WriteAllTextAsync(Path.Combine(motionWitness,"uncorrupted-input.json"),System.Text.Json.JsonSerializer.Serialize(original,AuthoredJsonContext.Default.AuthoredMatchDocument));
     await File.WriteAllTextAsync(Path.Combine(motionWitness,"controlled-corrupted-input.json"),System.Text.Json.JsonSerializer.Serialize(bad,AuthoredJsonContext.Default.AuthoredMatchDocument));
-    await File.WriteAllTextAsync(Path.Combine(motionWitness,"measured-issues.json"),System.Text.Json.JsonSerializer.Serialize(measured.MotionIssues.ToArray(),CorrectionJsonContext.Default.AuthoredMotionIssueArray));
+    await File.WriteAllTextAsync(Path.Combine(motionWitness,"measured-issues.json"),activityProbe?
+        System.Text.Json.JsonSerializer.Serialize(measured.QualityIssues.ToArray(),CorrectionJsonContext.Default.AuthoredQualityIssueArray):
+        System.Text.Json.JsonSerializer.Serialize(measured.MotionIssues.ToArray(),CorrectionJsonContext.Default.AuthoredMotionIssueArray));
+    if(activityOffline)
+    {
+        var corrected=AuthoredPathRefinement.Apply(bad,System.Text.Json.JsonSerializer.Serialize(new AuthoredPathCorrection(original.Players),CorrectionJsonContext.Default.AuthoredPathCorrection));
+        _=AuthoredMatchPlan.Build(corrected,false);
+        Console.WriteLine($"CONTROLLED ACTIVITY CHECK | quality issues={measured.QualityIssues.Count} | motion={measured.MotionIssues.Count} | shape={measured.Issues.Count} | original/trigger removed/controlled correction green; corrupted red | SDK Sends=0");
+        foreach(var issue in measured.QualityIssues)Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(issue));
+        return 0;
+    }
     var motionSource=new CopilotScenarioSource(motionRuntime,motionWork,Path.Combine(motionWitness,"raw-responses"));
     using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(270));
     try
@@ -86,17 +109,17 @@ if(args is ["--motion-repair-stored",var motionRuntime,var motionWork,var motion
         catch(AuthoredPathValidationException){ }
         if(motionSource.SendCalls!=1||motionSource.Responses!=1)throw new InvalidOperationException("Motion repair used unexpected response count.");
         await File.WriteAllTextAsync(Path.Combine(motionWitness,"outcome.json"),System.Text.Json.JsonSerializer.Serialize(new{
-            State="Actual motion correction validated; paths only",SdkSendInvocations=motionSource.SendCalls,ModelResponses=motionSource.Responses,
+            State=activityProbe?"Actual controlled activity correction validated; paths only":"Actual motion correction validated; paths only",SdkSendInvocations=motionSource.SendCalls,ModelResponses=motionSource.Responses,
             InitialMatchRequests=0,NarrationRequests=0,UncorruptedGreen=true,TriggerRemovedGreen=true,CorruptedRed=true,CorrectedGreen=true,
             RevertedRed=true,Fixture=corrected.Match.Teams.Select(t=>t.Name),Players=corrected.Match.Players.Count,
             Knots=corrected.Match.Players.Sum(p=>p.Path.Frames.Count),Events=corrected.Match.Events.Count,
             OriginalFailedLivePayload=false,NativeUi=false,Video=false}));
-        Console.WriteLine($"MOTION CORRECTION VALIDATED | model={CopilotScenarioSource.Model} | Send={motionSource.SendCalls} | responses={motionSource.Responses} | initial match/narration requests=0 | causal green/red/green/red=true");
+        Console.WriteLine($"{(activityProbe?"ACTIVITY":"MOTION")} CORRECTION VALIDATED | model={CopilotScenarioSource.Model} | Send={motionSource.SendCalls} | responses={motionSource.Responses} | initial match/narration requests=0 | causal green/red/green/red=true");
         return 0;
     }
     catch(Exception error) when(error is ScenarioValidationException or CopilotGenerationException or OperationCanceledException or IOException or InvalidOperationException)
-    {Console.Error.WriteLine($"MOTION CORRECTION NOT VERIFIED: {error.Message}. No retry or extra narration.");return 1;}
-    finally{Console.WriteLine($"MOTION COUNTS | SDK Send invocations={motionSource.SendCalls} | responses={motionSource.Responses}");}
+    {Console.Error.WriteLine($"{(activityProbe?"ACTIVITY":"MOTION")} CORRECTION NOT VERIFIED: {error.Message}. No retry or extra narration.");return 1;}
+    finally{Console.WriteLine($"{(activityProbe?"ACTIVITY":"MOTION")} COUNTS | SDK Send invocations={motionSource.SendCalls} | responses={motionSource.Responses}");}
 }
 if (args is ["--variety-live", var varietyRuntime, var varietyWork, var varietyWitness])
 {

@@ -68,13 +68,19 @@ public sealed class GenerationService(IScenarioSource source, Match initial, Sce
         }
         catch (Exception e) when (e is ScenarioValidationException or CopilotGenerationException or TimeoutException or IOException or InvalidOperationException or UnauthorizedAccessException)
         {
+            var validationStage=e.Data["PitchLens.ValidationStage"] switch{
+                "initial"=>"Initial output rejected without a correction: ",
+                "after-path-correction"=>"The one shared AI path correction returned invalid output; no further repair or narration: ",
+                "after-phase-correction"=>"The one shared AI phase correction returned invalid output; no further repair or narration: ",
+                "path-correction-request"=>"The one shared AI path correction was requested but did not complete: ",
+                "phase-correction-request"=>"The one shared AI phase correction was requested but did not complete: ",_=>""};
             State = cancellationToken.IsCancellationRequested ? GenerationState.Cancelled : GenerationState.Failed;
             TerminalIssue = cancellationToken.IsCancellationRequested
                 ? $"Generation cancelled. Runtime reported: {e.Message}"
-                : $"Generation failed: {e.Message}";
+                : $"Generation failed: {validationStage}{e.Message}";
             Status = cancellationToken.IsCancellationRequested
                 ? $"Generation cancelled. Previous match kept. Runtime reported: {e.Message}"
-                : $"Generation failed: {e.Message} Previous match kept.";
+                : $"Generation failed: {validationStage}{e.Message} Previous match kept.";
         }
         finally
         {

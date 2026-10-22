@@ -44,7 +44,8 @@ public sealed class VarietyTests
         Assert.Single(GoalHighlights.For(match));
         Assert.True(DirectorEvidence.CanCapture(match, 300));
         var invalid = OneSidedDocument() with { Players = OneSidedDocument().Players.Select((p,i) => i==1 ? p with { Frames = p.Frames.Select(f => new[] { f[0], 52d, 34d }).ToArray() } : p).ToArray() };
-        Assert.Throws<ScenarioValidationException>(() => AuthoredMatchPlan.Build(invalid, false));
+        Assert.Contains(Assert.Throws<AuthoredPathValidationException>(()=>AuthoredMatchPlan.Build(invalid,false)).QualityIssues,
+            i=>i.Kind=="carry-distance"&&i.Measures.Any(m=>m.Actual==0&&m.Limit==3));
     }
     [Fact]
     public void Opposite_winner_is_valid_under_the_same_direction_onside_and_goal_evidence_contract()

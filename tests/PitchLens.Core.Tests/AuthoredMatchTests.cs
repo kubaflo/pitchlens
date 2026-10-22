@@ -82,7 +82,10 @@ public sealed class AuthoredMatchTests
         else if (problem == "teleport") players[1].Frames[1] = [players[1].Frames[0][0] + .1, 100, 65];
         else if (problem == "keeper") players[0] = players[0] with { Frames = players[0].Frames.Select(f => new[] { f[0], 95d, f[2] }).ToArray() };
         else players[1].Frames[1] = [1, 2];
-        Assert.Throws<ScenarioValidationException>(() => AuthoredMatchPlan.Build(original with { Players = players }, requireCommentary: false));
+        if(problem=="keeper")
+            Assert.Contains(Assert.Throws<AuthoredPathValidationException>(()=>AuthoredMatchPlan.Build(original with{Players=players},false)).QualityIssues,
+                i=>i.Kind=="keeper-area"&&i.Measures.Any(m=>m.Actual==95&&m.Limit==18));
+        else Assert.Throws<ScenarioValidationException>(() => AuthoredMatchPlan.Build(original with { Players = players }, requireCommentary: false));
         Assert.Equal(22, original.Players.Length);
     }
 
@@ -154,8 +157,8 @@ public sealed class AuthoredMatchTests
         var pass = document.Events.First(e => e.Kind == "pass" && e.Completed == true && e.ActorId.StartsWith("arsenal-"));
         var players = document.Players.Select(p => p.Id == pass.ReceiverId
             ? p with { Frames = p.Frames.Select(f => new[] { f[0], 104d, f[2] }).ToArray() } : p).ToArray();
-        var error = Assert.Throws<ScenarioValidationException>(() => AuthoredMatchPlan.Build(document with { Players = players }, requireCommentary: false));
-        Assert.Contains("offside", error.Message);
+        var error = Assert.Throws<AuthoredPathValidationException>(() => AuthoredMatchPlan.Build(document with { Players = players }, requireCommentary: false));
+        Assert.Contains(error.QualityIssues,i=>i.Kind=="onside-at-release"&&i.Measures.Any(m=>m.SubjectId==pass.Id&&m.Actual==104));
         Assert.All(players.Single(p => p.Id == pass.ReceiverId).Frames, f => Assert.Equal(104, f[1]));
     }
 

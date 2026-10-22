@@ -713,8 +713,8 @@ before atomic replacement. Invalid paths are rejected, never auto-corrected;
 missing/invalid cues or story keep the previous valid match. Historical 6v6 trajectories
 and captions are not attached to a new 11v11 game.
 
-If a candidate violates the unchanged team width/depth or measured speed/
-velocity-change gate,
+If a candidate violates the unchanged team width/depth, measured speed/
+velocity-change or safely correctable measured path-quality gates,
 the same Sol model gets the rejected safe geometry and exact measured failures
 for **one** targeted correction. It returns all 22 explicit trajectories;
 the event sequence, roster IDs, 300-second duration, initial owner and phase
@@ -732,6 +732,34 @@ The same complete validation runs afterward, and an invalid repair is terminal.
 Malformed/nonfinite input, invalid ownership, authentication and transport
 failures do not become generic retry eligibility.
 
+The activity gate checks **every rolling20-second window starting at
+0,10,...,280s**. A qualifying outfielder travels **at least8m within that exact
+window**, including partial trajectory segments. Each window requires
+**at least6 qualifying players in total AND at least2 from each club**;
+two per club alone is insufficient. Typed rejection evidence records the exact
+window, all20outfield distances, each club's count and unchanged requirements.
+The same paths-only slot also collects measured keeper-area, initial role-order,
+individual turns/running bursts, overlap/pile-up/synchronization, carry-distance,
+onside/restart-position and derived ball-flight failures. It never edits events
+to repair event-count/distribution/ownership failures, and malformed/nonfinite
+data remain terminal. Every original gate runs again after the one correction.
+
+Terminal status now distinguishes **initial validation without a correction**,
+**a correction request that did not complete**, and **invalid output after the
+single path or phase correction**. It does not infer SDK response counts from
+elapsed time. The reported native Arsenal/Chelsea200–220s rejection's raw response
+was not available: native raw archival is off and SDK session storage is disabled,
+so whether that screenshot followed another repair is unknown.
+
+One separately authorized backend probe used a clearly controlled version of the
+previously accepted Liverpool–United match, **not that failed native payload**.
+Freezing only United's outfield paths in200–220s produced exactly one activity
+issue: Liverpool9/United0 qualifying players. One actual Sol paths-only
+Send/response changed only Dalot/Shaw and fully validated at Liverpool9/United2
+(11total). Original/trigger-removed green, controlled input red, returned AI
+correction green, and reinstated trigger red were checked. No full generation,
+narration, extra correction or native UI acceptance was performed by that probe.
+
 The **same single optional slot** also handles an unsupported phase tag.
 Phase evidence uses event **completion time in `(start,end]`**: a pass completing
 at30s supports phase1 only; one released at29s and completing at32s supports
@@ -748,7 +776,7 @@ unknown/reordered IDs, moved bounds, extra scenario fields and unsupported
 labels reject the correction. Only the AI authors revised labels; the viewer
 does not locally fall back to `possession` or erase a rejection. The complete
 unchanged parser/evidence/causality/physics/shape/variety checks then run again.
-Phase correction and path correction (shape or motion) are **alternatives**, not a retry chain:
+Phase correction and path correction (shape, motion or measured activity/quality) are **alternatives**, not a retry chain:
 if another phase or shape defect remains afterward, no second correction or
 narration request starts. Valid first responses still use2model responses;
 either optional correction allows at most3, within the same15minute overall/

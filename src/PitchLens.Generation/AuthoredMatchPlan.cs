@@ -42,6 +42,7 @@ public static class AuthoredMatchPlan
         if(expectedFixture is not null && (fixture.Id!=expectedFixture.Id || !fixture.Players.SequenceEqual(expectedFixture.Players)))
             throw new ScenarioValidationException("AI candidate switched the captured fixture or roster.");
         Require(document.Duration == 300, "Authored match must last 300 replay seconds.");
+        Require(document.Narration is null||document.Commentary is null,"Caption-only and coherent narration payloads cannot conflict.");
         Require(document.Title is "Pressure and Space" or "The Turning Tide" or "A Game of Transitions", "Use a neutral match title.");
         Require(document.Players is { Length: 22 } && document.Players.All(p => p is not null) &&
             document.Players.Select(p => p.Id).Distinct().Count() == 22, "All 22 unique verified players need explicit AI paths.");
@@ -76,6 +77,7 @@ public static class AuthoredMatchPlan
             var skeleton = new Match(300, fixture.Teams, players, events,
                 new([new(0, new(52.5, 34)), new(300, new(52.5, 34))]), possession);
             string? owner = document.InitialOwnerId;
+            var pathIssues=new List<AuthoredQualityIssue>();
             double lastEnd = 0;
             MatchEvent? waitingGoal = null;
             foreach (var e in events)
@@ -91,24 +93,22 @@ public static class AuthoredMatchPlan
                     Require(waitingGoal is not null && e.Time >= waitingGoal.Time + 3 &&
                         skeleton.Player(e.ActorId).TeamId != skeleton.Player(waitingGoal.ActorId).TeamId &&
                         !fixture.IsKeeper(e.ActorId) && e.StartTime is null, "Goal needs an opposing outfield restart after >=3s.");
-                    Require(skeleton.Player(e.ActorId).Path.At(e.Time).DistanceTo(new(52.5, 34)) < .001,
-                        "AI-authored kickoff path must reach the centre; it is not auto-corrected.");
+                    var centreDistance=skeleton.Player(e.ActorId).Path.At(e.Time).DistanceTo(new(52.5,34));
+                    if(centreDistance>=.001)pathIssues.Add(new("restart-centre",e.Time,e.Time,[e.ActorId],
+                        [new(e.Id,centreDistance,.001,"distance from centre metres","strict maximum")]));
                     owner = e.ActorId; possession.Add(new(e.Time, owner)); waitingGoal = null; lastEnd = e.Time;
                     continue;
                 }
                 Require(waitingGoal is null && e.ActorId == owner && e.StartTime.HasValue &&
                     e.StartTime >= lastEnd && e.Time - e.StartTime is >= 1 and <= 10, "Invalid ownership, overlap or action duration.");
-                if (e.Kind == EventKind.Carry)
-                    Require(skeleton.Player(e.ActorId).Path.Measure(e.Time).Distance -
-                        skeleton.Player(e.ActorId).Path.Measure(e.StartTime.Value).Distance >= 3, "Carry must move on its explicit authored path.");
-                else
+                if (e.Kind != EventKind.Carry)
                 {
                     Require(e.StartTime > possession[^1].Time, "Flight must leave time after the previous possession change.");
                     if (e.Kind == EventKind.Shot)
                         Require(events.Count(g => g.Kind == EventKind.Goal && g.ActorId == e.ActorId && g.Time == e.Time) == 1,
                             "This prototype supports explicitly paired scoring shots.");
                     possession.Add(new(e.StartTime.Value, null)); owner = e.ReceiverId; possession.Add(new(e.Time, owner));
-                    if (e.Kind == EventKind.Pass && e.Completed == true) ValidateOnside(skeleton, e);
+                    if(e.Kind==EventKind.Pass&&e.Completed==true&&OnsideIssue(skeleton,e) is { } onside)pathIssues.Add(onside);
                 }
                 lastEnd = e.Time;
             }
@@ -139,8 +139,7 @@ public static class AuthoredMatchPlan
             }).ToArray();
             var match = new Match(300, skeleton.Teams, players, events, new(times.Select(t => new Keyframe(t, BallAt(t)))),
                 possession, new(document.Title, beats));
-            AuthoredPathQuality.Validate(match);
-            Require(document.Narration is null || document.Commentary is null, "Caption-only and coherent narration payloads cannot conflict.");
+            AuthoredPathQuality.Validate(match,pathIssues);
             if (document.Narration is not null) return NarrationPrompt.Attach(document.Narration, match);
             Require(!requireCommentary || document.Commentary is not null, "New 11v11 games need their own AI commentary.");
             return document.Commentary is null ? match : match.WithCommentary(document.Commentary, CopilotScenarioSource.Model);
@@ -148,13 +147,16 @@ public static class AuthoredMatchPlan
         catch (ArgumentException e) { throw new ScenarioValidationException($"Invalid AI-authored match: {e.Message}", e); }
     }
     private static Position Goal(Match match,string teamId) => new(match.AttacksRight(teamId) ? 105 : 0, 34);
-    private static void ValidateOnside(Match match, MatchEvent pass)
+    private static AuthoredQualityIssue? OnsideIssue(Match match, MatchEvent pass)
     {
         var actor = match.Player(pass.ActorId);
         var receiver = match.Player(pass.ReceiverId!).Path.At(pass.StartTime!.Value);
         var opponents = match.Players.Where(p => p.TeamId != actor.TeamId).Select(p => p.Path.At(pass.StartTime.Value).X).Order().ToArray();
         var ball = actor.Path.At(pass.StartTime.Value);
-        Require(match.AttacksRight(actor.TeamId) ? receiver.X <= Math.Max(52.5, Math.Max(ball.X, opponents[^2])) + 1.5
-            : receiver.X >= Math.Min(52.5, Math.Min(ball.X, opponents[1])) - 1.5, $"Obvious offside receiver at {pass.Id}.");
+        var right=match.AttacksRight(actor.TeamId);
+        var limit=right?Math.Max(52.5,Math.Max(ball.X,opponents[^2]))+1.5:Math.Min(52.5,Math.Min(ball.X,opponents[1]))-1.5;
+        return (right?receiver.X<=limit:receiver.X>=limit)?null:
+            new("onside-at-release",pass.StartTime.Value,pass.Time,[pass.ActorId,pass.ReceiverId!],
+                [new(pass.Id,receiver.X,limit,"receiver x metres at release",right?"maximum":"minimum")]);
     }
 }

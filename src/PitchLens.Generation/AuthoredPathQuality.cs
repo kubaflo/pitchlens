@@ -4,23 +4,38 @@ namespace PitchLens.Generation;
 
 public sealed record AuthoredShapeIssue(string TeamId, double Time, double Width, double Depth);
 public sealed record AuthoredMotionIssue(string PlayerId,double Time,string Kind,double Actual,double Maximum,Keyframe[] Frames);
+public sealed record AuthoredQualityMeasure(string SubjectId,double Actual,double Limit,string Unit,string Bound);
+public sealed record AuthoredPlayerDistance(string PlayerId,string TeamId,double Metres);
+public sealed record AuthoredQualityIssue(string Kind,double Start,double End,string[] PlayerIds,AuthoredQualityMeasure[] Measures,
+    AuthoredPlayerDistance[]? PlayerDistances=null,double? QualifyingDistanceMetres=null);
 public sealed class AuthoredPathValidationException : ScenarioValidationException
 {
     public IReadOnlyList<AuthoredShapeIssue> Issues { get; }
     public IReadOnlyList<AuthoredMotionIssue> MotionIssues { get; }
+    public IReadOnlyList<AuthoredQualityIssue> QualityIssues { get; }
     public AuthoredPathValidationException(IReadOnlyList<AuthoredShapeIssue> issues)
         : base(FormattableString.Invariant($"AI path shape failed for {issues[0].TeamId} at {issues[0].Time:0.#}s: width {issues[0].Width:0.###}m (minimum 30), depth {issues[0].Depth:0.###}m (minimum 22)."))
-    { Issues=issues;MotionIssues=[]; }
+    { Issues=issues;MotionIssues=[];QualityIssues=[]; }
     public AuthoredPathValidationException(IReadOnlyList<AuthoredMotionIssue> issues)
         : base(FormattableString.Invariant($"AI player motion failed for {issues[0].PlayerId} at {issues[0].Time:0.###}s: {issues[0].Kind} {issues[0].Actual:0.###} (maximum {issues[0].Maximum:0.###})."))
-    { Issues=[];MotionIssues=issues; }
+    { Issues=[];MotionIssues=issues;QualityIssues=[]; }
+    public AuthoredPathValidationException(IReadOnlyList<AuthoredShapeIssue> shapes,IReadOnlyList<AuthoredMotionIssue> motion,
+        IReadOnlyList<AuthoredQualityIssue> quality)
+        :base(motion.Count>0?new AuthoredPathValidationException(motion).Message:quality.Count>0?
+            FormattableString.Invariant($"AI path quality failed: {quality[0].Kind} during {quality[0].Start:0.###}-{quality[0].End:0.###}s. ")+
+                string.Join("; ",quality[0].Measures.Select(m=>FormattableString.Invariant($"{m.SubjectId}: {m.Actual:0.###} {m.Unit}, {m.Bound} {m.Limit:0.###}"))):
+            new AuthoredPathValidationException(shapes).Message)
+    {Issues=shapes;MotionIssues=motion;QualityIssues=quality;}
 }
 
 public static class AuthoredPathQuality
 {
     private static void Require(bool valid, string message) { if (!valid) throw new ScenarioValidationException(message); }
-    public static void Validate(Match match)
+    public static void Validate(Match match,IEnumerable<AuthoredQualityIssue>? earlierIssues=null)
     {
+        var qualityIssues=earlierIssues?.ToList()??[];
+        void Check(bool valid,string kind,double start,double end,IEnumerable<Player> subjects,params AuthoredQualityMeasure[] measures)
+        {if(!valid)qualityIssues.Add(new(kind,start,end,subjects.Select(p=>p.Id).ToArray(),measures));}
         Require(match.Players.Count == 22 && match.Teams.All(t => match.Players.Count(p => p.TeamId == t.Id) == 11), "Expected 11 players per team.");
         foreach (var player in match.Players)
         {
@@ -48,20 +63,24 @@ public static class AuthoredPathQuality
                 if(acceleration>2.5)motionIssues.Add(new(player.Id,b.Time,"velocity change m/s²",acceleration,2.5,[a,b,c]));
             }
         }
-        if(motionIssues.Count>0)throw new AuthoredPathValidationException(motionIssues.AsReadOnly());
-        SustainedQuality.Validate(match);
+        SustainedQuality.Validate(match,qualityIssues);
         Require(match.Events.Count(e => e.Kind == EventKind.Carry) >= 8, "11v11 action needs varied controlled carries, not only passing.");
         foreach (var team in match.Teams)
         {
             var outfield = match.Players.Where(p => p.TeamId == team.Id && !match.IsKeeper(p.Id)).ToArray();
             double Line(string role) => outfield.Where(p => p.Role == role).Average(p => p.Path.At(0).X);
-            Require(match.AttacksRight(team.Id) ? Line("defender") < Line("midfielder") && Line("midfielder") < Line("forward") :
-                Line("defender") > Line("midfielder") && Line("midfielder") > Line("forward"), "Initial illustrative lines must respect attacking direction.");
-            Require(outfield.Count(p => StoryQuality.DirectionChanges(p.Path) >= 2) >= 6, "Too many straight-line paths; author recovery/support turns.");
+            var direction=match.AttacksRight(team.Id)?1:-1;
+            Check(direction*(Line("midfielder")-Line("defender"))>0&&direction*(Line("forward")-Line("midfielder"))>0,
+                "initial-role-order",0,0,outfield,new(team.Id,direction*(Line("midfielder")-Line("defender")),0,"midfield minus defence metres","strict minimum"),
+                new(team.Id,direction*(Line("forward")-Line("midfielder")),0,"attack minus midfield metres","strict minimum"));
+            var turning=outfield.Count(p=>StoryQuality.DirectionChanges(p.Path)>=2);
+            Check(turning>=6,"individual-direction-changes",0,300,outfield,new AuthoredQualityMeasure(team.Id,turning,6,"players with >=2 purposeful turns","minimum"));
             int BurstPlayers(double speed) => outfield.Count(p => p.Path.Frames.Zip(p.Path.Frames.Skip(1),
                 (a, b) => (Duration: b.Time - a.Time, Speed: a.Position.DistanceTo(b.Position) / (b.Time - a.Time)))
                 .Any(segment => segment.Duration >= 2 && segment.Speed >= speed));
-            Require(BurstPlayers(3) >= 4 && BurstPlayers(4) >= 2, "All-walking paths lack realistic individual running bursts.");
+            var runners=BurstPlayers(3);var sprinters=BurstPlayers(4);
+            Check(runners>=4&&sprinters>=2,"running-bursts",0,300,outfield,
+                new(team.Id,runners,4,"players with >=3m/s for >=2s","minimum"),new(team.Id,sprinters,2,"players with >=4m/s for >=2s","minimum"));
             Require(match.Events.Count(e => e.Kind == EventKind.Carry && match.Player(e.ActorId).TeamId == team.Id) >= 3,
                 "Both clubs need controlled carries.");
             Require(match.Events.Where(e => match.Player(e.ActorId).TeamId == team.Id && !match.IsKeeper(e.ActorId))
@@ -73,8 +92,9 @@ public static class AuthoredPathQuality
         {
             var points = match.Players.Select(p => p.Path.At(t)).ToArray();
             var collisions = points.SelectMany((p, i) => points.Skip(i + 1).Select(p.DistanceTo)).Count(d => d < .4);
-            Require(collisions <= 1, $"Mass player overlap at {t}s.");
-            Require(points.All(p => points.Count(q => p.DistanceTo(q) < 5) <= 5), $"Unrealistic player pile-up at {t}s.");
+            Check(collisions<=1,"close-overlap",t,t,match.Players,new AuthoredQualityMeasure("all",collisions,1,"pairs closer than 0.4m","maximum"));
+            var cluster=points.Max(p=>points.Count(q=>p.DistanceTo(q)<5));
+            Check(cluster<=5,"player-pile-up",t,t,match.Players,new AuthoredQualityMeasure("all",cluster,5,"players within 5m including self","maximum"));
             foreach (var team in match.Teams)
             {
                 var outfield = match.Players.Where(p => p.TeamId == team.Id && !match.IsKeeper(p.Id)).ToArray();
@@ -89,7 +109,9 @@ public static class AuthoredPathQuality
                 }
             }
         }
-        Require(synchronized < 8, "Repeated synchronized path translation is not authored individual football movement.");
-        if (shapeIssues.Count > 0) throw new AuthoredPathValidationException(shapeIssues);
+        Check(synchronized<8,"synchronized-translation",0,300,match.Players,
+            new AuthoredQualityMeasure("all",synchronized,8,"team/sample synchronized translations","strict maximum"));
+        if(shapeIssues.Count>0||motionIssues.Count>0||qualityIssues.Count>0)
+            throw new AuthoredPathValidationException(shapeIssues.AsReadOnly(),motionIssues.AsReadOnly(),qualityIssues.AsReadOnly());
     }
 }

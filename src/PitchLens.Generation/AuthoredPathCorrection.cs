@@ -12,6 +12,7 @@ public sealed record AuthoredPathCorrection([property: JsonRequired] AuthoredPla
 [JsonSerializable(typeof(AuthoredPathCorrection))]
 [JsonSerializable(typeof(AuthoredShapeIssue[]))]
 [JsonSerializable(typeof(AuthoredMotionIssue[]))]
+[JsonSerializable(typeof(AuthoredQualityIssue[]))]
 public partial class CorrectionJsonContext : JsonSerializerContext;
 
 public static class AuthoredPathRefinement
@@ -49,9 +50,20 @@ public static class AuthoredPathRefinement
             Each issue includes its player, exact knot time, measured value, unchanged maximum and ORIGINAL adjacent knots.
             Smooth the explicit timings/coordinates through these knots with reachable easing; no local app solver will fix them.
             Keep every event and phase immutable and preserve all other full shape/physics constraints. No threshold relaxation.
-            """+JsonSerializer.Serialize(failure.MotionIssues.ToArray(),CorrectionJsonContext.Default.AuthoredMotionIssueArray):
-            "Outfield shape failed at these one-second samples:\n"+
-            JsonSerializer.Serialize(failure.Issues.ToArray(), CorrectionJsonContext.Default.AuthoredShapeIssueArray))
+            """+JsonSerializer.Serialize(failure.MotionIssues.ToArray(),CorrectionJsonContext.Default.AuthoredMotionIssueArray):"")
+        + "\nOutfield width/depth failures at one-second samples:\n"+
+            JsonSerializer.Serialize(failure.Issues.ToArray(),CorrectionJsonContext.Default.AuthoredShapeIssueArray)
+        + """
+
+        Measured path-quality failures (all limits unchanged):
+        visible-movement windows are [start,end], checked at starts0,10,...280, each lasting20s.
+        Count only outfield players whose cumulative segment travel within that exact window is >=8m,
+        including partial segments: >=6 TOTAL and >=2 from EACH club. The two club quotas alone are NOT enough.
+        PlayerDistances are observations, not a requirement for all20 players to qualify. Keep every keeper at its own end.
+        For other issues, each measure states its exact bound/unit. 'strict maximum' means <; 'strict minimum' means >.
+        Preserve carry>=3m, reachable centre restarts, onside at release and ballflight<=40m/s without changing any event.
+        """
+        +JsonSerializer.Serialize(failure.QualityIssues.ToArray(),CorrectionJsonContext.Default.AuthoredQualityIssueArray)
         + "\nOriginal safe synthetic scenario:\n" + JsonSerializer.Serialize(original with { Commentary = null }, AuthoredJsonContext.Default.AuthoredMatchDocument);
 
     public static AuthoredMatchDocument Apply(AuthoredMatchDocument original, string json)
@@ -74,17 +86,24 @@ public static class AuthoredPathRefinement
     {
         var immutable=JsonSerializer.Serialize(document,AuthoredJsonContext.Default.AuthoredMatchDocument);
         var originalIds=document.Players.Select(p=>p.Id).Order(StringComparer.Ordinal).ToArray();
-        var correction=await refine(document,failure,token).ConfigureAwait(false);
+        string correction;
+        try{correction=await refine(document,failure,token).ConfigureAwait(false);}
+        catch(Exception error) when(error is ScenarioValidationException or CopilotGenerationException or IOException or InvalidOperationException or TimeoutException or UnauthorizedAccessException)
+        {error.Data["PitchLens.ValidationStage"]="path-correction-request";throw;}
         token.ThrowIfCancellationRequested();
-        if(JsonSerializer.Serialize(document,AuthoredJsonContext.Default.AuthoredMatchDocument)!=immutable)
-            throw new ScenarioValidationException("AI correction changed immutable scenario/event/time metadata.");
-        var corrected=Apply(document,correction);
-        if(corrected.Players is null||corrected.Players.Any(p=>p is null)||
-            !corrected.Players.Select(p=>p.Id).Order(StringComparer.Ordinal).SequenceEqual(originalIds))
-            throw new ScenarioValidationException("AI correction changed immutable event/time metadata.");
-        if(archive is not null)
-            await archive.SaveAsync("corrected",JsonSerializer.Serialize(corrected,AuthoredJsonContext.Default.AuthoredMatchDocument)).ConfigureAwait(false);
-        return (corrected,AuthoredMatchPlan.Build(corrected,requireCommentary:false,expectedFixture:fixture));
+        try
+        {
+            if(JsonSerializer.Serialize(document,AuthoredJsonContext.Default.AuthoredMatchDocument)!=immutable)
+                throw new ScenarioValidationException("AI correction changed immutable scenario/event/time metadata.");
+            var corrected=Apply(document,correction);
+            if(corrected.Players is null||corrected.Players.Any(p=>p is null)||
+                !corrected.Players.Select(p=>p.Id).Order(StringComparer.Ordinal).SequenceEqual(originalIds))
+                throw new ScenarioValidationException("AI correction changed immutable event/time metadata.");
+            if(archive is not null)
+                await archive.SaveAsync("corrected",JsonSerializer.Serialize(corrected,AuthoredJsonContext.Default.AuthoredMatchDocument)).ConfigureAwait(false);
+            return (corrected,AuthoredMatchPlan.Build(corrected,requireCommentary:false,expectedFixture:fixture));
+        }
+        catch(ScenarioValidationException error){error.Data["PitchLens.ValidationStage"]="after-path-correction";throw;}
     }
 }
 
@@ -99,7 +118,9 @@ public static class AuthoredGenerationPipeline
     {
         var raw = await generatePaths(token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
-        var document = AuthoredMatchPlan.Document(raw);
+        AuthoredMatchDocument document;
+        try{document=AuthoredMatchPlan.Document(raw);}
+        catch(ScenarioValidationException error){error.Data["PitchLens.ValidationStage"]="initial";throw;}
         if(fixture is not null)
         {
             FixtureCatalog.RequireKnown(fixture);
@@ -115,24 +136,34 @@ public static class AuthoredGenerationPipeline
         {
             progress?.Report("AI correcting unsupported phase labels (one shared correction; paths and events unchanged)…");
             var immutable=JsonSerializer.Serialize(document,AuthoredJsonContext.Default.AuthoredMatchDocument);
-            var correction=await refinePhases(document,failure,token).ConfigureAwait(false);
+            string correction;
+            try{correction=await refinePhases(document,failure,token).ConfigureAwait(false);}
+            catch(Exception error) when(error is ScenarioValidationException or CopilotGenerationException or IOException or InvalidOperationException or TimeoutException or UnauthorizedAccessException)
+            {error.Data["PitchLens.ValidationStage"]="phase-correction-request";throw;}
             token.ThrowIfCancellationRequested();
-            if(JsonSerializer.Serialize(document,AuthoredJsonContext.Default.AuthoredMatchDocument)!=immutable)
-                throw new ScenarioValidationException("AI phase-correction adapter changed immutable scenario metadata.");
-            var corrected=AuthoredPhaseRefinement.Apply(document,correction);
-            if(archive is not null)
-                await archive.SaveAsync("corrected",JsonSerializer.Serialize(corrected,AuthoredJsonContext.Default.AuthoredMatchDocument)).ConfigureAwait(false);
-            document=corrected;
-            // One shared repair slot: any remaining phase/shape/physics error is terminal, not another catch/retry.
-            match=AuthoredMatchPlan.Build(document,requireCommentary:false,expectedFixture:fixture);
+            try
+            {
+                if(JsonSerializer.Serialize(document,AuthoredJsonContext.Default.AuthoredMatchDocument)!=immutable)
+                    throw new ScenarioValidationException("AI phase-correction adapter changed immutable scenario metadata.");
+                var corrected=AuthoredPhaseRefinement.Apply(document,correction);
+                if(archive is not null)
+                    await archive.SaveAsync("corrected",JsonSerializer.Serialize(corrected,AuthoredJsonContext.Default.AuthoredMatchDocument)).ConfigureAwait(false);
+                document=corrected;
+                // One shared repair slot: any remaining phase/shape/physics error is terminal, not another catch/retry.
+                match=AuthoredMatchPlan.Build(document,requireCommentary:false,expectedFixture:fixture);
+            }
+            catch(ScenarioValidationException error){error.Data["PitchLens.ValidationStage"]="after-phase-correction";throw;}
         }
         catch (AuthoredPathValidationException failure)
         {
             progress?.Report(failure.MotionIssues.Count>0?
                 "AI correcting measured player speed/velocity changes (one shared correction; events and phases unchanged)…":
+                failure.QualityIssues.Count>0?
+                "AI refining measured activity/path-quality failures (one shared correction; events and phases unchanged)…":
                 "AI refining rejected player paths (one bounded correction; events unchanged)…");
             (document,match)=await AuthoredPathRefinement.CorrectAsync(document,failure,refinePaths,token,archive,fixture).ConfigureAwait(false);
         }
+        catch(ScenarioValidationException error){error.Data["PitchLens.ValidationStage"]="initial";throw;}
         token.ThrowIfCancellationRequested();
         progress?.Report("Creating contextual narration and Fan/Analyst story for the validated match…");
         var commentary = await generateCommentary(match, token).ConfigureAwait(false);

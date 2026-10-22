@@ -36,7 +36,10 @@ public static class AuthoredMatchPrompt
         Keep EACHteamoutfield width>=30m, depth>=22m, own-endkeeper, at alltimes. Retain defenders/cover, stretch wings sensibly.
         Avoid collisions(<.4m); max1pair at a sampledtime; no pileup of>5players within5m. Individual paths, not a translated formation.
         At least6/10outfielders EACHclub make>=2purposeful directionchanges (segments>=4m, cosine<.85) overwholegame.
-        At least6outfielders overall,>=2eachclub, travel>=8m per20swindow. Don't forceall22continuoussprints.
+        Check EVERY20swindow [0,20],[10,30],...,[200,220],...,[280,300], not just disjoint windows.
+        In EACH window count outfielders whose cumulative segment travel INSIDE it is >=8m (include partial segments).
+        Require>=6qualifyingoutfielders TOTAL and>=2EACHclub, simultaneously. Two perclub alone is only4, NOT sufficient.
+        Don't forceall22continuoussprints; maintain these exact rolling activity quotas even in settled/restart phases.
         events45..90, ordered(time,order). Kinds pass/carry/shot/goal/kickoff.
         Every event has id,time,order,kind,actorId,receiverId,completed,startTime; nulls explicit.
         Normal events order0; a goal follows same-actor same-time shot with order1. No other equal-time events.
