@@ -273,6 +273,11 @@ dialog::backdrop { background: #20002680; backdrop-filter: blur(3px); }
 .view-dialog .dialog-body { gap: 14px; padding: 18px 22px; }
 .camera-entry { padding: 16px; border: 1px solid var(--line); border-left: 4px solid var(--purple); border-radius: 8px; background: #f8f5fa; }
 .camera-entry p { margin: 6px 0 12px; }
+.guided-demo { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 10px 16px; border: 1px solid var(--line); border-left: 4px solid var(--mint); background: #f8f5fa; border-radius: 8px; }
+.guided-demo > div { flex: 1; min-width: 200px; }
+.guided-demo strong, .guided-demo small { display: block; }
+.guided-demo .caption { flex-basis: 100%; }
+.insight-preferences select { max-width: 100%; }
 .view-styles { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
 .view-styles button { display: grid; justify-items: center; gap: 8px; padding: 10px 4px; color: var(--purple); background: #f8f5fa; border: 1px solid var(--line); border-radius: 7px; font: inherit; }
 .view-styles button.selected { border: 2px solid var(--purple); background: #ede3f3; padding: 9px 3px; }

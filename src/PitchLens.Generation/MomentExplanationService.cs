@@ -3,12 +3,14 @@ namespace PitchLens.Generation;
 public interface IMomentSource
 {
     int ToolCalls => 0;
+    IReadOnlyList<MomentReadAudit>? ReadLedger=>null;
     Task<string> ExplainAsync(MomentEvidence evidence, CancellationToken token);
     Task<string> ExplainAsync(MomentEvidence evidence, CancellationToken token, IProgress<RequestProgress>? progress) =>
         ExplainAsync(evidence, token);
 }
 
-public sealed record ExplainedMoment(MomentEvidence Evidence, MomentAnswer Answer, int ToolCalls, bool Fresh = true, bool Cached = false);
+public sealed record ExplainedMoment(MomentEvidence Evidence, MomentAnswer Answer, int ToolCalls, bool Fresh = true, bool Cached = false,
+    MomentReadAudit[]? Ledger=null);
 
 public sealed class MomentExplanationService(IMomentSource source, TimeSpan? timeout = null)
 {
@@ -78,6 +80,11 @@ public sealed class MomentExplanationService(IMomentSource source, TimeSpan? tim
     }
     public async Task GenerateAsync(MomentEvidence evidence, CancellationToken token)
     {
+        if(!evidence.HasRequestedContribution)
+        {
+            lock(gate)Status="No observed involvement for that player in this captured event window. No AI request sent; choose another focus or task.";
+            Changed?.Invoke();return;
+        }
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
         deadline.CancelAfter(timeout ?? TimeSpan.FromSeconds(270));
         lock (gate)
@@ -107,11 +114,16 @@ public sealed class MomentExplanationService(IMomentSource source, TimeSpan? tim
             deadline.Token.ThrowIfCancellationRequested();
             progress.Report(new(RequestStage.Validating, "Checking snapshot identity and observed evidence references…", source.ToolCalls));
             var answer = evidence.Validate(raw);
+            var ledger=source.ReadLedger?.ToArray();
+            if(source.ToolCalls is <0 or >6||ledger is {Length:>6}||ledger is not null&&
+                (ledger.Length>source.ToolCalls||ledger.Where((r,i)=>r.Sequence!=i+1||r.Cutoff!=evidence.Cutoff||
+                    (r.Tool=="observed_match"?r.EventId is not null:r.Tool!="observed_event"||!evidence.Facts.Events.Any(e=>e.Id==r.EventId))).Any()))
+                throw new ScenarioValidationException("Tool ledger does not match the bounded captured evidence.");
             lock (gate)
             {
                 deadline.Token.ThrowIfCancellationRequested();
                 if (revision != evidence.Revision) return;
-                Current = new(evidence, answer, source.ToolCalls);
+                Current = new(evidence, answer, source.ToolCalls,Ledger:ledger);
                 Status = "Fresh Copilot SDK explanation · gpt-6.1-sol · Synthetic match.";
                 terminal = RequestStage.Complete;
             }

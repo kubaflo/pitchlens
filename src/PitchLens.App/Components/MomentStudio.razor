@@ -34,6 +34,17 @@
     </aside>
 </div>
 <div class="studio-details">
+    <details><summary>How this was checked · Evidence ledger</summary>
+        <p class="caption">Task: @Result.Evidence.Preferences.Label · Focus: @(facts.Context?.SubjectName??"Both clubs") · @(Result.Fresh?Result.Cached?"Cached exact request":"Fresh request":"Recorded default / Not tailored").</p>
+        <p class="caption">Captured through @facts.Cutoff.ToString("0.0")s · Revision @facts.Revision · Schema, snapshot identity and canonical event references passed. These checks do not prove every interpretation true.</p>
+        @if(Result.Ledger is { } ledger)
+        {
+            <p>@ledger.Length recorded successful reads · @Result.ToolCalls actual tool invocations · Maximum 6 · @(Result.Cached?"Original request; cache reuse makes no new calls":"Captured request")</p>
+            @foreach(var read in ledger){<p class="caption">@read.Sequence · @read.Tool · @(read.EventId??"captured index") · Cutoff @read.Cutoff.ToString("0.0")s</p>}
+        }
+        else{<p class="caption">Individual read metadata was not recorded for this answer. Source-reported @(Result.Fresh?"request":"original recorded") call count: @Result.ToolCalls. No tool sequence is invented.</p>}
+        <small>Request identity @Result.Evidence.Hash</small>
+    </details>
     <details><summary>Full original AI explanation (@Claims.Length statements)</summary>
         <p class="caption">AI interpretation, not verified causal truth. Original response retained unchanged; the lead above is visually clamped, not rewritten.</p>
         @foreach (var claim in Claims)

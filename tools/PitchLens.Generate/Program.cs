@@ -3,6 +3,42 @@ using PitchLens.Generation;
 using GitHub.Copilot;
 
 string? observedMatchPath=null;
+if(args is ["--personalized-stored",var personalRuntime,var personalWork,var personalWitness,var personalMatch])
+{
+    var stored=await File.ReadAllTextAsync(personalMatch);
+    var match=StoredMatch(stored);var goal=match.Events.First(e=>e.Kind==EventKind.Goal);
+    var scorer=match.Player(goal.ActorId);
+    var requests=new[]{
+        MomentEvidence.Capture(match,1,goal.Time,goal.Id,preferences:new(InsightTask.ExplainBuildUp,InsightScope.Club,scorer.TeamId)),
+        MomentEvidence.Capture(match,1,goal.Time,goal.Id,preferences:new(InsightTask.PlayerContribution,InsightScope.Player,scorer.Id))};
+    if(requests[0].Hash==requests[1].Hash)throw new InvalidOperationException("Personalized requests unexpectedly share identity.");
+    Directory.CreateDirectory(personalWitness);var outcomes=new List<object>();
+    foreach(var evidence in requests)
+    {
+        var folder=Path.Combine(personalWitness,evidence.Preferences.Task.ToString());
+        var personalSource=new CopilotMomentSource(personalRuntime,personalWork,folder);
+        var service=new MomentExplanationService(personalSource);service.ChangeScene(1);
+        await service.GenerateAsync(evidence,CancellationToken.None);
+        var success=service.Current?.Evidence.Hash==evidence.Hash;
+        if(success)
+        {
+            var answer=service.Current!;
+            await File.WriteAllTextAsync(Path.Combine(folder,"validated.json"),System.Text.Json.JsonSerializer.Serialize(answer.Answer,MomentJsonContext.Default.MomentAnswer));
+            await File.WriteAllTextAsync(Path.Combine(folder,"ledger.json"),System.Text.Json.JsonSerializer.Serialize(answer.Ledger!,MomentJsonContext.Default.MomentReadAuditArray));
+            if(!service.TryReuseFresh(evidence)||service.TryReuseFresh(requests.Single(e=>e.Hash!=evidence.Hash))||
+                service.VisibleAt(1,evidence.Cutoff-.001) is not null||service.VisibleAt(2,evidence.Cutoff) is not null||
+                personalSource.SendCalls!=1||personalSource.Responses!=1)
+                throw new InvalidOperationException("Request cache/count/cutoff isolation failed.");
+        }
+        outcomes.Add(new{Task=evidence.Preferences.Task.ToString(),evidence.Preferences.SubjectId,evidence.Hash,evidence.Cutoff,
+            success,service.Status,personalSource.SendCalls,personalSource.Responses,personalSource.ToolCalls,NativeUi=false,Video=false});
+        await File.WriteAllTextAsync(Path.Combine(personalWitness,"outcomes.json"),System.Text.Json.JsonSerializer.Serialize(outcomes));
+        Console.WriteLine($"PERSONALIZED EXPLAIN | task={evidence.Preferences.Task} | subject={evidence.Preferences.SubjectId} | hash={evidence.Hash} | valid={success} | SDK Send={personalSource.SendCalls} | responses={personalSource.Responses} | reads={personalSource.ToolCalls}");
+        if(!success){Console.Error.WriteLine(service.Status+" No retry or further request.");return 1;}
+    }
+    Console.WriteLine("Two explicit personalized requests validated. No match generation/Director/retry. This is backend evidence, not a user-benefit or native UI claim.");
+    return 0;
+}
 if(args is ["--explain-stored",var storedExplainRuntime,var storedExplainWork,var storedExplainWitness,var explainMatchPath])
 {
     observedMatchPath=explainMatchPath;args=["--explain-live",storedExplainRuntime,storedExplainWork,storedExplainWitness];

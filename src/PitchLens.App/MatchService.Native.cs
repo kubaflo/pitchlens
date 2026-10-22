@@ -69,6 +69,7 @@ public sealed partial class MatchService
     {
         private CopilotMomentSource? source;
         public int ToolCalls => source?.ToolCalls ?? 0;
+        public IReadOnlyList<MomentReadAudit>? ReadLedger=>source?.ReadLedger;
         public Task<string> ExplainAsync(MomentEvidence evidence, CancellationToken token) => ExplainAsync(evidence, token, null);
         public Task<string> ExplainAsync(MomentEvidence evidence, CancellationToken token, IProgress<RequestProgress>? progress)
         {

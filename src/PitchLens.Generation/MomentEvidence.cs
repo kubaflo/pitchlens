@@ -12,10 +12,12 @@ public sealed record MomentEvent(string Id, double Time, double Start, string Ki
 public sealed record MomentMetric(string PlayerId, string Name, int Passes, int CompletedPasses, int Shots, int Goals,
     double DistanceMetres, double MaxSpeedMetresPerSecond, MomentPoint[] Path);
 public sealed record MomentFacts(long Revision, double Cutoff, string FocusId, MomentEvent[] Events, MomentMetric[] Players,
-    [property:JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingNull)] Team[]? Clubs=null);
+    [property:JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingNull)] Team[]? Clubs=null,
+    [property:JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingNull)] MomentContext? Context=null);
 public sealed record MomentIndexEvent(string Id, double Time, string Kind, string Actor, string? Receiver, bool? Completed);
 public sealed record MomentIndex(long Revision, double Cutoff, string FocusId, MomentIndexEvent[] Events, MomentMetric[] Players,
-    [property:JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingNull)] Team[]? Clubs=null);
+    [property:JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingNull)] Team[]? Clubs=null,
+    [property:JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingNull)] MomentContext? Context=null);
 public sealed record MomentClaim(string Text, string[] EvidenceIds);
 public sealed record MomentAnswer(string SnapshotHash, MomentClaim[] Fan, MomentClaim[] Analyst);
 
@@ -25,6 +27,7 @@ public sealed record MomentAnswer(string SnapshotHash, MomentClaim[] Fan, Moment
 [JsonSerializable(typeof(MomentEvent))]
 [JsonSerializable(typeof(MomentIndex))]
 [JsonSerializable(typeof(MomentAnswer))]
+[JsonSerializable(typeof(MomentReadAudit[]))]
 public partial class MomentJsonContext : JsonSerializerContext;
 
 public sealed class MomentEvidence
@@ -35,6 +38,8 @@ public sealed class MomentEvidence
     public string Json { get; }
     public string Hash { get; }
     public MomentFacts Facts => JsonSerializer.Deserialize(Json, MomentJsonContext.Default.MomentFacts)!;
+    public InsightPreferences Preferences=>Facts.Context?.Preferences??InsightPreferences.Default;
+    public bool HasRequestedContribution=>Facts.Context is not { Preferences.Task:InsightTask.PlayerContribution,InvolvementIds.Length:0 };
 
     private MomentEvidence(MomentFacts facts)
     {
@@ -43,8 +48,10 @@ public sealed class MomentEvidence
         Hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(Json)));
     }
 
-    public static MomentEvidence Capture(Match match, long revision, double cutoff, string? focusId = null, string[]? evidenceIds = null)
+    public static MomentEvidence Capture(Match match, long revision, double cutoff, string? focusId = null, string[]? evidenceIds = null,
+        InsightPreferences? preferences=null)
     {
+        preferences??=InsightPreferences.Default;preferences.Validate(match);
         if (!double.IsFinite(cutoff) || cutoff < 0 || cutoff > match.Duration)
             throw new ArgumentOutOfRangeException(nameof(cutoff));
         var observed = match.Events.Where(e => e.Time <= cutoff).ToArray();
@@ -76,8 +83,18 @@ public sealed class MomentEvidence
             return new MomentMetric(p.Id, p.Name, s.Passes, s.CompletedPasses, s.Shots, s.Goals,
                 s.Distance, s.MaxSpeed, path);
         }).ToArray();
+        MomentContext? context=null;
+        if(preferences!=InsightPreferences.Default)
+        {
+            var subjects=match.Players.Where(p=>preferences.Scope==InsightScope.All||
+                (preferences.Scope==InsightScope.Player?p.Id==preferences.SubjectId:p.TeamId==preferences.SubjectId)).Select(p=>p.Name).ToHashSet();
+            var name=preferences.Scope switch {InsightScope.Player=>match.Player(preferences.SubjectId!).Name,
+                InsightScope.Club=>match.Teams.Single(t=>t.Id==preferences.SubjectId).Name,_=>null};
+            context=new(preferences,name,events.Where(e=>subjects.Contains(e.Actor)||e.Receiver is not null&&subjects.Contains(e.Receiver)).Select(e=>e.Id).ToArray(),
+                Replay.At(match,cutoff).Score.ToDictionary(p=>p.Key,p=>p.Value));
+        }
         return new(new(revision, cutoff, focus.Id, events, players,
-            match.Teams[0].Id=="arsenal"&&match.Teams[1].Id=="manchester-city"?null:match.Teams.ToArray()));
+            match.Teams[0].Id=="arsenal"&&match.Teams[1].Id=="manchester-city"?null:match.Teams.ToArray(),context));
     }
 
     public MomentEvent Resolve(string id) => Facts.Events.SingleOrDefault(e => e.Id == id)

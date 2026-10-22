@@ -1,0 +1,21 @@
+@if(Step is int step)
+{
+    <nav class="guided-demo" aria-label="Guided recorded demo">
+        <div><strong>Guided demo · No AI calls</strong><small>Recorded / Not fresh · @(step+1)/4 · @Labels[step]</small></div>
+        <button id="@($"{Context}-tour-back")" class="button" disabled="@(step==0)" @onclick="()=>Navigate.InvokeAsync(step-1)">Back</button>
+        <button id="@($"{Context}-tour-next")" class="button mint" disabled="@(step==3)" @onclick="()=>Navigate.InvokeAsync(step+1)">Next</button>
+        <button id="@($"{Context}-tour-exit")" class="text-button" @onclick="Exit">Exit demo</button>
+        <span class="caption">@Hints[step]</span>
+    </nav>
+}
+@code{
+    [Parameter] public int? Step{get;set;}
+    [Parameter] public string Context{get;set;}="main";
+    [Parameter] public EventCallback<int> Navigate{get;set;}
+    [Parameter] public EventCallback Exit{get;set;}
+    private static readonly string[] Labels=["Pitch & captions","Fan / Analyst explanation","Canonical evidence","58-second Director film"];
+    private static readonly string[] Hints=["Explore the recorded pitch. Next explicitly seeks to the observed goal.",
+        "Switch Fan / Analyst and inspect the evidence. Next shows the exact goal on the pitch.",
+        "Pinned recorded goal at 86s. Next explicitly seeks to fulltime and starts the recorded film.",
+        "Watch, pause or restart the recorded film. Exit leaves the recorded match paused; no new game is generated."];
+}

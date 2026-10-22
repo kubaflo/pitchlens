@@ -41,6 +41,18 @@ public sealed partial class MatchService : IDisposable
     public string? ViewSettingsNotice{get;private set;}
     private Task? momentRequest;
     public string? MomentIntentNotice { get; private set; }
+    public InsightPreferences InsightPreferences { get; private set; }=InsightPreferences.Default;
+    public string? InsightPreferenceNotice { get; private set; }
+    public void SetInsightPreferences(InsightPreferences preferences)
+    {
+        lock(gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed,this);
+            if(Explainer.Busy)throw new InvalidOperationException("Finish or cancel the captured request before changing insight preferences.");
+            preferences.Validate(presentation.Match);InsightPreferences=preferences;InsightPreferenceNotice=null;
+        }
+        NotifyChanged();
+    }
     public bool CanExplainCurrent
     {
         get { lock (gate) return HasMatch && !disposed && !Generating && !CheckingConnection && !Director.Busy && !FilmActive &&
@@ -120,6 +132,7 @@ public sealed partial class MatchService : IDisposable
         {
             ObjectDisposedException.ThrowIf(disposed,this);
             if(mode is not(SessionMode.Live or SessionMode.Test))throw new ArgumentException("Choose Live or Test.");
+            if(GuidedDemoActive)throw new InvalidOperationException("Exit the guided demo before changing modes.");
             if(mode==SessionMode.Live&&Mode==mode&&Generating)return startupRequest??Task.CompletedTask;
             if(Generating||Explainer.Busy||Director.Busy||CheckingConnection)throw new InvalidOperationException("Cancel or finish active requests before changing mode.");
             saveMode?.Invoke(mode);Mode=mode;startupAdmitted=true;
@@ -238,7 +251,7 @@ public sealed partial class MatchService : IDisposable
         {
             if (disposed || !HasMatch || Explainer.Busy) return;
             presentation.Pause();
-            ExplanationSnapshot = MomentEvidence.Capture(presentation.Match, presentation.Revision, presentation.Position, eventId);
+            ExplanationSnapshot = MomentEvidence.Capture(presentation.Match, presentation.Revision, presentation.Position, eventId,preferences:InsightPreferences);
         }
         Changed?.Invoke();
     }
@@ -311,8 +324,13 @@ public sealed partial class MatchService : IDisposable
             else
             {
                 presentation.Pause();
-                var captured = MomentEvidence.Capture(presentation.Match, presentation.Revision, presentation.Position);
+                var captured = MomentEvidence.Capture(presentation.Match, presentation.Revision, presentation.Position,preferences:InsightPreferences);
                 ExplanationSnapshot = captured;
+                if(!captured.HasRequestedContribution)
+                {
+                    MomentIntentNotice="No observed involvement for that player in this captured event window. No AI request sent; choose another focus or task.";
+                    NotifyChanged();return Task.CompletedTask;
+                }
                 var failedSameSnapshot = Explainer.LastRequestedHash == captured.Hash &&
                     Explainer.Activity.Snapshot.Stage is RequestStage.Failed or RequestStage.Cancelled;
                 if (!retry && failedSameSnapshot)
@@ -404,6 +422,8 @@ public sealed partial class MatchService : IDisposable
                 if (generation.State == GenerationState.Succeeded)
                 {
                     presentation.Replace(generation.Current);
+                    try{InsightPreferences.Validate(presentation.Match);}
+                    catch(ArgumentException){InsightPreferences=InsightPreferences.Default;InsightPreferenceNotice="New fixture: the previous insight focus is unavailable. Default task and both-club focus restored.";}
                     HasMatch = true;
                     Explainer.ChangeScene(presentation.Revision);
                     ExplanationSnapshot = null;

@@ -17,6 +17,47 @@ starting XIs, match results, athlete performance or a season dataset. We chose
 could not be clarified. PitchLens is independent and unaffiliated with the league
 or either club; submission remains deferred.
 
+## Task-conditioned insights and recorded guided demo
+
+The [hackathon scorecard](docs/hackathon-scorecard.md) separates the five official
+20% criteria, internal estimates, actual implementation evidence and unmet entry
+gates. Historical **69**, conditional **77/83** targets are not awarded scores or
+a forecast of winning.
+
+**Explain this moment** still immediately captures, pauses and starts one request.
+Use **More → Insight preferences** to configure **Why this matters**, **Explain
+the build-up**, or **Player contribution**, and a both-club/club/player focus.
+The explicit **Explain with these preferences · Uses Copilot usage** action
+captures those choices in the request identity and model/tool context. Exact
+requests may reuse a labelled cache; different tasks/focus cannot. Player
+contribution explicitly selects the current player, with another player selectable.
+No involvement in the captured window produces a visible limitation without an
+AI request. Both teams' observed score and opposition events remain available;
+camera settings and My match's existing local story filter stay separate.
+
+The **How this was checked** disclosure shows bounded actual tool-read metadata,
+source/cutoff/request identity and structural validation—not private reasoning,
+raw logs or a claim that every interpretation is true. Old recorded answers
+remain default/not tailored; their missing individual tool-read metadata is
+stated explicitly rather than invented.
+
+Choose **Guided demo · No AI calls · Starts Test mode** on the first chooser,
+or start it from **More/Replay settings** in the matching recorded Test game.
+Back/Next/Exit take you through pitch/captions, the recorded goal explanation,
+canonical goal evidence and the recorded **58-second Director film**. Steps
+explicitly seek to76/86/300s; rendering and ticks never advance the tour.
+The first choice remembers Test mode like the ordinary Test button. A remembered
+Live choice/current Live game is not replaced: the tour stays unavailable with
+a clear matching-Test-recording requirement. Exit leaves the recording paused.
+A sub-two-minute walkthrough is a rehearsal target, **not measured native/video
+acceptance**. The guided path never authenticates or sends an SDK/model request.
+
+Two authorized production-backend witnesses used the same accepted
+Liverpool–United match at236s: build-up/Liverpool and contribution/Isak, with
+**one Send/one response each and6/5 actual read-only tool calls**. Both passed
+request-hash/canonical-reference checks and cache isolation. There was no new
+generation, Director call or retry; differing wording is not a user-benefit study.
+
 ## Startup mode and dense subtitles
 
 On a fresh installation, the first visible screen offers **Test mode / Instant /

@@ -15,6 +15,110 @@ namespace PitchLens.Core.Tests
 #pragma warning disable BL0006 // Dispatch the real Razor event handlers in this headless interaction regression.
     public sealed class ViewSettingsTests
     {
+        [Fact]
+        public async Task Actual_Razor_task_focus_and_tailor_handlers_condition_source_without_double_spend()
+        {
+            var source=new PersonalizedInsightTests.Source();
+            using var native=new MatchService(source,source,(_,_)=>throw new InvalidOperationException("No SDK"),source,replayClock:new Clock());
+            native.Command("seek",86);
+            var capture=new Capture(true);var module=new Module();
+            using var services=Provider(native,capture,new ModuleRuntime(module));
+            await using var renderer=new CameraEventRenderer(services,capture);
+            await renderer.Dispatcher.InvokeAsync(renderer.StartAsync);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("explain-button"));
+            Assert.Equal(1,source.Calls);var first=native.Explainer.Current!;
+            Assert.False(native.Sample(true)!.Frame.Playing);Assert.Contains("openPopup:moment-dialog",module.Calls);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ChangeAsync("insight-task","1"));
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ChangeAsync("insight-focus","club:manchester-city"));
+            Assert.Equal(1,source.Calls);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("tailor-explain-button"));
+            Assert.Equal(2,source.Calls);Assert.NotEqual(first.Evidence.Hash,native.Explainer.Current!.Evidence.Hash);
+            Assert.Equal(InsightTask.ExplainBuildUp,native.Explainer.Current.Evidence.Preferences.Task);
+            Assert.Equal("manchester-city",native.Explainer.Current.Evidence.Preferences.SubjectId);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("tailor-explain-button"));
+            Assert.Equal(2,source.Calls);Assert.True(native.Explainer.Current.Cached);
+            Assert.Equal(86,native.Sample(true)!.Frame.Snapshot.Time);
+        }
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task Actual_Razor_tour_and_ledger_content_is_honest_about_recorded_reads(bool fresh)
+        {
+            var source=new PersonalizedInsightTests.Source();
+            using var native=new MatchService(source,source,(_,_)=>throw new InvalidOperationException(),source,
+                mode:fresh?SessionMode.Live:SessionMode.Test,replayClock:new Clock());
+            if(fresh){native.Command("seek",86);await native.ExplainCurrentMomentAsync();}
+            else{native.StartGuidedDemo();native.SetGuidedDemoStep(1);}
+            using var services=Provider(native,new Capture());
+            await using var renderer=new HtmlRenderer(services,services.GetRequiredService<ILoggerFactory>());
+            var root=await renderer.Dispatcher.InvokeAsync(()=>renderer.RenderComponentAsync<Page>());
+            var html=System.Net.WebUtility.HtmlDecode(await renderer.Dispatcher.InvokeAsync(root.ToHtmlString));
+            Assert.Contains("How this was checked",html);
+            Assert.Contains("not prove every interpretation true",html);
+            if(fresh){Assert.Contains("observed_match",html);Assert.Contains("observed_event",html);Assert.Equal(2,native.Explainer.Current!.Ledger!.Length);}
+            else{Assert.Contains("Individual read metadata was not recorded",html);Assert.Contains("Guided demo · No AI calls",html);Assert.Equal(0,source.Calls);}
+            if(Environment.GetEnvironmentVariable("PITCHLENS_P0_WITNESS") is {Length:>0} folder)
+            {
+                Directory.CreateDirectory(folder);await File.WriteAllTextAsync(Path.Combine(folder,fresh?"controlled-fresh-ledger.html":"recorded-tour.html"),html);
+                if(fresh&&Environment.GetEnvironmentVariable("PITCHLENS_P0_REAL_WITNESS") is {Length:>0} real&&
+                    Environment.GetEnvironmentVariable("PITCHLENS_P0_ACCEPTED_MATCH") is {Length:>0} input)
+                {
+                    var bytes=await File.ReadAllBytesAsync(input);
+                    Assert.Equal("0332e31623b43f17a6b48c16555076eb0a5c2a52895fc924b6d17aa1ccffc1bf",
+                        Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bytes)));
+                    var match=AuthoredMatchPlan.Parse(System.Text.Encoding.UTF8.GetString(bytes),false);
+                    foreach(var task in new[]{"ExplainBuildUp","PlayerContribution"})
+                    {
+                        var path=Path.Combine(real,task);
+                        var facts=System.Text.Json.JsonSerializer.Deserialize(await File.ReadAllTextAsync(Path.Combine(path,"moment-facts.json")),MomentJsonContext.Default.MomentFacts)!;
+                        var evidence=MomentEvidence.Capture(match,facts.Revision,facts.Cutoff,facts.FocusId,preferences:facts.Context!.Preferences);
+                        var answer=evidence.Validate(await File.ReadAllTextAsync(Path.Combine(path,"validated.json")));
+                        var ledger=System.Text.Json.JsonSerializer.Deserialize(await File.ReadAllTextAsync(Path.Combine(path,"ledger.json")),MomentJsonContext.Default.MomentReadAuditArray)!;
+                        var counts=System.Text.Json.JsonSerializer.Deserialize(await File.ReadAllTextAsync(Path.Combine(path,"moment-counts.json")),MomentWitnessJsonContext.Default.MomentRequestCounts)!;
+                        Assert.Equal(1,counts.SdkSendInvocations);Assert.Equal(1,counts.Responses);Assert.InRange(counts.ToolCalls,ledger.Length,6);
+                        Assert.InRange(ledger.Length,2,6);
+                        var actual=new ExplainedMoment(evidence,answer,counts.ToolCalls,Ledger:ledger);
+                        var rendered=await renderer.Dispatcher.InvokeAsync(()=>renderer.RenderComponentAsync<Components.MomentStudio>(
+                            ParameterView.FromDictionary(new Dictionary<string,object?>{{"Result",actual}})));
+                        var actualHtml=System.Net.WebUtility.HtmlDecode(await renderer.Dispatcher.InvokeAsync(rendered.ToHtmlString));
+                        Assert.Contains(evidence.Hash,actualHtml);Assert.Contains("observed_match",actualHtml);
+                        Assert.Contains(facts.Context.SubjectName!,actualHtml);Assert.Contains(answer.Fan[0].Text,actualHtml);
+                        await File.WriteAllTextAsync(Path.Combine(folder,$"actual-backend-{task}.html"),actualHtml);
+                    }
+                }
+            }
+        }
+        [Fact]
+        public async Task Actual_Razor_guided_choice_steps_back_and_exit_never_call_SDK_or_start_Live()
+        {
+            var source=new MatchLensTests.Forbidden();SessionMode? saved=null;
+            using var native=new MatchService(source,source,(_,_)=>throw new InvalidOperationException("No SDK"),source,
+                readyDemo:false,mode:SessionMode.Unchosen,saveMode:m=>saved=m,replayClock:new Clock(),filmClock:new Clock());
+            var capture=new Capture(true);var module=new Module();
+            using var services=Provider(native,capture,new ModuleRuntime(module));
+            await using var renderer=new CameraEventRenderer(services,capture);
+            await renderer.Dispatcher.InvokeAsync(renderer.StartAsync);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("first-guided-demo"));
+            Assert.Equal(SessionMode.Test,saved);Assert.Equal(0,native.GuidedDemoStep);
+            Assert.Equal(76,native.Sample(true)!.Frame.Snapshot.Time);Assert.Equal(0,source.Calls);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("main-tour-next"));
+            Assert.Equal(1,native.GuidedDemoStep);Assert.Equal(86,native.Sample(true)!.Frame.Snapshot.Time);
+            Assert.Contains("openPopup:moment-dialog",module.Calls);Assert.False(native.Explainer.Current!.Fresh);
+            Assert.Equal(InsightPreferences.Default,native.Explainer.Current.Evidence.Preferences);
+            Assert.Null(native.Explainer.Current.Ledger);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("moment-tour-next"));
+            Assert.Equal(2,native.GuidedDemoStep);Assert.Contains("setEvidence",module.Calls);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("main-tour-next"));
+            Assert.True(native.FilmActive);Assert.Equal(58,native.FilmFrame!.Duration);Assert.False(native.Director.Current!.Fresh);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("main-tour-back"));
+            Assert.False(native.FilmActive);Assert.Equal(2,native.GuidedDemoStep);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("main-tour-exit"));
+            Assert.Null(native.GuidedDemoStep);Assert.False(native.Sample(true)!.Frame.Playing);Assert.Equal(0,source.Calls);
+            Assert.Equal(SessionMode.Test,native.Mode);
+            if(Environment.GetEnvironmentVariable("PITCHLENS_P0_WITNESS") is {Length:>0} folder)
+            {Directory.CreateDirectory(folder);await File.WriteAllTextAsync(Path.Combine(folder,"tour-handler-path.json"),
+                System.Text.Json.JsonSerializer.Serialize(new{mode=native.Mode,sdkCalls=source.Calls,moduleCalls=module.Calls,renderer.PendingPopups,ExitPaused=!native.Sample(true)!.Frame.Playing}));}
+        }
         [Theory]
         [InlineData(SessionMode.Test)]
         [InlineData(SessionMode.Live)]
@@ -224,20 +328,20 @@ namespace PitchLens.Core.Tests
             protected override void HandleException(Exception error)=>throw new InvalidOperationException("Razor interaction failed.",error);
             protected override Task UpdateDisplayAsync(in RenderBatch batch)
             {if(capture.Page?.PendingPopupForCameraTest() is { } id)PendingPopups.Add(id);return Task.CompletedTask;}
-            private ulong FindButton(int component,string id)
+            private ulong FindButton(int component,string id,string eventName="onclick")
             {
                 var frames=GetCurrentRenderTreeFrames(component);
                 for(var i=0;i<frames.Count;i++)
                 {
                     var frame=frames.Array[i];
-                    if(frame.FrameType==RenderTreeFrameType.Component&&frame.ComponentType==typeof(Controls))
-                    {var child=FindButton(frame.ComponentId,id);if(child!=0)return child;}
-                    if(frame.FrameType!=RenderTreeFrameType.Element||frame.ElementName!="button")continue;
+                    if(frame.FrameType==RenderTreeFrameType.Component)
+                    {var child=FindButton(frame.ComponentId,id,eventName);if(child!=0)return child;}
+                    if(frame.FrameType!=RenderTreeFrameType.Element)continue;
                     var matches=false;ulong handler=0;
                     for(var j=i+1;j<frames.Count&&frames.Array[j].FrameType==RenderTreeFrameType.Attribute;j++)
                     {
                         var a=frames.Array[j];if(a.AttributeName=="id"&&Equals(a.AttributeValue,id))matches=true;
-                        if(a.AttributeName=="onclick")handler=a.AttributeEventHandlerId;
+                        if(a.AttributeName==eventName)handler=a.AttributeEventHandlerId;
                     }
                     if(matches)return handler;
                 }
@@ -246,6 +350,8 @@ namespace PitchLens.Core.Tests
             public bool HasButton(string id)=>FindButton(root,id)!=0;
             public Task ClickAsync(string id)
             {var handler=FindButton(root,id);Assert.NotEqual(0UL,handler);return DispatchEventAsync(handler,null,new MouseEventArgs(),true);}
+            public Task ChangeAsync(string id,object value)
+            {var handler=FindButton(root,id,"onchange");Assert.NotEqual(0UL,handler);return DispatchEventAsync(handler,null,new ChangeEventArgs{Value=value},true);}
         }
     }
 #pragma warning restore BL0006
