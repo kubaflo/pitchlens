@@ -105,7 +105,7 @@
         <dialog id="player-dialog" class="player-dialog" aria-modal="false" aria-labelledby="player-title">
             <header class="dialog-head"><div><span class="eyebrow">Player lens</span><span class="caption">Synthetic facts at @snapshot.Time.ToString("00.0")s</span></div><button class="close" data-close-popup aria-label="Close player popup">Close</button></header>
             <div class="dialog-body">
-                <div class="player-identity"><img src="@Crest(player.TeamId)" alt="@Club(match, player.TeamId)" /><div><h2 id="player-title">@player.Name</h2><p>@Club(match, player.TeamId) · #@player.Number</p></div></div>
+                <div class="player-identity"><PlayerPortrait Player="player" /><div><h2 id="player-title">@player.Name</h2><p>@Club(match, player.TeamId) · #@player.Number</p></div></div>
                 <dl class="player-stats">
                     <div><dt>Passes completed</dt><dd>@stats.CompletedPasses / @stats.Passes</dd></div>
                     <div><dt>Distance</dt><dd>@stats.Distance.ToString("F1") m</dd></div>
@@ -121,7 +121,7 @@
             <div class="dialog-body roster-list" id="roster">
                 @foreach (var person in match.Players)
                 {
-                    <button @key="person.Id" @onclick="() => Select(person.Id)"><img src="@Crest(person.TeamId)" alt="" /><span>@person.Name<small>@Club(match, person.TeamId) · #@person.Number</small></span></button>
+                    <button @key="person.Id" @onclick="() => Select(person.Id)"><PlayerPortrait Player="person" Lazy="true" /><span>@person.Name<small>@Club(match, person.TeamId) · #@person.Number</small></span></button>
                 }
             </div>
         </dialog>
@@ -202,6 +202,7 @@
                 <RequestActivityView Activity="Session.ConnectionActivity" Title="SDK connection check · No AI request" Budget="45-second check · No generation or model usage" Cancel="Session.CancelConnection" />
                 <section><h3>@Session.Mode mode</h3><p>Test blocks all SDK requests. Switching modes preserves your current game; generating a new Live match is an explicit separate action.</p><div class="actions"><button class="button" disabled="@(Session.Generating||Session.Explainer.Busy||Session.Director.Busy||Session.CheckingConnection)" @onclick="UseTest">Use Test mode · No AI calls</button><button class="button" disabled="@(Session.Generating||Session.Explainer.Busy||Session.Director.Busy||Session.CheckingConnection)" @onclick="UseLive">Use Live mode · Keep current match</button></div></section>
                 <section id="scenario-provenance"><h3>@(view!.Origin == ScenarioOrigin.DeterministicDemo ? "Authored five-minute demo" : view.Fresh ? "New SDK-generated match" : "Recorded SDK example")</h3><p>Source model: @(view.Model ?? "None — authored locally"). @(view.Fresh ? "Generated in this session." : "Not a fresh request.")</p><p>All actions are synthetic. Real 2026/27 roster names; no real match result or athlete performance claim.</p></section>
+                <details><summary>Official player photos · Offline</summary><p>@PlayerPortraitCatalog.Entries.Count(p=>p.ImagePath is not null) verified portraits for @PlayerPortraitCatalog.Entries.Count selected identities. Missing or failed images show a shirt-number fallback. Premier League/rightsholder images used with user-confirmed permission for this non-commercial project; no endorsement or open-source image license is claimed. Portraits do not describe real match performance.</p></details>
                 <p>@(match.Commentary is { } commentary ? $"AI commentator subtitles: {commentary.Model}, {commentary.Cues.Count} timed cues for this match. {(view.Fresh ? "Generated with this match." : "Recorded generation, not a fresh request.")} {(match.Narrative is null ? "Historical story facts are scripted." : $"AI story: {match.Narrative.Chapters.Count} evidence-bound Fan/Analyst chapters from the same response.")}" : "AI narration unavailable; historical event facts are scripted.")</p>
                 @if(match.Commentary is { Contract:2 } denseTrack)
                 {

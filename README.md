@@ -77,6 +77,59 @@ controlled tests. Native visual/readability acceptance remains user-operated.
 
 ## Match lenses / My match
 
+### Official player portraits
+
+Player cards and the roster use a shared, presentation-only mapping for the
+**66 selected identities** across the six clubs. **65 genuine official PL PNGs**
+are bundled for offline display: **6,708,397 bytes** total. The only unavailable
+portrait is **Emiliano Martínez / Chelsea** (`98980`): the official image CDN
+returned **403 Forbidden**. That card shows a calm shirt-number/photo-unavailable
+fallback; no alternate host, credentials, proxy or another person's face is used.
+Unknown/mismatched identities and local image-load errors use the same fallback.
+The22numbered pitch markers remain unchanged.
+
+Identity records were checked on **2026-10-22** against the official public
+selected-club squad feeds: exact name, club, shirt number and official player ID.
+Martinelli (`444145`) is absent from the current Arsenal feed, so his identity
+was verified against the official historical Arsenal profile record instead;
+the prototype's existing roster snapshot is not silently rewritten.
+The official client maps `playerOptaId` to
+`https://resources.premierleague.com/premierleague25/photos/players/110x140/{id}.png`.
+The supplied example ID427637 identifies **Brenden Aaronson**, not a selected
+player, and is not reused for anyone here.
+
+Each bundled file was verified as PNG with recorded SHA-256, actual dimensions,
+decoded nontransparent pixels/colors, and a distinct non-placeholder hash.
+Most files are220×280 despite the110×140URL; four are slightly cropped
+218–220×279originals. Bytes are preserved without resizing or retouching.
+Cards reserve an88×112slot; roster rows use44×56with lazy loading. Photos fit
+inside that aspect-preserving slot, have decorative alt text beside the visible
+player name, and never trigger remote requests during playback.
+
+Twenty profile pages also supplied matching name/title/ID checks. The profile
+HTML host then returned429; further HTML requests were stopped rather than
+retried or proxied. Remaining mappings use the already-verified official API
+identity evidence plus the official image rule, with that limitation recorded.
+The image CDN was accessed directly at the user-requested URLs, not as a way
+to fetch the rate-limited pages. Image failures remain explicit.
+
+`src/PitchLens.Generation/Resources/player-portraits.json` records all66identity
+associations, official source/profile/CDN URLs, identity extracts/hashes,
+availability, original dimensions and asset checksums.
+`design/player-portraits/identities.json` is the explicitly reviewed ID map;
+`import-official.py` imports only these selected assets and can validate cached
+images offline. The lookup is outside SDK/gameplay data: no image URL is authored
+by AI or accepted from generated JSON; paths/events/physics/facts hashes and
+Test's no-SDK boundary are unchanged. Photos/kit artwork reflect the official
+CDN snapshot, not actual performance, a promised current starting XI or endorsement.
+
+**Rights:** the user confirmed permission to use these images in this
+non-commercial project. The Premier League/rightsholders retain their image
+rights. This is not a blanket website reuse grant, an open-source asset license,
+an endorsement, or a claim that the repository's code license covers the photos.
+Permission for any later publication, commercialization or redistribution must
+be considered separately; the repository remains private.
+
 The main screen has one fixture/score header and three actions: **Explain this
 moment** (or **Recorded analysis** in Test), **Analysis**, and **More**.
 More contains Players, Match story, Director's Cut and Settings & source.

@@ -1,0 +1,30 @@
+@{
+    var portrait=PlayerPortraitCatalog.Find(Player);
+}
+<span class="player-portrait" data-portrait-player="@Player.Id">
+    @if(portrait?.ImagePath is { } path&&!failedImage)
+    {
+        <img src="@path" alt="" width="110" height="140" loading="@(Lazy?"lazy":"eager")" decoding="async" @onerror="ImageFailed" />
+    }
+    else
+    {
+        <span class="portrait-fallback" role="img" aria-label="@($"Photo unavailable for {Player.Name}; shirt {Player.Number}")" title="@($"Photo unavailable for {Player.Name}")"><strong>#@Player.Number</strong><small>Photo unavailable</small></span>
+    }
+</span>
+
+@code {
+    [Parameter,EditorRequired] public Player Player{get;set;}=null!;
+    [Parameter] public bool Lazy{get;set;}
+    private string? identity;
+    private bool failedImage;
+    protected override void OnParametersSet()
+    {
+        var next=$"{Player.Id}\n{Player.TeamId}\n{Player.Name}";
+        if(identity!=next){identity=next;failedImage=false;}
+    }
+    private void ImageFailed(EventArgs _)
+    {
+        failedImage=true;
+        Console.Error.WriteLine($"Bundled player portrait unavailable: {Player.Id}.");
+    }
+}

@@ -268,7 +268,11 @@ dialog::backdrop { background: #20002680; backdrop-filter: blur(3px); }
 .more-actions small { font-size: 13px; line-height: 1.3; }
 @media (max-height: 640px) { .analysis-dialog { top: 16px; max-height: calc(100dvh - 32px); } }
 .player-identity { display: flex; align-items: center; gap: 16px; }
-.player-identity img { width: 64px; height: 64px; flex: 0 0 64px; object-fit: contain; }
+.player-portrait { display: inline-flex; width: 88px; height: 112px; flex: 0 0 88px; align-items: center; justify-content: center; overflow: hidden; border-radius: 8px; background: #f0eaf3; }
+.player-portrait img { width: 100%; height: 100%; object-fit: contain; object-position: center bottom; }
+.portrait-fallback { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 100%; height: 100%; color: #6e5675; text-align: center; }
+.portrait-fallback strong { font-size: 24px; line-height: 1; }
+.portrait-fallback small { font-size: 10px; line-height: 1.15; }
 .player-identity h2 { font-size: 28px; }
 .player-identity p { font-size: 18px; color: var(--muted); margin-top: 4px; }
 .player-stats { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin: 0; }
@@ -278,7 +282,8 @@ dialog::backdrop { background: #20002680; backdrop-filter: blur(3px); }
 .player-stats dd.unavailable { font-size: 20px; }
 .roster-list { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 .roster-list button { display: flex; align-items: center; text-align: left; gap: 12px; padding: 12px; min-height: 72px; border: 1px solid var(--line); border-radius: 8px; background: #faf7fc; color: var(--purple); font-size: 18px; }
-.roster-list img { width: 32px; height: 36px; object-fit: contain; }
+.roster-list .player-portrait { width: 44px; height: 56px; flex-basis: 44px; border-radius: 5px; }
+.roster-list .portrait-fallback strong { font-size: 18px; }
 .roster-list small { display: block; }
 .story-row { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 16px; border-bottom: 1px solid var(--line); padding-bottom: 16px; }
 .story-row p { margin: 6px 0; }
