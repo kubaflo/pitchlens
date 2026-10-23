@@ -14,7 +14,7 @@
             <button class="synthetic-badge" title="Source and generation details" @onclick='() => Open("settings-dialog")'>@(Session.Mode==SessionMode.Test?"Synthetic · TEST / No AI calls":view!.Fresh?"Synthetic · Fresh SDK":"Synthetic · Recorded SDK")</button>
             <div class="actions">
                 @if (Session.Generating) { <button class="button ghost" id="cancel-generation" @onclick="Session.Cancel">Cancel creation</button> }
-                <button id="generate-match" class="button ghost new-match" disabled="@(Session.Mode!=SessionMode.Live || Session.Generating || Session.CheckingConnection || Session.Explainer.Busy || Session.FilmActive || Session.Director.Busy)" title="Live mode creates a new AI match. Uses Copilot usage." aria-label="New AI match. Uses Copilot usage." @onclick="Generate">@(Session.Generating ? "Creating…" : "New match")</button>
+                <button id="generate-match" class="button ghost new-match" disabled="@(Session.Mode!=SessionMode.Live || Session.Generating || Session.CheckingConnection || Session.Explainer.Busy || Session.FilmActive || Session.Director.Busy)" title="Choose teams first. No AI request until Create match." aria-label="Choose teams for a new AI match" @onclick="Generate">@(Session.Generating ? "Creating…" : "New match")</button>
             </div>
         </header>
         <div class="persistent-activities">
@@ -205,7 +205,7 @@
                 <RequestActivityView Activity="Session.GenerationActivity" Title="Sol · Creating your match" Budget="15-minute total budget · Paths, optional correction, commentary" Cancel="Session.Cancel" />
                 <p>@(Session.RequestedFixture is { } fixture?$"{fixture.Home.Name} v {fixture.Away.Name}":"Selected Premier League clubs") · Five minutes (300 seconds) · Synthetic 11v11. All 22 player paths and events authored by AI.</p>
                 <p>Only GPT-6.1 Sol (@CopilotScenarioSource.Model), using normal local Copilot login. Paths/events, at most one shared AI correction for measured shape/speed/velocity defects OR unsupported phase labels, then grounded subtitles: at most three model responses, bounded to fifteen minutes. Path correction keeps events and phases immutable; phase correction cannot change events or paths. May consume usage. No model fallback.</p>
-                <div class="actions"><button class="button purple" @onclick="Generate" disabled="@(Session.Mode!=SessionMode.Live||Session.Generating || Session.CheckingConnection || Session.Explainer.Busy)">@(Session.Generating ? "Creating…" : "Create match with Sol 6.1")</button>@if (Session.Generating) { <button class="button" @onclick="Session.Cancel">Cancel creation</button> }</div>
+                <div class="actions"><button class="button purple" @onclick="Generate" disabled="@(Session.Mode!=SessionMode.Live||Session.Generating || Session.CheckingConnection || Session.Explainer.Busy)">Choose teams for a new match</button>@if (Session.Generating) { <button class="button" @onclick="Session.Cancel">Cancel creation</button> }</div>
                 <p id="generation-status" role="@(Session.RequestState == GenerationState.Failed && !Session.RecordedDemoAfterGenerationIssue ? "alert" : "status")">@Session.Status</p>
                 @if(Session.PriorGenerationIssue is { } priorIssue)
                 {
@@ -213,6 +213,10 @@
                 }
                 <p class="caption">Closing this popup does not cancel creation. Cancel is also available in the main brand bar. Invalid output or cancellation keeps the last valid match.</p>
             </div>
+        </dialog>
+        <dialog id="fixture-dialog" class="fixture-dialog" aria-modal="false" aria-labelledby="fixture-picker-title">
+            <header class="dialog-head"><span class="caption">Live fixture · Replay continues until Create</span><button class="close" data-close-popup>Close</button></header>
+            <div class="dialog-body"><FixturePicker Value="Session.FixtureChoice" Busy="Session.Generating" Error="fixtureError" Changed="SetFixtureChoice" Create="CreateFixture" Cancel="CancelFixture" /></div>
         </dialog>
         <dialog id="settings-dialog" aria-labelledby="settings-title">
             <header class="dialog-head"><div><h2 id="settings-title">Replay settings</h2><span class="caption">Camera, playback and source</span></div><button class="close" data-close-popup>Close</button></header>
@@ -250,14 +254,16 @@ else
         <main class="new-session-pitch">
             <span class="eyebrow">Choose your matchday</span><h1>@(Session.Mode==SessionMode.Unchosen?"Play instantly. Or create something new.":Session.Generating ? "Your next match is taking shape." : "Ready for a different match.")</h1>
             @if(Session.Mode==SessionMode.Unchosen)
-            {<p>Test mode opens a labelled recorded match immediately with no AI calls. Live creates a fresh match using Copilot usage. Your choice is remembered.</p><div class="actions"><button class="button mint" @onclick="StartTest">Test mode · Instant · No AI calls</button><button id="first-guided-demo" class="button" @onclick="StartTour">Guided demo · No AI calls · Starts Test mode</button><button class="button" @onclick="StartLive">Fresh AI match · Uses Copilot usage</button></div>}
-            else{<p>Live startup creates a new five-minute AI-authored match with Sol. Uses Copilot usage: paths, optional one correction, then narration/story. Up to three responses; no automatic retry.</p>}
-            @if(Session.RequestedFixture is { } pendingFixture){<h2>@pendingFixture.Home.Name <span class="fixture-versus">v</span> @pendingFixture.Away.Name</h2>}
+            {<p>Test mode opens a labelled recorded match immediately with no AI calls. Live lets you choose teams before any request. Your mode choice is remembered.</p><div class="actions"><button class="button mint" @onclick="StartTest">Test mode · Instant · No AI calls</button><button id="first-guided-demo" class="button" @onclick="StartTour">Guided demo · No AI calls · Starts Test mode</button><button id="first-live-choice" class="button" title="Choose teams first. No AI request until Create match." @onclick="StartLive">Fresh AI match · Choose teams</button></div>}
+            else{<p>Choose your clubs before creating a five-minute AI-authored match. No SDK, login check or model request starts until you press Create match. Paths, optional one correction, then narration/story; up to three responses.</p>}
+            @if(Session.Mode==SessionMode.Live&&Session.FixturePickerOpen&&!Session.Generating)
+            {<FixturePicker Value="Session.FixtureChoice" Error="fixtureError" Changed="SetFixtureChoice" Create="CreateFixture" Cancel="CancelFixture" />}
+            @if(Session.Generating&&Session.RequestedFixture is { } pendingFixture){<h2>@pendingFixture.Home.Name <span class="fixture-versus">v</span> @pendingFixture.Away.Name</h2>}
             <RequestActivityView Activity="Session.GenerationActivity" Title="Sol · Creating a fresh match" Budget="15-minute total budget · Up to 3 responses · 270s per response" Cancel="Session.Cancel" />
             @if (!Session.Generating&&Session.Mode!=SessionMode.Unchosen)
             {
                 <p role="status">@Session.Status</p>
-                <div class="actions"><button class="button mint" @onclick="Generate" title="Uses Copilot usage">Try a new AI match</button><button class="button" @onclick="Session.PlayRecordedDemo">Play recorded demo · No AI call</button></div>
+                <div class="actions">@if(!Session.FixturePickerOpen){<button id="choose-startup-teams" class="button mint" @onclick="Generate">Choose teams for a new AI match</button>}<button class="button" @onclick="Session.PlayRecordedDemo">Play recorded demo · No AI call</button><button id="startup-test-demo" class="button" @onclick="StartTest">Test mode · Arsenal v Manchester City · No AI</button></div>
             }
             <small>No recorded match is silently substituted. Replay controls appear only after a valid match or your explicit demo choice.</small>
         </main>
@@ -286,6 +292,7 @@ else
     private bool captionsEnabled = true;
     private PitchViewSettings? loadedViewSettings;
     private string? viewError;
+    private string? fixtureError;
     private string? insightError;
     private string InsightFocusValue=>Session.InsightPreferences.Scope switch {InsightScope.Club=>$"club:{Session.InsightPreferences.SubjectId}",InsightScope.Player=>$"player:{Session.InsightPreferences.SubjectId}",_=>"all"};
     private void InsightTaskChanged(ChangeEventArgs e)
@@ -436,7 +443,7 @@ else
     }
     private void Open(string id)
     {
-        if (id is not ("player-dialog" or "roster-dialog" or "analysis-dialog" or "more-dialog" or "view-dialog")) Session.Command("pause");
+        if (id is not ("player-dialog" or "roster-dialog" or "analysis-dialog" or "more-dialog" or "view-dialog" or "fixture-dialog")) Session.Command("pause");
         pendingPopup = new(id,frame?.Revision??0);
         StateHasChanged();
     }
@@ -616,7 +623,25 @@ else
     }
     private async Task Generate()
     {
-        await Session.GenerateAsync();
+        try{Session.OpenFixturePicker();fixtureError=null;if(Session.HasMatch)Open("fixture-dialog");}
+        catch(InvalidOperationException exception){fixtureError=exception.Message;StateHasChanged();}
+        await Task.CompletedTask;
+    }
+    private void SetFixtureChoice(FixtureChoice choice)
+    {
+        try{Session.SetFixtureChoice(choice);fixtureError=null;}
+        catch(Exception exception) when(exception is ArgumentException or InvalidOperationException){fixtureError=exception.Message;}
+    }
+    private async Task CancelFixture()
+    {Session.CancelFixturePicker();fixtureError=null;if(module is not null)await module.InvokeVoidAsync("closePopup","fixture-dialog");}
+    private async Task CreateFixture()
+    {
+        Task request;
+        try{request=Session.SubmitFixtureAsync();fixtureError=null;}
+        catch(Exception exception) when(exception is ArgumentException or InvalidOperationException){fixtureError=exception.Message;StateHasChanged();return;}
+        if(Session.HasMatch&&module is not null)
+        {await module.InvokeVoidAsync("closePopup","fixture-dialog");Open("generation-dialog");}
+        await request;
         if (!disposed && Session.RequestState == GenerationState.Succeeded && module is not null)
             await module.InvokeVoidAsync("closePopup", "generation-dialog");
     }

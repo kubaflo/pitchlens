@@ -25,6 +25,7 @@
     <Content Include="../../src/PitchLens.App/Components/MatchView.razor" Link="Components/MatchView.razor" />
     <Content Include="../../src/PitchLens.App/Components/PlayerPortrait.razor" Link="Components/PlayerPortrait.razor" />
     <Content Include="../../src/PitchLens.App/Components/ViewSettings.razor" Link="Components/ViewSettings.razor" />
+    <Content Include="../../src/PitchLens.App/Components/FixturePicker.razor" Link="Components/FixturePicker.razor" />
     <Content Include="../../src/PitchLens.App/Components/GuidedDemoControls.razor" Link="Components/GuidedDemoControls.razor" />
     <Content Include="../../src/PitchLens.Generation/Resources/player-portraits.json" Link="PortraitAssets/portraits.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../design/player-portraits/identities.json" Link="PortraitAssets/identities.json" CopyToOutputDirectory="PreserveNewest" />

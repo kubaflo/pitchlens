@@ -27,15 +27,15 @@ function harness() {
         }
     });
     const player = makeDialog("player-dialog"), roster = makeDialog("roster-dialog"), story = makeDialog("story-dialog"), analysis=makeDialog("analysis-dialog"),more=makeDialog("more-dialog");
-    const view=makeDialog("view-dialog"),settings=makeDialog("settings-dialog");
-    const all = [player, roster, story, analysis,more,view,settings];
+    const view=makeDialog("view-dialog"),settings=makeDialog("settings-dialog"),fixture=makeDialog("fixture-dialog");
+    const all = [player, roster, story, analysis,more,view,settings,fixture];
     const doc = {
         activeElement: opener, getElementById: id => all.find(d => d.id === id),
         querySelector: () => all.find(d => d.open), querySelectorAll: () => all.filter(d => d.open),
         addEventListener: (key, fn) => documentHandlers.set(key, fn), removeEventListener: key => documentHandlers.delete(key)
     };
     const flush = () => { while (tasks.length) tasks.shift()(); };
-    return { win, doc, opener, player, roster, story, analysis,more,view,settings, observers, documentHandlers, windowHandlers, flush };
+    return { win, doc, opener, player, roster, story, analysis,more,view,settings,fixture, observers, documentHandlers, windowHandlers, flush };
 }
 
 test("lens placement flips/clamps, prefers pitch space and avoids the selected shirt when possible", () => {
@@ -209,5 +209,16 @@ test("Replay settings camera entry closes the modal before opening the shared no
     assert.equal(h.view.open,true,"the original Settings camera click must not dismiss the new popup");
     host.close("view-dialog");h.flush();
     assert.equal(h.opener.focused,1,"focus returns to the original settings opener, not the closed modal");
+    host.dispose();
+});
+test("fixture picker is nonmodal and never follows a player; cancel/Escape restores focus without opening another popup",()=>{
+    const h=harness(),host=new PopupHost(h.doc,h.win);
+    host.open("fixture-dialog");assert.equal(h.fixture.nonmodal,1);assert.equal(h.fixture.modal,0);
+    const trigger={closest:selector=>selector==="#generate-match"?trigger:null};
+    h.documentHandlers.get("click")({target:trigger});assert.equal(h.fixture.open,true);
+    host.follow({x:300,y:400},{left:0,top:0,right:800,bottom:700,height:700},40);
+    assert.equal(h.fixture.style.transform,undefined);
+    h.documentHandlers.get("keydown")({key:"Escape",preventDefault(){}});h.flush();
+    assert.equal(h.fixture.open,false);assert.equal(h.opener.focused,1);
     host.dispose();
 });

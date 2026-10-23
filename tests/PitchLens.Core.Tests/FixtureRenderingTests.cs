@@ -19,7 +19,7 @@ public sealed class FixtureRenderingTests
         using var services=new ServiceCollection().AddLogging().AddSingleton(native).AddSingleton<IJSRuntime>(new NoJs()).BuildServiceProvider();
         await using var renderer=new HtmlRenderer(services,services.GetRequiredService<ILoggerFactory>());
         var root=await renderer.Dispatcher.InvokeAsync(()=>renderer.RenderComponentAsync<Page>());
-        var request=native.StartSessionAsync();
+        await native.StartSessionAsync();native.SetFixtureChoice(FixtureChoice.Random);var request=native.SubmitFixtureAsync();
         var fixture=source.Request!.Fixture!;
         var html=System.Net.WebUtility.HtmlDecode(await renderer.Dispatcher.InvokeAsync(root.ToHtmlString));
         Assert.Contains(fixture.Home.Name,html);Assert.Contains(fixture.Away.Name,html);

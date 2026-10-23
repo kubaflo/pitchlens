@@ -278,6 +278,16 @@ dialog::backdrop { background: #20002680; backdrop-filter: blur(3px); }
 .guided-demo strong, .guided-demo small { display: block; }
 .guided-demo .caption { flex-basis: 100%; }
 .insight-preferences select { max-width: 100%; }
+.fixture-dialog { width: min(580px,calc(100vw - 32px)); }
+.fixture-picker { display: grid; gap: 16px; width: min(580px,100%); }
+.fixture-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.fixture-choices label { margin: 0; }
+.fixture-choices select { display: block; width: 100%; margin-top: 6px; font: inherit; padding: 8px; }
+.fixture-preview { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.fixture-preview > div { display: flex; align-items: center; gap: 10px; }
+.fixture-preview img { width: 36px; height: 40px; object-fit: contain; }
+.fixture-picker .actions { gap: 8px; }
+.fixture-picker .button { font-size: 16px; }
 .view-styles { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
 .view-styles button { display: grid; justify-items: center; gap: 8px; padding: 10px 4px; color: var(--purple); background: #f8f5fa; border: 1px solid var(--line); border-radius: 7px; font: inherit; }
 .view-styles button.selected { border: 2px solid var(--purple); background: #ede3f3; padding: 9px 3px; }

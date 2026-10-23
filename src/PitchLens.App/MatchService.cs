@@ -31,7 +31,6 @@ public sealed partial class MatchService : IDisposable
     private CancellationTokenSource? cancellation;
     private CancellationTokenSource? connectionCancellation;
     private bool disposed;
-    private Task? startupRequest;
     private bool startupAdmitted;
     public bool HasMatch { get; private set; }
     public SessionMode Mode { get; private set; }=SessionMode.Live;
@@ -74,6 +73,46 @@ public sealed partial class MatchService : IDisposable
     public bool RecordedDemoAfterGenerationIssue { get; private set; }
     public Match Match => presentation.Match;
     public MatchFixture? RequestedFixture => generation.RequestedFixture;
+    public FixtureChoice FixtureChoice { get; private set; }=new();
+    public bool FixturePickerOpen { get; private set; }
+    private Task? submittedGeneration;
+    public void OpenFixturePicker()
+    {
+        lock(gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed,this);
+            if(Mode!=SessionMode.Live)throw new InvalidOperationException("Team selection is for Live AI matches. Test keeps its recorded Arsenal v Manchester City fixture.");
+            if(Generating||CheckingConnection||Explainer.Busy||Director.Busy||FilmActive)
+                throw new InvalidOperationException("Finish or cancel the current request or film before choosing teams.");
+            FixturePickerOpen=true;
+        }
+        NotifyChanged();
+    }
+    public void SetFixtureChoice(FixtureChoice value)
+    {
+        lock(gate)
+        {
+            if(Mode!=SessionMode.Live||!FixturePickerOpen||Generating)throw new InvalidOperationException("Open the idle Live fixture picker before changing teams.");
+            _=value.Capture();FixtureChoice=value;
+        }
+        NotifyChanged();
+    }
+    public void CancelFixturePicker(){lock(gate)FixturePickerOpen=false;NotifyChanged();}
+    public Task SubmitFixtureAsync()
+    {
+        lock(gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed,this);
+            if(Mode!=SessionMode.Live)throw new InvalidOperationException("Test mode cannot submit an AI fixture.");
+            if(Generating)return submittedGeneration??Task.CompletedTask;
+            if(CheckingConnection||Explainer.Busy||Director.Busy||FilmActive)
+                throw new InvalidOperationException("Finish or cancel the current request or film before creating a match.");
+            if(!FixturePickerOpen)throw new InvalidOperationException("Choose teams before creating a match.");
+            var captured=FixtureChoice.Capture();
+            FixturePickerOpen=false;
+            return submittedGeneration=GenerateAsync(captured);
+        }
+    }
 
     public MatchService(IScenarioSource scenarios, IMomentSource moments, Func<IProgress<string>, CancellationToken, Task> connection,
         IDirectorSource? director = null, IMonotonicClock? filmClock = null, bool readyDemo = true, MatchVariety? variety = null,
@@ -94,7 +133,7 @@ public sealed partial class MatchService : IDisposable
     }
     private void Initialize()
     {
-        if (!HasMatch) { Status = "Preparing a fresh AI match. Startup uses Copilot usage."; CurrentModel = null; }
+        if (!HasMatch) { Status = "Choose teams before creating a Live AI match. No request has started."; CurrentModel = null; }
         Explainer.ChangeScene(presentation.Revision);
         Explainer.Changed += NotifyChanged;
         Director.ChangeScene(presentation.Revision);
@@ -118,33 +157,36 @@ public sealed partial class MatchService : IDisposable
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            if (startupAdmitted) return startupRequest ?? Task.CompletedTask;
+            if (startupAdmitted) return submittedGeneration ?? Task.CompletedTask;
             startupAdmitted = true;
             if(Mode==SessionMode.Unchosen)return Task.CompletedTask;
             if(Mode==SessionMode.Test){PlayRecordedDemo();return Task.CompletedTask;}
             if (HasMatch) return Task.CompletedTask;
-            return startupRequest = GenerateAsync();
+            FixturePickerOpen=true;Status="Choose teams, then Create match. No AI request has started.";
+            return Task.CompletedTask;
         }
     }
-    public Task ChooseModeAsync(SessionMode mode,bool generateNow=true)
+    public Task ChooseModeAsync(SessionMode mode,bool openPicker=true)
     {
         lock(gate)
         {
             ObjectDisposedException.ThrowIf(disposed,this);
             if(mode is not(SessionMode.Live or SessionMode.Test))throw new ArgumentException("Choose Live or Test.");
             if(GuidedDemoActive)throw new InvalidOperationException("Exit the guided demo before changing modes.");
-            if(mode==SessionMode.Live&&Mode==mode&&Generating)return startupRequest??Task.CompletedTask;
+            if(mode==SessionMode.Live&&Mode==mode&&Generating)return submittedGeneration??Task.CompletedTask;
             if(Generating||Explainer.Busy||Director.Busy||CheckingConnection)throw new InvalidOperationException("Cancel or finish active requests before changing mode.");
             saveMode?.Invoke(mode);Mode=mode;startupAdmitted=true;
             if(mode==SessionMode.Test)
             {
+                FixturePickerOpen=false;
                 presentation.Pause();
                 if(!HasMatch)PlayRecordedDemo();
                 Status=Fresh?"Test mode · Current fresh match retained; all SDK requests blocked.":"Test mode · Recorded SDK demo / Not fresh / No AI calls.";
             }
+            else if(openPicker)FixturePickerOpen=true;
         }
         NotifyChanged();
-        lock(gate)return mode==SessionMode.Live&&generateNow?startupRequest=GenerateAsync():Task.CompletedTask;
+        return Task.CompletedTask;
     }
     public void TestExplain()
     {
@@ -163,6 +205,7 @@ public sealed partial class MatchService : IDisposable
             if (disposed || Generating) throw new InvalidOperationException("Cancel or finish creation before selecting the recorded demo.");
             if (HasMatch && Fresh) throw new InvalidOperationException("The fresh match is retained; recorded demo is only available before first delivery.");
             startupAdmitted = true; HasMatch = true; Fresh = false; Origin = ScenarioOrigin.RecordedSdkExample;
+            FixturePickerOpen=false;
             CurrentModel = AuthoredMatchRecording.Model;
             Status = "Explicit recorded SDK demo / Not fresh / No AI request.";
             if(generation.State is GenerationState.Failed or GenerationState.Cancelled && generation.TerminalIssue is { } issue)
@@ -386,13 +429,16 @@ public sealed partial class MatchService : IDisposable
             if (!disposed) Changed?.Invoke();
         }
     }
-    public async Task GenerateAsync()
+    public Task GenerateAsync()=>GenerateAsync(null);
+    public async Task GenerateAsync(MatchFixture? selectedFixture)
     {
-        var token = new CancellationTokenSource();
+        CancellationTokenSource token;
         lock (gate)
         {
-            if(Mode!=SessionMode.Live){token.Dispose();Status="Test mode · New AI match is disabled. Switch to Live explicitly.";NotifyChanged();return;}
-            if (disposed || cancellation is not null || CheckingConnection || Explainer.Busy || Director.Busy || FilmActive) { token.Dispose(); return; }
+            if(Mode!=SessionMode.Live){Status="Test mode · New AI match is disabled. Switch to Live explicitly.";NotifyChanged();return;}
+            if (disposed || cancellation is not null || CheckingConnection || Explainer.Busy || Director.Busy || FilmActive) return;
+            if(selectedFixture is not null)selectedFixture=FixtureCatalog.RequireKnown(selectedFixture);
+            token=new CancellationTokenSource();
             cancellation = token;
             RecordedDemoAfterGenerationIssue=false;
             generationActivityId = GenerationActivity.Begin("Preparing the match-generation request…");
@@ -414,7 +460,7 @@ public sealed partial class MatchService : IDisposable
         });
         try
         {
-            await generation.GenerateAsync(progress, token.Token).ConfigureAwait(false);
+            await generation.GenerateAsync(progress, token.Token,selectedFixture).ConfigureAwait(false);
             lock (gate)
             {
                 if (disposed) return;

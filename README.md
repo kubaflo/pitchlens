@@ -64,9 +64,9 @@ On a fresh installation, the first visible screen offers **Test mode / Instant /
 No AI calls** and **Fresh AI match / Uses Copilot usage** before any SDK request.
 The selected mode is remembered in native app preferences. Test launches open
 the verified recorded match immediately, with a compact **TEST / No AI calls**
-badge and Recorded/NotFresh provenance. Live launches retain one fresh bounded
-generation per new app lifetime; render, activation, replay and mode toggles never
-create extra requests. Voice-over, Listen controls and speech-driven clock holds
+badge and Recorded/NotFresh provenance. **Live launches now wait for team choice
+and an explicit Create match**, including a remembered Live preference. Render,
+activation, replay, picker edits/cancel and mode changes never create requests. Voice-over, Listen controls and speech-driven clock holds
 have been removed. No text-to-speech engine or audio queue is started.
 
 Test mode is a native service boundary, not just a disabled button: startup,
@@ -112,9 +112,10 @@ completion. Goal highlights retain their existing explicit1x presentation.
 
 For strictly no-paid native review of a fresh unique review app, open it, choose
 **Test mode**, then use replay/recorded analysis/recorded film.
-There is no hidden startup flag. A remembered Live choice will generate on later
-launches; the first chooser and Test boundary are covered by actual Razor/native
-controlled tests. Native visual/readability acceptance remains user-operated.
+There is no hidden startup flag. A remembered Live choice now opens the team
+picker without generating; only **Create match · Uses Copilot usage** starts a
+request. The first chooser and Test boundary are covered by controlled Razor/native
+service tests. Native visual/readability acceptance remains user-operated.
 
 ## Match lenses / My match
 
@@ -438,7 +439,7 @@ never substituted for the normal Director action. It is unavailable on another
 scene or before that observed cutoff. The selected Split Signal logo is retained.
 Opening a fresh installation now shows the mode chooser before requesting AI;
 choosing Test makes this preview genuinely no-paid. A remembered Live choice
-still begins fresh generation on future launches.
+now waits at the team picker on future launches; opening it makes no request.
 
 | Original film wall interval | Actual source footage | Freeze hold | Local score after finish |
 |---|---|---|---|
@@ -611,14 +612,29 @@ Cloud/Foundry, CV, live feeds and a multi-agent system remain deferred.
 
 ### Different clubs, not only different goals
 
-Each fresh request captures two distinct supported clubs and their own verified
-22-player roster **before** the model starts. The selected fixture is visible
-while thinking. On a first run without fixture history, both clubs come from
-Liverpool/Chelsea/Manchester United/Spurs, not Arsenal/City. Later requests rotate
-across the six-club pool, excluding the last **unordered pair** even if home/away
-were reversed. Selection metadata is persisted before the request, so cancellation
-or a failed generation does not repeat that fixture on relaunch. This is a small
-verified pool, not a claim of all twenty Premier League squads.
+First choose **Live / Fresh AI match**, then select **Home** and **Away** from
+Arsenal, Manchester City, Liverpool, Chelsea, Manchester United and Tottenham
+Hotspur. The full names/crests are visible before **Create match · Uses Copilot
+usage**. Same-club/unknown selections are rejected, never treated as Random.
+**Remembered Live startup also waits here**: no SDK/auth/network request until
+Create. New match and failure retries open this same picker. Cancel, editing,
+rendering and activation do not write fixture history or send a request.
+Draft choices stay in memory only; no new preference/profile storage is added.
+
+**Random matchup** explicitly retains the original rotation: without history
+the pool starts with Liverpool/Chelsea/United/Spurs; later draws use all six
+clubs and exclude the last unordered pair. Only actual submission advances
+selection/history. Manual choices intentionally allow the same pair again,
+while semantic near-duplicate gameplay is still rejected. The captured
+22-player catalog roster is immutable throughout the request. This is a small
+verified pool, not all twenty Premier League squads or a real starting XI.
+
+Opening the picker over an existing match is nonmodal and preserves playback.
+Create pauses the old replay; it remains the valid scene until atomic success.
+Cancel/failure retains the prior match, selection, rate, answer and provenance.
+Busy/rapid Create is admitted once; an in-flight fixture cannot be changed.
+Test/Guided demo still open the actual recorded Arsenal/City scene immediately
+and are never cosmetically relabelled as the picker choices.
 
 `MatchFixture` is captured through paths → optional single shape OR phase-label correction →
 narration → final validation, and stored in the generated document for replay.
@@ -673,12 +689,13 @@ This live output is **not bundled as a new static game**. Normal native review
 launch uses the mode chooser or its remembered preference; Test is no-paid.
 Headless controlled tests and offline session validation make no SDK request.
 
-In **Live mode**, each new app lifetime requests a fresh match **once after the first visible UI
-paint**. The initial mode chooser allows Test before any request. Live startup visibly discloses Copilot usage and shows progress/elapsed/Cancel;
-constructing services, rendering again, activating a window or inspecting an
-unlaunched bundle does not request a game. **New match** directly starts another
-fresh request, with usage disclosed on its trigger; there is no second creation
-confirmation. This runs **two stages plus at most one shared bounded AI correction** through
+In **Live mode**, first paint opens the fixture picker, not a generation request.
+The initial mode chooser still allows instant Test/Guided demo. Explicit Create
+discloses usage and starts progress/elapsed/Cancel; constructors, render,
+activation, picker changes and cancel never start a game. **New match** opens
+the same picker rather than bypassing it. This intentional startup behavior
+change keeps remembered Live mode without spending usage on launch.
+Generation still runs **two stages plus at most one shared bounded AI correction** through
 `GitHub.Copilot.SDK` **1.0.22**, explicitly selecting **GPT-6.1 Sol (`gpt-6.1-sol`)** with medium reasoning.
 There is no Auto, Anthropic/Claude, alternate-provider or model fallback path.
 Normal Copilot authentication and model entitlement are required. Generation
@@ -869,7 +886,7 @@ Live startup no longer plays the same recording. Before first delivery the
 pitch-first creation state hides bootstrap players, replay controls and score:
 there is **no active game**, not a fabricated empty success. Validated paths,
 captions and story arrive atomically as **Fresh SDK / gpt-6.1-sol**. Startup
-failure/cancellation leaves this state with **Try a new AI match** and an
+failure/cancellation leaves this state with the same **Choose teams** picker and an
 explicit **Play recorded demo / No AI call** choice. It never silently substitutes
 the bundled recording or automatically retries. The demo keeps unchanged paths
 from 2026-10-19 and the validated narration/story from 2026-10-20, honestly labelled
@@ -1030,7 +1047,7 @@ from41.340053m to29m. The shared classifier now recognizes only explicit
 direction proof as “toward the goal”. The exact raw package was red before this
 targeted correction and green through full validation afterward, without editing
 any AI word/window/reference or making another model request.
-Playback and Test mode make no requests; remembered Live startup does.
+Playback, Test mode and remembered Live startup make no requests; explicit Create does.
 Settings distinguishes recorded/generated
 narration/story; all describe synthetic actions.
 
@@ -1290,8 +1307,9 @@ advanced runtime configuration. Native dialogs provide Escape, close/backdrop
 behavior and focus return. Story, settings and creation deliberately close the
 player flow and pause replay; closing those modals does not automatically resume.
 
-**New match** directly starts the real Copilot SDK request, deduplicated while
-busy; it does not reopen an instructional confirmation. Progress, errors and
+**New match** opens the shared nonmodal team picker without pausing playback or
+starting SDK work. **Create match · Uses Copilot usage** pauses and admits one
+request; busy/rapid submits are deduplicated. Progress, errors and
 cancellation remain visible in the persistent request card, and detailed status
 is available in the creation dialog. The recorded demo is a separate explicit
 first-delivery choice, never a fresh-response substitute.

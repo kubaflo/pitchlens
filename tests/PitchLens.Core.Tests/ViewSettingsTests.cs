@@ -16,6 +16,78 @@ namespace PitchLens.Core.Tests
     public sealed class ViewSettingsTests
     {
         [Fact]
+        public async Task Actual_Razor_cancel_random_failure_retry_and_Newmatch_all_use_the_same_nonspending_picker()
+        {
+            var source=new FixtureSelectionTests.CaptureSource{Fail=true};var attempts=0;
+            using var native=new MatchService(source,source,(_,_)=>throw new InvalidOperationException(),source,
+                readyDemo:false,mode:SessionMode.Live,variety:new MatchVariety(saveSelection:_=>attempts++));
+            var capture=new Capture();var module=new Module();
+            using var services=Provider(native,capture,new ModuleRuntime(module));
+            await using var renderer=new CameraEventRenderer(services,capture);
+            await renderer.Dispatcher.InvokeAsync(renderer.StartAsync);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("fixture-random"));
+            Assert.Equal(FixtureChoice.Random,native.FixtureChoice);Assert.Empty(source.Requests);Assert.Equal(0,attempts);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("fixture-cancel"));
+            Assert.False(native.FixturePickerOpen);Assert.Empty(source.Requests);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("choose-startup-teams"));
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("fixture-create"));
+            Assert.Equal(GenerationState.Failed,native.RequestState);Assert.Single(source.Requests);Assert.Equal(1,attempts);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("choose-startup-teams"));
+            Assert.Single(source.Requests);Assert.Equal(1,attempts);Assert.True(native.FixturePickerOpen);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("fixture-manual"));
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ChangeAsync("fixture-home","liverpool"));
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ChangeAsync("fixture-away","chelsea"));
+            source.Fail=false;
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("fixture-create"));
+            Assert.True(native.HasMatch);Assert.Equal(2,source.Requests.Count);Assert.Equal(2,attempts);
+            native.Command("play");
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("generate-match"));
+            Assert.True(native.FixturePickerOpen);Assert.True(native.Sample(true)!.Frame.Playing);
+            Assert.Equal(2,source.Requests.Count);Assert.Contains("openPopup:fixture-dialog",module.Calls);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("fixture-cancel"));
+            Assert.True(native.Sample(true)!.Frame.Playing);Assert.Equal(2,source.Requests.Count);
+        }
+        [Theory]
+        [InlineData("liverpool","chelsea",SessionMode.Unchosen)]
+        [InlineData("manchester-united","tottenham-hotspur",SessionMode.Live)]
+        public async Task Actual_Razor_startup_fixture_choices_wait_for_Create_and_send_exact_22_catalog_players(string home,string away,SessionMode initialMode)
+        {
+            var source=new FixtureSelectionTests.CaptureSource();var historyWrites=0;
+            using var native=new MatchService(source,source,(_,_)=>throw new InvalidOperationException("No auth before Create"),source,
+                readyDemo:false,mode:initialMode,variety:new MatchVariety(saveSelection:_=>historyWrites++));
+            var capture=new Capture();var module=new Module();
+            using var services=Provider(native,capture,new ModuleRuntime(module));
+            await using var renderer=new CameraEventRenderer(services,capture);
+            await renderer.Dispatcher.InvokeAsync(renderer.StartAsync);
+            if(initialMode==SessionMode.Unchosen)await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("first-live-choice"));
+            Assert.True(native.FixturePickerOpen);Assert.Empty(source.Requests);Assert.Equal(0,historyWrites);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ChangeAsync("fixture-home",home));
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ChangeAsync("fixture-away",away));
+            Assert.Empty(source.Requests);Assert.Equal(0,historyWrites);Assert.False(native.GenerationActivity.Snapshot.Active);
+            if(Environment.GetEnvironmentVariable("PITCHLENS_FIXTURE_WITNESS") is {Length:>0} folder)
+            {
+                Directory.CreateDirectory(folder);
+                using var htmlServices=Provider(native,new Capture());
+                await using var htmlRenderer=new HtmlRenderer(htmlServices,htmlServices.GetRequiredService<ILoggerFactory>());
+                var html=await htmlRenderer.Dispatcher.InvokeAsync(()=>htmlRenderer.RenderComponentAsync<Page>());
+                var markup=System.Net.WebUtility.HtmlDecode(await htmlRenderer.Dispatcher.InvokeAsync(html.ToHtmlString));
+                Assert.Contains(FixtureCatalog.Clubs.Single(t=>t.Id==home).Name,markup);
+                Assert.Contains(FixtureCatalog.Clubs.Single(t=>t.Id==away).Name,markup);
+                await File.WriteAllTextAsync(Path.Combine(folder,$"{home}-{away}-before-create.html"),markup);
+            }
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("fixture-create"));
+            var requested=Assert.Single(source.Requests).Fixture!;
+            Assert.Equal(home,requested.Home.Id);Assert.Equal(away,requested.Away.Id);
+            Assert.Equal(FixtureCatalog.Create(home,away).Players,requested.Players);
+            Assert.Equal(GenerationState.Succeeded,native.RequestState);Assert.Equal(1,historyWrites);
+            Assert.Equal(new[]{home,away},native.Match.Teams.Select(t=>t.Id));
+            await native.StartSessionAsync();Assert.Single(source.Requests);
+            if(Environment.GetEnvironmentVariable("PITCHLENS_FIXTURE_WITNESS") is {Length:>0} output)
+                await File.WriteAllTextAsync(Path.Combine(output,$"{home}-{away}-handler-path.json"),
+                    System.Text.Json.JsonSerializer.Serialize(new{evidence="Actual production Razor click/change dispatch with controlled generation source, not paid/native UI",
+                        initialMode,requestedFixture=requested.Id,roster=requested.Players.Select(p=>p.Id),sourceCalls=source.Requests.Count,historyWrites}));
+        }
+        [Fact]
         public async Task Actual_Razor_task_focus_and_tailor_handlers_condition_source_without_double_spend()
         {
             var source=new PersonalizedInsightTests.Source();

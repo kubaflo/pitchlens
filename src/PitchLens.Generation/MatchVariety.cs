@@ -69,9 +69,9 @@ public sealed class MatchVariety
             lastPair=previousPair;
         }
     }
-    public VarietyRequest Next()
+    public VarietyRequest Next(MatchFixture? selected=null)
     {
-        var fixture=FixtureCatalog.Select(lastPair,direction);
+        var fixture=selected is null?FixtureCatalog.Select(lastPair,direction):FixtureCatalog.RequireKnown(selected);
         saveSelection?.Invoke(fixture.PairKey);
         lastPair=fixture.PairKey;
         return new(Guid.NewGuid().ToString("N"), Directions[direction++ % Directions.Length], recent.TakeLast(8).ToArray(),fixture);

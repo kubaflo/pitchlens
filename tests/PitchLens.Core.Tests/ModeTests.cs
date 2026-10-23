@@ -49,12 +49,14 @@ namespace PitchLens.Core.Tests
             Assert.Same(match,native.Match);Assert.Equal(0,sdk.Calls);
         }
         [Fact]
-        public async Task Explicit_Live_choice_starts_once_then_Test_keeps_fresh_game_without_further_calls()
+        public async Task Explicit_Live_choice_waits_for_Create_then_Test_keeps_fresh_game_without_further_calls()
         {
             var source=new PendingScenario();var sdk=new Forbidden();
             using var native=new MatchService(source,sdk,(_,_)=>Task.CompletedTask,sdk,readyDemo:false,mode:SessionMode.Unchosen);
             await native.StartSessionAsync();Assert.Equal(0,source.Calls);
-            var first=native.ChooseModeAsync(SessionMode.Live);var again=native.ChooseModeAsync(SessionMode.Live);
+            await native.ChooseModeAsync(SessionMode.Live);await native.ChooseModeAsync(SessionMode.Live);
+            Assert.Equal(0,source.Calls);Assert.True(native.FixturePickerOpen);
+            var first=native.SubmitFixtureAsync();var again=native.SubmitFixtureAsync();
             Assert.Equal(1,source.Calls);source.Reply.SetResult(VarietyTests.OneSided());await first;await again;
             var match=native.Match;Assert.True(native.Fresh);native.Command("seek",150);
             await native.ChooseModeAsync(SessionMode.Test,false);await native.GenerateAsync();

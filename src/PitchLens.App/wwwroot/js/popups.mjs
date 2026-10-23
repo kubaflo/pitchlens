@@ -24,7 +24,7 @@ export function popupPosition(point, size, viewport, bounds = null, gap = 24) {
 }
 
 const isPlayerFlow = id => id === "player-dialog" || id === "roster-dialog";
-const isNonmodal = id => isPlayerFlow(id) || id === "analysis-dialog" || id === "more-dialog" || id === "view-dialog";
+const isNonmodal = id => isPlayerFlow(id) || id === "analysis-dialog" || id === "more-dialog" || id === "view-dialog" || id === "fixture-dialog";
 
 export class PopupHost {
     constructor(doc, win) {
@@ -36,8 +36,8 @@ export class PopupHost {
             if (button) { this.close(button.closest("dialog")?.id); return; }
             if (this.floating?.open && !this.floating.contains(event.target)) {
                 event.target.closest?.("button, input, select, a, [tabindex]")?.focus({ preventScroll: true });
-                if (["analysis-dialog","more-dialog","view-dialog"].includes(this.floating.id) ?
-                    !event.target.closest?.({"analysis-dialog":"#analysis-button","more-dialog":"#more-button","view-dialog":"#view-button, #settings-camera-button"}[this.floating.id]) :
+                if (["analysis-dialog","more-dialog","view-dialog","fixture-dialog"].includes(this.floating.id) ?
+                    !event.target.closest?.({"analysis-dialog":"#analysis-button","more-dialog":"#more-button","view-dialog":"#view-button, #settings-camera-button","fixture-dialog":"#generate-match"}[this.floating.id]) :
                     !event.target.closest?.(".player-target, #players-button, #roster, .transport"))
                     this.close(this.floating.id, false);
             }

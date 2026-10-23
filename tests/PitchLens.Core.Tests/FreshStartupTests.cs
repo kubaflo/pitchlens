@@ -26,9 +26,9 @@ namespace PitchLens.Core.Tests
             Task? startup=null;
             await renderer.Dispatcher.InvokeAsync(()=>{startup=capture.Page!.FirstPaintForFreshTest();});
             Assert.Equal(0,js.Imports);
-            if(chooseDemo){native.Cancel();source.Reply.SetCanceled();}
-            else source.Reply.SetResult(VarietyTests.OneSided());
             await startup!;
+            Assert.Equal(0,source.Calls);
+            if(!chooseDemo){var request=native.SubmitFixtureAsync();source.Reply.SetResult(VarietyTests.OneSided());await request;}
             if(chooseDemo) native.PlayRecordedDemo();
             await renderer.Dispatcher.InvokeAsync(()=>capture.Page!.RefreshFreshTest());
             var ready=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
@@ -48,10 +48,10 @@ namespace PitchLens.Core.Tests
             await renderer.Dispatcher.InvokeAsync(()=>capture.Page!.FirstPaintForFreshTest());
             await Task.Delay(350);
             Assert.Equal(1,js.Imports);Assert.Equal(1,js.Module.Initializations);Assert.Single(js.Module.Revisions);
-            Assert.Equal(1,source.Calls);
+            Assert.Equal(chooseDemo?0:1,source.Calls);
         }
         [Fact]
-        public async Task Actual_after_first_paint_intent_starts_once_hides_recorded_match_and_newmatch_requests_directly()
+        public async Task Actual_after_first_paint_waits_for_Create_hides_recorded_match_and_Newmatch_reopens_picker()
         {
             var source = new Delayed();
             using var native = Native(source);
@@ -62,12 +62,14 @@ namespace PitchLens.Core.Tests
             var root = await renderer.Dispatcher.InvokeAsync(() => renderer.RenderComponentAsync<Page>());
             Assert.Equal(0,source.Calls);
             var before = await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
-            Assert.Contains("Live startup creates a new",before);
+            Assert.Contains("Choose your clubs before creating",before);
             Assert.DoesNotContain("id=\"pitch\"",before);
             Assert.DoesNotContain("Recorded SDK example",before);
             Assert.False(native.HasMatch);
-            Task? first = null;
-            await renderer.Dispatcher.InvokeAsync(() => { first = capture.Page!.FirstPaintForFreshTest(); });
+            await renderer.Dispatcher.InvokeAsync(() => capture.Page!.FirstPaintForFreshTest());
+            Assert.Equal(0,source.Calls);Assert.False(native.GenerationActivity.Snapshot.Active);
+            Task? first=null;
+            await renderer.Dispatcher.InvokeAsync(()=>{first=capture.Page!.CreateFixtureForFreshTest();});
             Assert.Equal(1,source.Calls); Assert.True(native.GenerationActivity.Snapshot.Active);
             var waiting = await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
             Assert.Contains("aria-busy=\"true\"",waiting);
@@ -87,7 +89,9 @@ namespace PitchLens.Core.Tests
             Assert.Equal(1,source.Calls);
             source.Reply=new(TaskCreationOptions.RunContinuationsAsynchronously);
             Task? next=null;
-            await renderer.Dispatcher.InvokeAsync(() => { next=capture.Page!.NewMatchForFreshTest(); });
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Page!.NewMatchForFreshTest());
+            Assert.Equal(1,source.Calls);Assert.True(native.FixturePickerOpen);
+            await renderer.Dispatcher.InvokeAsync(() => { next=capture.Page!.CreateFixtureForFreshTest(); });
             Assert.Equal(2,source.Calls);
             await native.GenerateAsync(); Assert.Equal(2,source.Calls);
             source.Reply.SetException(new CopilotGenerationException("Controlled second failure"));
@@ -102,7 +106,7 @@ namespace PitchLens.Core.Tests
         public async Task First_failure_or_cancel_never_selects_demo_or_retries_but_explicit_demo_is_no_paid(bool cancel)
         {
             var source=new Delayed();using var native=Native(source);
-            var pending=native.StartSessionAsync();
+            await native.StartSessionAsync();var pending=native.SubmitFixtureAsync();
             if(cancel){native.Cancel();source.Reply.SetCanceled();}
             else source.Reply.SetException(new CopilotGenerationException("Authentication unavailable"));
             await pending;
@@ -128,7 +132,7 @@ namespace PitchLens.Core.Tests
                 .AddSingleton<IComponentActivator>(capture).BuildServiceProvider();
             await using var renderer=new HtmlRenderer(services,services.GetRequiredService<ILoggerFactory>());
             var root=await renderer.Dispatcher.InvokeAsync(()=>renderer.RenderComponentAsync<Page>());
-            var pending=native.StartSessionAsync();
+            await native.StartSessionAsync();var pending=native.SubmitFixtureAsync();
             Assert.Throws<InvalidOperationException>(native.PlayRecordedDemo);
             Assert.True(native.GenerationActivity.Snapshot.Active);Assert.False(native.HasMatch);
             if(cancel){native.Cancel();source.Reply.SetCanceled();}
@@ -193,7 +197,7 @@ namespace PitchLens.Core.Tests
         public async Task Unload_cancels_first_request_and_late_candidate_does_not_deliver()
         {
             var source=new Delayed();var native=Native(source);
-            var request=native.StartSessionAsync();native.Dispose();
+            await native.StartSessionAsync();var request=native.SubmitFixtureAsync();native.Dispose();
             source.Reply.SetResult(VarietyTests.OneSided());await request;
             Assert.False(native.HasMatch);Assert.False(native.Fresh);
             Assert.Equal(1,source.Calls);
@@ -256,5 +260,6 @@ namespace PitchLens.Core.Tests.Components
         public Task FirstPaintForFreshTest()=>OnAfterRenderAsync(true);
         public Task RefreshFreshTest()=>Refresh(true);
         public Task NewMatchForFreshTest()=>Generate();
+        public Task CreateFixtureForFreshTest()=>CreateFixture();
     }
 }

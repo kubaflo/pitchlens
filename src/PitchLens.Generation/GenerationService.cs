@@ -25,8 +25,10 @@ public sealed class GenerationService(IScenarioSource source, Match initial, Sce
     public MatchFixture? RequestedFixture { get; private set; }
     public string? TerminalIssue { get; private set; }
 
-    public async Task GenerateAsync(IProgress<string>? progress, CancellationToken cancellationToken)
+    public Task GenerateAsync(IProgress<string>? progress,CancellationToken cancellationToken)=>GenerateAsync(progress,cancellationToken,null);
+    public async Task GenerateAsync(IProgress<string>? progress, CancellationToken cancellationToken,MatchFixture? selectedFixture)
     {
+        var captured=selectedFixture is null?null:FixtureCatalog.RequireKnown(selectedFixture);
         if (Interlocked.CompareExchange(ref running, 1, 0) != 0)
             throw new InvalidOperationException("A generation is already running.");
         State = GenerationState.Generating;
@@ -36,7 +38,8 @@ public sealed class GenerationService(IScenarioSource source, Match initial, Sce
         timeout.CancelAfter(TimeSpan.FromMinutes(15));
         try
         {
-            var request=variety?.Next();
+            var request=variety?.Next(captured)??(captured is null?null:new VarietyRequest(Guid.NewGuid().ToString("N"),
+                "Create an original match for this explicitly chosen fixture.",[],captured));
             RequestedFixture=request?.Fixture;
             if(RequestedFixture is { } fixture) progress?.Report($"Creating {fixture.Home.Name} v {fixture.Away.Name} with verified selected players…");
             var json = request is null ? await source.GenerateAsync(progress, timeout.Token).ConfigureAwait(false) :
