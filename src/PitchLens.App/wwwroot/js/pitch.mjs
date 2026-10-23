@@ -1,6 +1,6 @@
 import { ReplayEngine, at, keyboardAction } from "./replay.mjs";
 import { broadcastFrame, prepareBroadcast, netPoints } from "./broadcast.mjs";
-import { PopupHost } from "./popups.mjs";
+import { popupHost, releasePopupHost } from "./popups.mjs";
 import { pinnedEvidence, evidenceVisible, drawEvidence } from "./evidence.mjs";
 import { FilmProjection } from "./director.mjs";
 import { validateLens, drawLens } from "./lenses.mjs";
@@ -19,6 +19,7 @@ let playerView = null, viewSettings = DEFAULT_VIEW, drawnTargets = [], cameraOwn
 let viewCameraStatus = null, viewImageStatus = null, viewWide = null, viewDetail = null, lastOwner = null;
 let fontSet = null, fontLoadedHandler = null;
 let ui = {};
+let readingScale = 1;
 let reducedMotion = false, motionQuery = null, motionHandler = null, lastClockTime = 0;
 const playerTargets = new Map();
 const now = () => performance.now();
@@ -200,7 +201,7 @@ function draw() {
     applyField(c, map);
     visibleLens = !film && !pinned && pitchLens && lensSequence===engine.clock.sequence &&
         pitchLens.window.cutoff<=clockTime+.000001 ? pitchLens : null;
-    if(visibleLens) drawLens(c,visibleLens,engine.scenario.players);
+    if(visibleLens) drawLens(c,visibleLens,engine.scenario.players,readingScale,14/map.field.scale);
     const lensTag=ui["pitch-lens-tag"];
     if(lensTag){
         lensTag.hidden=!visibleLens;
@@ -235,7 +236,7 @@ function draw() {
             c.strokeStyle = "#f4f8ee"; c.lineWidth = .35;
             c.beginPath(); c.moveTo(point.x - 1, point.y - .5); c.lineTo(point.x - 2, point.y - 2);
             c.moveTo(point.x + 1, point.y - .5); c.lineTo(point.x + 2, point.y - 2); c.stroke();
-            c.font = `600 ${Math.max(1.6, 16 / map.field.scale)}px Barlow, sans-serif`;
+            c.font = `600 ${Math.max(1.6, 16 / map.field.scale)*readingScale}px Barlow, sans-serif`;
             c.textAlign="center";c.textBaseline="middle";
             c.fillStyle = "#fff"; c.fillText(broadcast.goal.scorer, point.x, point.y + 3.8);
         }
@@ -384,6 +385,11 @@ export function setViewSettings(json) {
     const value=validateView(JSON.parse(json));
     viewSettings=value;draw();
 }
+export function setReadingSize(percent) {
+    if(![100,125,150,175,200].includes(percent))throw new RangeError("Invalid interface text size.");
+    if(readingScale===percent/100)return;
+    readingScale=percent/100;cacheGeometry();draw();
+}
 export function setLens(json,sequence) {
     if(applyLens(json,sequence))draw();
 }
@@ -397,7 +403,7 @@ function applyLens(json,sequence) {
     pitchLens=view;lensSequence=sequence;return true;
 }
 export function openPopup(id, selectedId = engine?.selectedId) {
-    popups ??= new PopupHost(document, window);
+    popups ??= popupHost(document, window);
     if (id === "player-dialog" && !engine?.scenario?.players.some(p => p.id === selectedId)) throw new Error("Selected player is missing.");
     if (id === "roster-dialog") document.getElementById("players-button")?.focus({ preventScroll: true });
     lensPlayerId = id === "player-dialog" ? selectedId : null;
@@ -428,6 +434,7 @@ export function setEvidence(revision, json) {
     draw();
 }
 export function dispose() {
+    readingScale=1;
     film = null;
     evidence = null;
     fontSet?.removeEventListener?.("loadingdone",fontLoadedHandler);fontSet=fontLoadedHandler=null;
@@ -439,7 +446,7 @@ export function dispose() {
     if(lensTag){lensTag.hidden=true;lensTag.textContent="";}
     const evidenceTag = document.getElementById("evidence-view-tag");
     if (evidenceTag) { evidenceTag.hidden = true; evidenceTag.textContent = ""; }
-    popups?.dispose(); popups = null; lensPlayerId = null; canvasBox = null;
+    releasePopupHost(popups); popups = null; lensPlayerId = null; canvasBox = null;
     stop(); observer?.disconnect();
     window.removeEventListener("resize", resize);
     if (canvas && pointerHandler) canvas.removeEventListener("pointerdown", pointerHandler);

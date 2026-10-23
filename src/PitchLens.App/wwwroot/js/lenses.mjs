@@ -23,7 +23,7 @@ export function validateLens(view, scenario) {
 }
 
 // Field coordinates only: the host applies the same camera/density transform as the players.
-export function drawLens(c, view, players) {
+export function drawLens(c, view, players,readingScale=1,minimumFont=0) {
     if (view.mode === "movement") {
         const max = Math.max(0,...view.cells.map(cell => cell.seconds));
         for (const cell of view.cells) {
@@ -46,7 +46,7 @@ export function drawLens(c, view, players) {
             c.strokeStyle=edge.id===view.selectedEdgeId?"#05f0ff":"rgba(237,233,255,.65)";
             c.lineWidth=Math.min(1.5,.25+edge.count*.2);
             c.beginPath();c.arc(a.x+3,a.y-3,3,0,Math.PI*1.8);c.stroke();
-            c.fillStyle="#fff";c.font="600 2px Barlow, sans-serif";c.fillText(String(edge.count),a.x+6,a.y-6);
+            c.fillStyle="#fff";c.font=`600 ${Math.max(2,minimumFont)*readingScale}px Barlow, sans-serif`;c.fillText(String(edge.count),a.x+6,a.y-6);
             continue;
         }
         const ux=dx/length,uy=dy/length,offset=1;
@@ -57,12 +57,12 @@ export function drawLens(c, view, players) {
         c.lineWidth=Math.min(1.5,.25+edge.count*.2);
         c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);
         c.moveTo(x2-ux*2-uy,y2-uy*2+ux);c.lineTo(x2,y2);c.lineTo(x2-ux*2+uy,y2-uy*2-ux);c.stroke();
-        c.fillStyle="#fff";c.font="600 2px Barlow, sans-serif";c.textAlign="center";c.textBaseline="middle";
+        c.fillStyle="#fff";c.font=`600 ${Math.max(2,minimumFont)*readingScale}px Barlow, sans-serif`;c.textAlign="center";c.textBaseline="middle";
         c.fillText(String(edge.count),(x1+x2)/2-uy*1.5,(y1+y2)/2+ux*1.5);
     }
     for(const node of view.nodes) {
         c.strokeStyle="#ded1f1";c.lineWidth=.4;c.beginPath();c.arc(node.x,node.y,2.3,0,Math.PI*2);c.stroke();
-        c.fillStyle="#eee3ff";c.font="600 1.6px Barlow, sans-serif";c.textAlign="center";c.textBaseline="middle";
+        c.fillStyle="#eee3ff";c.font=`600 ${Math.max(1.6,minimumFont)*readingScale}px Barlow, sans-serif`;c.textAlign="center";c.textBaseline="middle";
         c.fillText(`H${players.find(p=>p.id===node.playerId).number}`,node.x,node.y);
     }
 }

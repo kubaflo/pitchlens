@@ -29,3 +29,21 @@ test("original field-coordinate network uses directed arrowheads/count weights a
     assert.deepEqual(labels.filter(l=>l.text.startsWith("H")),[{text:"H10",x:30,y:20},{text:"H8",x:70,y:40}]);
     assert.equal(labels[0].text,"4");
 });
+test("reading size scales canvas interface labels with a14px floor, never historical positions or edge geometry",()=>{
+    for(const fieldScale of [2,5,10]){
+        const renders=[];
+        for(const reading of [1,1.25,1.5,1.75,2]){
+            const labels=[],geometry=[];
+            const c={beginPath(){},moveTo(x,y){geometry.push([x,y]);},lineTo(x,y){geometry.push([x,y]);},stroke(){},
+                arc(...args){geometry.push(args);},fillText(text,x,y){labels.push({text,x,y,font:Number(this.font.match(/([\d.]+)px/)[1])*fieldScale});}};
+            drawLens(c,view,scenario.players,reading,14/fieldScale);
+            assert.ok(labels.every(l=>l.font>=14*reading-1e-9));
+            renders.push({labels,geometry});
+        }
+        for(let i=0;i<renders.length;i++){
+            assert.deepEqual(renders[i].geometry,renders[0].geometry);
+            assert.deepEqual(renders[i].labels.map(({text,x,y})=>({text,x,y})),renders[0].labels.map(({text,x,y})=>({text,x,y})));
+            for(let j=0;j<renders[0].labels.length;j++)assert.ok(Math.abs(renders[i].labels[j].font/renders[0].labels[j].font-[1,1.25,1.5,1.75,2][i])<1e-9);
+        }
+    }
+});

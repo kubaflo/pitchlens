@@ -15,6 +15,134 @@ namespace PitchLens.Core.Tests
 #pragma warning disable BL0006 // Dispatch the real Razor event handlers in this headless interaction regression.
     public sealed class ViewSettingsTests
     {
+        [Theory]
+        [InlineData(SessionMode.Unchosen,false,false)]
+        [InlineData(SessionMode.Live,false,false)]
+        [InlineData(SessionMode.Live,true,false)]
+        [InlineData(SessionMode.Live,true,true)]
+        [InlineData(SessionMode.Test,true,false)]
+        [InlineData(SessionMode.Test,true,true)]
+        public async Task Reading_buttons_apply_persisted_sizes_in_actual_startup_and_active_Razor_without_playback_or_requests(SessionMode mode,bool ready,bool playing)
+        {
+            var forbidden=new MatchLensTests.Forbidden();string? saved=null;var writes=0;
+            using var service=new MatchService(forbidden,forbidden,(_,_)=>throw new InvalidOperationException("No auth"),forbidden,
+                mode:mode,readyDemo:ready,replayClock:new Clock(),saveReading:value=>{saved=ReadingSettings.Serialize(value);writes++;});
+            if(ready){service.Command("seek",86);service.Command("rate",3);if(playing)service.Command("play");}
+            var before=service.Sample(true);var view=service.ViewSettings;var preferences=service.InsightPreferences;var answer=service.Explainer.Current;
+            var capture=new Capture(true);var module=new Module();
+            using var services=Provider(service,capture,new ModuleRuntime(module));
+            await using var renderer=new CameraEventRenderer(services,capture);
+            await renderer.Dispatcher.InvokeAsync(renderer.StartAsync);
+            foreach(var percent in new[]{100,125,150,175,200,100})
+            {
+                await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("reading-"+percent));
+                Assert.Equal(percent,service.Reading.Percent);
+                if(saved is not null)
+                {
+                    var restored=ReadingSettings.Load(saved,out var notice);Assert.Null(notice);Assert.Equal(service.Reading,restored);
+                    using var reconstructed=new MatchService(forbidden,forbidden,(_,_)=>throw new InvalidOperationException("No auth"),reading:restored);
+                    Assert.Equal(percent,reconstructed.Reading.Percent);
+                }
+                var after=service.Sample(true);
+                Assert.Equal(before?.Frame.Snapshot.Time,after?.Frame.Snapshot.Time);Assert.Equal(before?.Frame.Playing,after?.Frame.Playing);Assert.Equal(before?.Frame.Rate,after?.Frame.Rate);
+                Assert.Equal(before?.Frame.Revision,after?.Frame.Revision);Assert.Equal(view,service.ViewSettings);Assert.Equal(preferences,service.InsightPreferences);
+                Assert.Same(answer,service.Explainer.Current);Assert.False(service.Explainer.Busy);Assert.Equal(0,forbidden.Calls);
+            }
+            Assert.Equal(5,writes);await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("reading-200"));
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("reading-reset"));Assert.Equal(100,service.Reading.Percent);
+            using var htmlServices=Provider(service,new Capture(true));
+            await using var htmlRenderer=new HtmlRenderer(htmlServices,htmlServices.GetRequiredService<ILoggerFactory>());
+            var root=await htmlRenderer.Dispatcher.InvokeAsync(()=>htmlRenderer.RenderComponentAsync<Page>());
+            var html=await htmlRenderer.Dispatcher.InvokeAsync(root.ToHtmlString);
+            Assert.Contains("data-open-popup=\"reading-dialog\"",html);Assert.Contains("--reading-scale:1;",html);
+            Assert.Contains("Text size",html);Assert.Contains("reading-reset",html);
+        }
+        [Theory]
+        [InlineData("{\"version\":1,\"percent\":99}")]
+        [InlineData("{\"version\":1,\"percent\":201}")]
+        [InlineData("{\"version\":1,\"percent\":110}")]
+        [InlineData("{\"version\":2,\"percent\":150}")]
+        [InlineData("{\"version\":1,\"percent\":150,\"percent\":200}")]
+        [InlineData("{\"percent\":150}")]
+        [InlineData("{\"version\":1,\"percent\":150,\"extra\":true}")]
+        [InlineData("broken")]
+        public async Task Invalid_reading_preferences_have_visible_notice_and_failed_save_keeps_old_value(string json)
+        {
+            var value=ReadingSettings.Load(json,out var notice);Assert.Equal(ReadingSettings.Default,value);Assert.NotNull(notice);
+            var forbidden=new MatchLensTests.Forbidden();
+            using var native=new MatchService(forbidden,forbidden,(_,_)=>throw new InvalidOperationException("No SDK"),forbidden,
+                reading:value,readingNotice:notice,saveReading:_=>throw new IOException("Controlled text preference write failure."));
+            native.Command("seek",86);native.Command("play");
+            var capture=new Capture(true);using var services=Provider(native,capture);
+            await using var renderer=new HtmlRenderer(services,services.GetRequiredService<ILoggerFactory>());
+            var root=await renderer.Dispatcher.InvokeAsync(()=>renderer.RenderComponentAsync<Page>());
+            Assert.Contains("Saved text size is invalid",await renderer.Dispatcher.InvokeAsync(root.ToHtmlString));
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Page!.ReadingForTest(new(Percent:150)));
+            var html=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);Assert.Contains("Controlled text preference write failure",html);
+            Assert.Contains("role=\"alert\"",html);Assert.Contains("--reading-scale:1;",html);Assert.Equal(value,native.Reading);
+            Assert.True(native.Sample(true)!.Frame.Playing);Assert.Equal(0,forbidden.Calls);
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Page!.ReadingForTest(new(Percent:101)));
+            Assert.Contains("25% steps",await renderer.Dispatcher.InvokeAsync(root.ToHtmlString));
+            Assert.Equal(value,native.Reading);
+        }
+        [Fact]
+        public async Task Reading_size_invalidates_the_existing_renderer_once_and_leaves_recorded_answer_unchanged()
+        {
+            var forbidden=new MatchLensTests.Forbidden();
+            using var native=new MatchService(forbidden,forbidden,(_,_)=>throw new InvalidOperationException("No SDK"),forbidden,
+                mode:SessionMode.Test,replayClock:new Clock());
+            native.Command("seek",86);native.LoadRecordedMoment();var answer=native.Explainer.Current;
+            Assert.NotNull(answer);
+            var capture=new Capture(true);using var services=Provider(native,capture);
+            await using var renderer=new HtmlRenderer(services,services.GetRequiredService<ILoggerFactory>());
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.RenderComponentAsync<Page>());
+            var module=new Module();
+            await renderer.Dispatcher.InvokeAsync(async()=>{
+                capture.Page!.AttachViewModuleForTest(module);await capture.Page.RefreshViewForTest();
+                var initial=module.Calls.Count(x=>x=="setReadingSize");
+                native.SetReading(new(Percent:200));await capture.Page.RefreshViewForTest();
+                Assert.Equal(initial+1,module.Calls.Count(x=>x=="setReadingSize"));
+                for(var i=0;i<4;i++)await capture.Page.RefreshViewForTest();
+                Assert.Equal(initial+1,module.Calls.Count(x=>x=="setReadingSize"));
+            });
+            Assert.Same(answer,native.Explainer.Current);Assert.Equal(0,forbidden.Calls);
+        }
+        [Theory]
+        [InlineData(0,"queued")]
+        [InlineData(1,"running")]
+        [InlineData(2,"running")]
+        [InlineData(3,"running")]
+        [InlineData(3,"cleanup")]
+        [InlineData(3,"approved")]
+        [InlineData(2,"rejected")]
+        [InlineData(2,"cancelled")]
+        [InlineData(3,"timeout")]
+        public async Task Actual_agent_cards_explain_order_and_do_not_claim_review_approval_early(int count,string state)
+        {
+            var source=new ExplanationTeamSource(new ExplanationTeamTests.Roles());
+            await source.ExplainAsync(ExplanationTeamTests.Evidence(),CancellationToken.None);
+            var approved=source.Collaboration!;
+            var stages=approved.Stages.Take(count).ToArray();
+            if(count>0&&state!="approved")stages[^1]=stages[^1] with{Status=state=="cleanup"?"Cleaning up owned runtime":"Working on role output",Responses=state=="cleanup"?1:0,OutputHash=null};
+            var report=approved with{Stages=stages,Approved=state=="approved",Checks=state=="approved"?approved.Checks:[],
+                Failure=state switch{"rejected"=>"Evidence review rejected the candidate.","cancelled"=>"Request cancelled.","timeout"=>"Whole deadline timed out.",_=>null}};
+            using var services=new ServiceCollection().AddLogging().BuildServiceProvider();
+            await using var renderer=new HtmlRenderer(services,services.GetRequiredService<ILoggerFactory>());
+            var root=await renderer.Dispatcher.InvokeAsync(()=>renderer.RenderComponentAsync<Components.AgentCollaboration>(
+                ParameterView.FromDictionary(new Dictionary<string,object?>{{"Report",report}})));
+            var html=System.Net.WebUtility.HtmlDecode(await renderer.Dispatcher.InvokeAsync(root.ToHtmlString));
+            var technical=html.IndexOf("<details",StringComparison.Ordinal);var visible=html[..technical];
+            Assert.Contains("Find the evidence",visible);Assert.Contains("Write the explanation",visible);Assert.Contains("Check the evidence",visible);
+            Assert.Contains("Receives the inspected findings",visible);Assert.Contains("independently reads every claim",visible);
+            Assert.DoesNotContain(approved.Identity.RunId,visible);Assert.DoesNotContain(approved.Identity.FactsHash,visible);
+            Assert.DoesNotContain("gpt-6.1-sol",visible);Assert.DoesNotContain("<details open",html);Assert.Contains("Technical details",html);
+            Assert.Equal(state=="approved",visible.Contains("All 3 steps completed"));
+            Assert.Equal(3-count,visible.Split("Not started").Length-1);
+            if(state=="cleanup"){Assert.Contains("Validating / finishing",visible);Assert.DoesNotContain("Review accepted",visible);}
+            if(state=="cancelled")Assert.Contains("Cancelled",visible);
+            if(state=="timeout")Assert.Contains("Timed out",visible);
+            if(state=="rejected")Assert.Contains("Rejected / stopped",visible);
+        }
         [Fact]
         public async Task Actual_Razor_Explain_starts_one_team_and_renders_actual_collaboration_not_static_agent_labels()
         {
@@ -30,11 +158,13 @@ namespace PitchLens.Core.Tests
             Assert.Contains("openPopup:moment-dialog",module.Calls);Assert.False(native.Sample(true)!.Frame.Playing);
             await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("explain-button"));
             Assert.Equal(3,roles.Inputs.Count);Assert.True(native.Explainer.Current.Cached);
+            var cached=native.Explainer.Current;native.SetReading(new(Percent:150));
+            Assert.Same(cached,native.Explainer.Current);Assert.Equal(3,roles.Inputs.Count);
             using var htmlServices=Provider(native,new Capture());
             await using var htmlRenderer=new HtmlRenderer(htmlServices,htmlServices.GetRequiredService<ILoggerFactory>());
             var root=await htmlRenderer.Dispatcher.InvokeAsync(()=>htmlRenderer.RenderComponentAsync<Page>());
             var html=System.Net.WebUtility.HtmlDecode(await htmlRenderer.Dispatcher.InvokeAsync(root.ToHtmlString));
-            Assert.Contains("Agent collaboration",html);Assert.Contains("EvidenceAnalyst",html);Assert.Contains("AudienceEditor",html);Assert.Contains("EvidenceReviewer",html);
+            Assert.Contains("How your explanation is made",html);Assert.Contains("EvidenceAnalyst",html);Assert.Contains("AudienceEditor",html);Assert.Contains("EvidenceReviewer",html);
             Assert.Contains(native.Explainer.Current.Collaboration.CandidateHash!,html);Assert.Contains("270s whole team",html);
             Assert.Contains("Sends 1",html);Assert.Contains("Tool calls 0",html);
             if(Environment.GetEnvironmentVariable("PITCHLENS_TEAM_UI_WITNESS") is {Length:>0} file)
@@ -69,7 +199,25 @@ namespace PitchLens.Core.Tests
                 var actual=System.Net.WebUtility.HtmlDecode(await htmlRenderer.Dispatcher.InvokeAsync(page.ToHtmlString));
                 Assert.Contains(report.Identity.RunId,actual);Assert.Contains(report.CandidateHash!,actual);
                 Assert.Contains("EvidenceReviewer",actual);Assert.Contains("Sends 1",actual);
-                await File.WriteAllTextAsync(Path.Combine(folder,"actual-production-razor.html"),actual);
+                if(Environment.GetEnvironmentVariable("PITCHLENS_READING_PREVIEW") is {Length:>0} preview)
+                {
+                    Directory.CreateDirectory(preview);
+                    foreach(var percent in new[]{100,150,200})
+                    {
+                        foreach(var pending in new[]{false,true})
+                        {
+                            var value=pending?report with{Approved=false,Checks=[],Stages=[report.Stages[0] with{Status="Cleaning up owned runtime",OutputHash=null}]}:report;
+                            var component=await htmlRenderer.Dispatcher.InvokeAsync(()=>htmlRenderer.RenderComponentAsync<Components.AgentCollaboration>(
+                                ParameterView.FromDictionary(new Dictionary<string,object?>{{"Report",value}})));
+                            var markup=pending?await htmlRenderer.Dispatcher.InvokeAsync(component.ToHtmlString):actual;
+                            var name=$"{(pending?"controlled-pending":"actual-approved")}-{percent}.html";
+                            var title=pending?"Controlled pending state using the existing report":"Existing actual approved team and unchanged answer";
+                            var document="<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>PitchLens reading preview</title><link rel=\"stylesheet\" href=\"app.css\"><style>"+new ReadingSettings(Percent:percent).Css+"</style></head><body><main style=\"max-width:1120px;margin:auto;padding:24px\"><p class=\"caption\">Static production Razor preview · "+title+" · "+percent+"% · Native handlers disconnected · No new SDK calls · Not native pixel certification</p>"+markup+"</main></body></html>";
+                            await File.WriteAllTextAsync(Path.Combine(preview,name),document);
+                        }
+                    }
+                }
+                else await File.WriteAllTextAsync(Path.Combine(folder,"actual-production-razor.html"),actual);
             }
         }
         [Theory]
@@ -560,6 +708,7 @@ namespace PitchLens.Core.Tests.Components
 {
     public partial class MatchView
     {
+        public void ReadingForTest(ReadingSettings settings)=>ApplyReading(settings);
         public void FixtureChoiceForCleanupTest(FixtureChoice choice){SetFixtureChoice(choice);StateHasChanged();}
         public void AttachViewModuleForTest(IJSObjectReference value){module=value;rendererReady=true;loadedRevision=frame!.Revision;startupRequested=true;}
         public async Task OpenViewForTest(){Open("view-dialog");await OnAfterRenderAsync(false);}

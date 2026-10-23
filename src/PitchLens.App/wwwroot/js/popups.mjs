@@ -24,7 +24,13 @@ export function popupPosition(point, size, viewport, bounds = null, gap = 24) {
 }
 
 const isPlayerFlow = id => id === "player-dialog" || id === "roster-dialog";
-const isNonmodal = id => isPlayerFlow(id) || id === "analysis-dialog" || id === "more-dialog" || id === "view-dialog" || id === "fixture-dialog";
+let sharedHost = null;
+export function popupHost(doc,win) {
+    if(sharedHost&&sharedHost.doc!==doc){sharedHost.dispose();sharedHost=null;}
+    return sharedHost??=new PopupHost(doc,win);
+}
+export function releasePopupHost(host) {host?.dispose();if(sharedHost===host)sharedHost=null;}
+const isNonmodal = id => isPlayerFlow(id) || ["analysis-dialog","more-dialog","view-dialog","fixture-dialog","reading-dialog"].includes(id);
 
 export class PopupHost {
     constructor(doc, win) {
@@ -36,8 +42,8 @@ export class PopupHost {
             if (button) { this.close(button.closest("dialog")?.id); return; }
             if (this.floating?.open && !this.floating.contains(event.target)) {
                 event.target.closest?.("button, input, select, a, [tabindex]")?.focus({ preventScroll: true });
-                if (["analysis-dialog","more-dialog","view-dialog","fixture-dialog"].includes(this.floating.id) ?
-                    !event.target.closest?.({"analysis-dialog":"#analysis-button","more-dialog":"#more-button","view-dialog":"#view-button, #settings-camera-button","fixture-dialog":"#generate-match"}[this.floating.id]) :
+                if (["analysis-dialog","more-dialog","view-dialog","fixture-dialog","reading-dialog"].includes(this.floating.id) ?
+                    !event.target.closest?.({"analysis-dialog":"#analysis-button","more-dialog":"#more-button","view-dialog":"#view-button, #settings-camera-button","fixture-dialog":"#generate-match","reading-dialog":"[data-open-popup='reading-dialog']"}[this.floating.id]) :
                     !event.target.closest?.(".player-target, #players-button, #roster, .transport"))
                     this.close(this.floating.id, false);
             }

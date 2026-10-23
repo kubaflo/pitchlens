@@ -1,6 +1,8 @@
 @implements IAsyncDisposable
 @inject MatchService Session
 @inject IJSRuntime JS
+<style id="reading-style">@Session.Reading.Css</style>
+<ReadingPreferences Value="Session.Reading" Notice="@(readingError??Session.ReadingNotice)" Changed="ApplyReading" />
 
 @if (frame is not null && Session.HasMatch)
 {
@@ -13,6 +15,7 @@
             <div class="wordmark">PitchLens <span>Matchday</span></div>
             <button class="synthetic-badge" title="Source and generation details" @onclick='() => Open("settings-dialog")'>@(Session.Mode==SessionMode.Test?"Synthetic · TEST / No AI calls":view!.Fresh?"Synthetic · Fresh SDK":"Synthetic · Recorded SDK")</button>
             <div class="actions">
+                <button class="button ghost reading-button" data-open-popup="reading-dialog" aria-controls="reading-dialog">Aa · Text size</button>
                 @if (Session.Generating) { <button class="button ghost" id="cancel-generation" @onclick="Session.Cancel">Cancel creation</button> }
                 <button id="generate-match" class="button ghost new-match" disabled="@(Session.Mode!=SessionMode.Live || Session.Generating || Session.CheckingConnection || Session.Explainer.Busy || Session.FilmActive || Session.Director.Busy)" title="Choose teams first. No AI request until Create match." aria-label="Choose teams for a new AI match" @onclick="Generate">@(Session.Generating ? "Creating…" : "New match")</button>
             </div>
@@ -225,6 +228,7 @@
             <header class="dialog-head"><div><h2 id="settings-title">Replay settings</h2><span class="caption">Camera, playback and source</span></div><button class="close" data-close-popup>Close</button></header>
             <div class="dialog-body">
                 <section class="camera-entry"><h3>Camera &amp; player appearance</h3><p>Change zoom, portraits, marker size and shirt numbers.</p><button id="settings-camera-button" class="button purple" aria-controls="view-dialog" @onclick='() => Open("view-dialog")'>Open camera &amp; player appearance</button></section>
+                <section><h3>Reading size</h3><p>Make interface text and subtitles easier to read.</p><button class="button" data-open-popup="reading-dialog" aria-controls="reading-dialog">Text size · @Session.Reading.Percent%</button></section>
                 <section><h3>Guided demo · No AI calls</h3><p>Recorded pitch, Fan / Analyst explanation, canonical evidence and 58-second film. Requires Test mode with the matching recording. Never replaces a current Live game.</p><button id="settings-guided-demo" class="button" disabled="@(!Session.CanStartGuidedDemo)" @onclick="StartTour">Start recorded guided demo</button></section>
                 <RequestActivityView Activity="Session.ConnectionActivity" Title="SDK connection check · No AI request" Budget="45-second check · No generation or model usage" Cancel="Session.CancelConnection" />
                 <section><h3>@Session.Mode mode</h3><p>Test blocks all SDK requests. Switching modes preserves your current game; generating a new Live match is an explicit separate action. Exit the guided demo before changing modes.</p><div class="actions"><button class="button" disabled="@(Session.GuidedDemoActive||Session.Generating||Session.Explainer.Busy||Session.Director.Busy||Session.CheckingConnection)" @onclick="UseTest">Use Test mode · No AI calls</button><button class="button" disabled="@(Session.GuidedDemoActive||Session.Generating||Session.Explainer.Busy||Session.Director.Busy||Session.CheckingConnection)" @onclick="UseLive">Use Live mode · Keep current match</button></div></section>
@@ -253,7 +257,7 @@
 else
 {
     <div class="matchday match-preparing">
-        <header class="brand-bar"><div class="wordmark">PitchLens <span>Matchday</span></div><span>@(Session.Mode==SessionMode.Unchosen?"Choose a mode · No AI request yet":"Live · Fresh AI match")</span></header>
+        <header class="brand-bar"><div class="wordmark">PitchLens <span>Matchday</span></div><button class="button ghost reading-button" data-open-popup="reading-dialog" aria-controls="reading-dialog">Aa · Text size</button></header>
         <main class="new-session-pitch">
             <div class="setup-card">
             @if(Session.Mode==SessionMode.Unchosen)
@@ -303,6 +307,15 @@ else
     private bool captionsEnabled = true;
     private PitchViewSettings? loadedViewSettings;
     private string? viewError;
+    private string? readingError;
+    private int? loadedReading;
+    private void ApplyReading(ReadingSettings settings)
+    {
+        try{Session.SetReading(settings);readingError=null;}
+        catch(Exception error) when(error is ArgumentException or IOException or UnauthorizedAccessException or InvalidOperationException)
+        {readingError="Text size unchanged: "+error.Message;}
+        StateHasChanged();
+    }
     private string ExplainBudget=>Session.Explainer.UsesTeam?"270s whole team · Up to 3 responses / 12 read-only calls · Bounded cleanup":
         "270s response budget · Up to 6 read-only tool calls · Single-agent source";
     private string? fixtureError;
@@ -439,6 +452,8 @@ else
                     loadedViewSettings=Session.ViewSettings;
                     await module.InvokeVoidAsync("setViewSettings",PitchViewSettings.Serialize(loadedViewSettings));
                 }
+                if(loadedReading!=Session.Reading.Percent)
+                {loadedReading=Session.Reading.Percent;await module.InvokeVoidAsync("setReadingSize",loadedReading.Value);}
                 await module.InvokeVoidAsync("setClock", WebContracts.Clock(current),
                     currentLens is null?null:JsonSerializer.Serialize(currentLens,WebJsonContext.Default.PitchLensView));
                 if (Session.FilmFrame is { } filmFrame && Session.Director.Current is { } directed)

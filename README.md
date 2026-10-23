@@ -52,11 +52,37 @@ Cache identity includes the pipeline version; an old single-agent answer cannot
 masquerade as reviewed team output. Match generation's separate2normal/3maximum
 responses and optional geometry/phase correction are unchanged.
 
-**Agent collaboration** is an optional explanation disclosure with actual
-role/model/status/session/send/tool counts, input/output hashes, canonical read
-IDs and final claim checks. No private reasoning, raw prompts, system logs or
-fake activity is shown. Test/Guided demo remain hard-zero-SDK and explicitly use
-the **single-agent recorded explanation**, without invented team review.
+**How your explanation is made** shows three ordered, readable steps while
+working and alongside the accepted answer: **Find the evidence → Write the
+explanation → Check the evidence**. Each card explains its specialist's job and
+actual state; future steps say **Not started**. A response or runtime cleanup is
+not approval: only the completed acceptance gate displays **Review accepted**.
+One collapsed **Technical details** disclosure retains actual model/session/send/
+tool counts, input/output hashes, canonical reads and claim checks. An earlier
+answer's team is separately collapsed during a new request; cached answers show
+the original run and no new usage. No private reasoning, raw prompts, system logs
+or fake activity is shown. Test/Guided demo remain hard-zero-SDK and explicitly
+use the **single-agent recorded explanation**, without invented team review.
+
+### Comfortable reading
+
+Use **Aa · Text size** in the brand bar, including before creating a match, or
+**Replay settings → Reading size**. Choose **100 / 125 / 150 / 175 / 200%**;
+**Reset to 100%** restores standard sizing. The setting is saved locally and
+applies immediately without pausing, seeking, changing speed or making AI calls.
+Invalid saved values show a notice and use 100%; a failed save leaves the old
+setting active and displays an error.
+
+Standard text starts from an 18px-equivalent root with secondary metadata at
+least 14px. All stylesheet font sizes, including media overrides, follow that
+root; subtitles and canvas interface annotations scale too. This is text-only,
+not CSS zoom, a transformed WebView or an OS setting. Shirt geometry and measured
+shirt-number ink remain controlled by **Camera & player appearance → Marker
+size**. Cards and controls reflow, dialogs scroll with reachable Close headers,
+and long explanation/subtitle text is not line-clamped. Headless tests cover
+preference handlers, font resolution, popup ownership and unchanged replay/hits;
+they do **not** certify native pixels or 200% desktop acceptance. Static previews
+of existing real team evidence require user-operated Safari/native visual review.
 
 One authorized backend team witness used the accepted Liverpool–United scene
 at236s, Isak/player-contribution focus: **3 separate sessions,3 Sends/3responses,

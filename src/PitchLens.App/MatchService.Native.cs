@@ -12,6 +12,8 @@ public sealed partial class MatchService
         ViewSettings=PitchViewSettings.Load(Preferences.Default.Get("pitch-view-settings",""),out var viewNotice);
         ViewSettingsNotice=viewNotice;
         saveViewSettings=value=>Preferences.Default.Set("pitch-view-settings",PitchViewSettings.Serialize(value));
+        Reading=ReadingSettings.Load(Preferences.Default.Get("reading-settings",""),out var readingNotice);
+        ReadingNotice=readingNotice;saveReading=value=>Preferences.Default.Set("reading-settings",ReadingSettings.Serialize(value));
         generation = new(new NativeSource(this), presentation.Match, ScenarioOrigin.RecordedSdkExample, AuthoredMatchRecording.Model, LoadVariety());
         Explainer = new(new NativeMomentSource(this));
         Director = new(new NativeDirectorSource(this));

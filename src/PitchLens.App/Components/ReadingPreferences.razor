@@ -1,0 +1,20 @@
+<dialog id="reading-dialog" class="reading-dialog" aria-modal="false" aria-labelledby="reading-title">
+    <header class="dialog-head"><h2 id="reading-title">Text size</h2><button class="close" data-close-popup aria-label="Close text size">Close</button></header>
+    <div class="dialog-body">
+        <p>Choose a comfortable reading size for the whole interface.</p>
+        <div class="reading-options" role="group" aria-label="Interface text size">
+            @foreach(var percent in new[]{100,125,150,175,200})
+            {<button id="@($"reading-{percent}")" class="button @(Value.Percent==percent?"purple":"")" aria-pressed="@(Value.Percent==percent?"true":"false")" @onclick="()=>Changed.InvokeAsync(new ReadingSettings(Percent:percent))">@percent%@(percent==100?" · Standard":"")</button>}
+        </div>
+        <p class="reading-example">Example text: follow the moment, understand the play.</p>
+        <p class="caption">Text size adjusts the interface and subtitles. Camera &amp; player appearance → Marker size controls pitch shirts and their numbers.</p>
+        @if(!string.IsNullOrWhiteSpace(Notice)){<p class="error" role="alert">@Notice</p>}
+        <button id="reading-reset" class="button" @onclick="()=>Changed.InvokeAsync(ReadingSettings.Default)">Reset to 100%</button>
+        <p class="caption">Saved on this device. No pause, seek, speed change or AI usage.</p>
+    </div>
+</dialog>
+@code{
+    [Parameter] public ReadingSettings Value{get;set;}=ReadingSettings.Default;
+    [Parameter] public string? Notice{get;set;}
+    [Parameter] public EventCallback<ReadingSettings> Changed{get;set;}
+}

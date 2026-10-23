@@ -38,6 +38,19 @@ public sealed partial class MatchService : IDisposable
     private readonly Action<PitchViewSettings>? saveViewSettings;
     public PitchViewSettings ViewSettings{get;private set;}=PitchViewSettings.Default;
     public string? ViewSettingsNotice{get;private set;}
+    private readonly Action<ReadingSettings>? saveReading;
+    public ReadingSettings Reading{get;private set;}=ReadingSettings.Default;
+    public string? ReadingNotice{get;private set;}
+    public void SetReading(ReadingSettings value)
+    {
+        lock(gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed,this);value.Validate();
+            if(value==Reading&&ReadingNotice is null)return;
+            saveReading?.Invoke(value);Reading=value;ReadingNotice=null;
+        }
+        NotifyChanged();
+    }
     private Task? momentRequest;
     public string? MomentIntentNotice { get; private set; }
     public InsightPreferences InsightPreferences { get; private set; }=InsightPreferences.Default;
@@ -117,7 +130,8 @@ public sealed partial class MatchService : IDisposable
     public MatchService(IScenarioSource scenarios, IMomentSource moments, Func<IProgress<string>, CancellationToken, Task> connection,
         IDirectorSource? director = null, IMonotonicClock? filmClock = null, bool readyDemo = true, MatchVariety? variety = null,
         SessionMode mode=SessionMode.Live,Action<SessionMode>? saveMode=null,IMonotonicClock? replayClock=null,
-        PitchViewSettings? viewSettings=null,Action<PitchViewSettings>? saveViewSettings=null,string? viewSettingsNotice=null)
+        PitchViewSettings? viewSettings=null,Action<PitchViewSettings>? saveViewSettings=null,string? viewSettingsNotice=null,
+        ReadingSettings? reading=null,Action<ReadingSettings>? saveReading=null,string? readingNotice=null)
     {
         if(replayClock is not null)presentation=new(DenseNarrationRecording.Create(),replayClock);
         generation = new(scenarios, presentation.Match, ScenarioOrigin.RecordedSdkExample, AuthoredMatchRecording.Model, variety);
@@ -125,6 +139,7 @@ public sealed partial class MatchService : IDisposable
         Mode=mode;this.saveMode=saveMode;
         ViewSettings=viewSettings??PitchViewSettings.Default;ViewSettings.Validate();
         this.saveViewSettings=saveViewSettings;ViewSettingsNotice=viewSettingsNotice;
+        Reading=reading??ReadingSettings.Default;Reading.Validate();this.saveReading=saveReading;ReadingNotice=readingNotice;
         Explainer = new(moments);
         Director = new(director ?? new UnavailableDirectorSource());
         if (filmClock is not null) this.filmClock = filmClock;

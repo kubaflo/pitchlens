@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { PopupHost, popupPosition } from "../../src/PitchLens.App/wwwroot/js/popups.mjs";
+import { PopupHost, popupPosition, popupHost, releasePopupHost } from "../../src/PitchLens.App/wwwroot/js/popups.mjs";
 
 function harness() {
     const windowHandlers = new Map(), documentHandlers = new Map(), tasks = [], observers = [];
@@ -28,15 +28,45 @@ function harness() {
     });
     const player = makeDialog("player-dialog"), roster = makeDialog("roster-dialog"), story = makeDialog("story-dialog"), analysis=makeDialog("analysis-dialog"),more=makeDialog("more-dialog");
     const view=makeDialog("view-dialog"),settings=makeDialog("settings-dialog"),fixture=makeDialog("fixture-dialog");
-    const all = [player, roster, story, analysis,more,view,settings,fixture];
+    const reading=makeDialog("reading-dialog");
+    const all = [player, roster, story, analysis,more,view,settings,fixture,reading];
     const doc = {
         activeElement: opener, getElementById: id => all.find(d => d.id === id),
         querySelector: () => all.find(d => d.open), querySelectorAll: () => all.filter(d => d.open),
         addEventListener: (key, fn) => documentHandlers.set(key, fn), removeEventListener: key => documentHandlers.delete(key)
     };
     const flush = () => { while (tasks.length) tasks.shift()(); };
-    return { win, doc, opener, player, roster, story, analysis,more,view,settings,fixture, observers, documentHandlers, windowHandlers, flush };
+    return { win, doc, opener, player, roster, story, analysis,more,view,settings,fixture,reading, observers, documentHandlers, windowHandlers, flush };
 }
+
+test("startup Text size and replay popups share one nonmodal host with Escape, outside, Close and focus return",async()=>{
+    const h=harness(),oldDoc=globalThis.document,oldWin=globalThis.window;
+    const listeners=[];const add=h.doc.addEventListener;
+    h.doc.addEventListener=(type,fn)=>{if(type==="click")listeners.push(fn);add(type,fn);};
+    globalThis.document=h.doc;globalThis.window=h.win;
+    try{
+        await import("../../src/PitchLens.App/wwwroot/js/app-interface.mjs");
+        const trigger={...h.opener,dataset:{openPopup:"reading-dialog"},closest(selector){return selector==="[data-open-popup]"||selector==="[data-open-popup='reading-dialog']"?this:null;}};
+        h.doc.activeElement=trigger;listeners[0]({target:trigger});
+        const shared=popupHost(h.doc,h.win);assert.equal(shared,popupHost(h.doc,h.win));
+        assert.equal(h.reading.open,true);assert.equal(h.reading.modal,0);assert.equal(h.reading.nonmodal,1);
+        const inside={parent:h.reading,closest:()=>null};h.documentHandlers.get("click")({target:inside});assert.equal(h.reading.open,true);
+        h.documentHandlers.get("click")({target:trigger});assert.equal(h.reading.open,true);
+        h.documentHandlers.get("keydown")({key:"Escape",preventDefault(){}});h.flush();
+        assert.equal(h.reading.open,false);assert.equal(trigger.focused,1);
+        shared.open("settings-dialog");h.doc.activeElement={closest:()=>h.settings};
+        shared.open("reading-dialog");h.flush();assert.equal(h.settings.open,false);assert.equal(h.reading.open,true);
+        shared.open("player-dialog");h.flush();assert.equal(h.reading.open,false);assert.equal(h.player.open,true);
+        shared.open("reading-dialog");h.flush();assert.equal(h.player.open,false);
+        shared.follow({x:500,y:300},{left:0,top:0,right:1000,bottom:700,height:700},40);
+        assert.equal(h.reading.style.transform,undefined,"text preferences never follow a player");
+        h.documentHandlers.get("click")({target:{closest:()=>null}});h.flush();assert.equal(h.reading.open,false);
+        shared.open("reading-dialog");
+        const close={closest:selector=>selector==="[data-close-popup]"?close:selector==="dialog"?h.reading:null};
+        h.documentHandlers.get("click")({target:close});h.flush();assert.equal(h.reading.open,false);
+        releasePopupHost(shared);assert.equal(h.documentHandlers.size,0);
+    }finally{globalThis.document=oldDoc;globalThis.window=oldWin;}
+});
 
 test("lens placement flips/clamps, prefers pitch space and avoids the selected shirt when possible", () => {
     for (const viewport of [{ width: 1280, height: 800 }, { width: 1024, height: 768 }, { width: 390, height: 700 }]) {

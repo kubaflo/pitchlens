@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
-const { initialize, loadScenario, setClock, diagnostics, dispose, openPopup, closePopup, setCaptionsEnabled, setEvidence, loadFilm, setFilmClock, setLens, setViewSettings } =
+const { initialize, loadScenario, setClock, diagnostics, dispose, openPopup, closePopup, setCaptionsEnabled, setEvidence, loadFilm, setFilmClock, setLens, setViewSettings, setReadingSize } =
     await import(process.env.PITCH_TEST_RENDERER || new URL("../../src/PitchLens.App/wwwroot/js/pitch.mjs", import.meta.url));
 import { at } from "../../src/PitchLens.App/wwwroot/js/replay.mjs";
 import { fitView, ARENA } from "../../src/PitchLens.App/wwwroot/js/viewport.mjs";
@@ -156,6 +156,11 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         for (const density of [2, 1, 2]) {
             window.devicePixelRatio = density;
             observation();
+            const beforeScale=layer.children.map(b=>({...b.style}));
+            for(const percent of [100,150,200,100]){
+                setReadingSize(percent);
+                assert.deepEqual(layer.children.map(b=>({...b.style})),beforeScale,`DPR${density}: reading size cannot move or resize shirt targets`);
+            }
             // Reproduce the screenshot's exact failure condition: density changes after the background was rasterized.
             if (!process.env.PITCH_TEST_STABLE_DPR) window.devicePixelRatio = density === 2 ? 1 : 2;
             for (const time of [0, 66.8, 120, 180, 240, 300]) {
@@ -257,6 +262,18 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         openPopup("player-dialog", "arsenal-saka");
         assert.equal(nextFrame, null, "opening while paused must not autoplay");
         const pausedTime = diagnostics().time;
+        const originalTargets=layer.children.map(b=>({...b.style}));
+        const beforeReading=diagnostics();const notificationsBeforeReading=native.length;
+        for(const percent of [100,125,150,175,200,100]){
+            setReadingSize(percent);
+            assert.equal(diagnostics().time,beforeReading.time);assert.equal(diagnostics().rate,beforeReading.rate);
+            assert.equal(nextFrame,null,"text sizing cannot start a paused RAF loop");
+            assert.deepEqual(layer.children.map(b=>({...b.style})),originalTargets,"text-only sizing preserves every player target and field transform");
+        }
+        const readsAfterChange=[canvasReads,cardReads,domQueries];
+        for(let i=0;i<5;i++)setReadingSize(100);
+        assert.deepEqual([canvasReads,cardReads,domQueries],readsAfterChange,"unchanged text preferences perform no work");
+        assert.equal(native.length,notificationsBeforeReading);assert.throws(()=>setReadingSize(201),/Invalid interface text/);
         wall += 10000;
         closePopup("player-dialog");
         assert.equal(diagnostics().time, pausedTime);
