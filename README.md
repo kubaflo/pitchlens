@@ -1600,6 +1600,13 @@ popup-led interactions, but all playback/statistics/generation use real app
 services rather than mock controllers. Body text is 18 px, controls at least
 16 px, page headings 40–48 px and scores 40–56 px where space permits.
 
+The newer [five simpler UI proposals](design/simple-ui/index.html) explore
+Essential, Companion, Cinema, Two views and Moments. Open the chooser directly
+in Safari; each local HTML mock supports scripted playback, a short explanation,
+an expandable three-agent handoff and preview-only 100–200% text sizing.
+No direction has been selected or applied to the app. These make no AI/network
+requests and do not change the running app or its saved preferences.
+
 Barlow Regular, Semibold and Bold are bundled locally under
 `src/PitchLens.App/wwwroot/fonts/` with their `OFL.txt`, reused from the approved
 mock's authoritative [Google Fonts source](https://github.com/google/fonts/tree/main/ofl/barlow).
