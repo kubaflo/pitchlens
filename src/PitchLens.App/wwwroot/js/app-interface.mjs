@@ -1,4 +1,7 @@
 import {popupHost} from "./popups.mjs";
+import {installInfoDisclosures} from "./info-disclosures.mjs";
+
+installInfoDisclosures(document);
 
 // Available before the replay canvas exists; pitch popups acquire this same one-stack host.
 document.addEventListener("click",event=>{

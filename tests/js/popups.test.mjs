@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { PopupHost, popupPosition, popupHost, releasePopupHost } from "../../src/PitchLens.App/wwwroot/js/popups.mjs";
 
 function harness() {
-    const windowHandlers = new Map(), documentHandlers = new Map(), tasks = [], observers = [];
+    const windowHandlers = new Map(), documentHandlers = new Map(), captureHandlers = new Map(), tasks = [], observers = [];
     const win = {
         innerWidth: 1280, innerHeight: 800,
         addEventListener: (key, fn) => windowHandlers.set(key, fn), removeEventListener: key => windowHandlers.delete(key),
@@ -21,6 +21,7 @@ function harness() {
         showModal() { this.open = true; this.modal++; }, show() { this.open = true; this.nonmodal++; },
         close() { this.open = false; tasks.push(() => this.handlers.get("close")?.()); },
         contains(target) { return target === this || target.parent === this; },
+        querySelectorAll: () => [],
         getBoundingClientRect() {
             const height = Math.min(this.height, parseFloat(this.style["--player-lens-height"] ?? "460"));
             return { left: 100, top: 100, right: 476, bottom: 100 + height, width: 376, height };
@@ -32,8 +33,9 @@ function harness() {
     const all = [player, roster, story, analysis,more,view,settings,fixture,reading];
     const doc = {
         activeElement: opener, getElementById: id => all.find(d => d.id === id),
-        querySelector: () => all.find(d => d.open), querySelectorAll: () => all.filter(d => d.open),
-        addEventListener: (key, fn) => documentHandlers.set(key, fn), removeEventListener: key => documentHandlers.delete(key)
+        querySelector: () => all.find(d => d.open), querySelectorAll: selector => selector?.includes("data-info-toggle") ? [] : all.filter(d => d.open),
+        addEventListener: (key, fn, capture) => (capture ? captureHandlers : documentHandlers).set(key, fn),
+        removeEventListener: (key, fn, capture) => (capture ? captureHandlers : documentHandlers).delete(key)
     };
     const flush = () => { while (tasks.length) tasks.shift()(); };
     return { win, doc, opener, player, roster, story, analysis,more,view,settings,fixture,reading, observers, documentHandlers, windowHandlers, flush };
@@ -42,12 +44,12 @@ function harness() {
 test("startup Text size and replay popups share one nonmodal host with Escape, outside, Close and focus return",async()=>{
     const h=harness(),oldDoc=globalThis.document,oldWin=globalThis.window;
     const listeners=[];const add=h.doc.addEventListener;
-    h.doc.addEventListener=(type,fn)=>{if(type==="click")listeners.push(fn);add(type,fn);};
+    h.doc.addEventListener=(type,fn,capture)=>{if(type==="click")listeners.push(fn);add(type,fn,capture);};
     globalThis.document=h.doc;globalThis.window=h.win;
     try{
         await import("../../src/PitchLens.App/wwwroot/js/app-interface.mjs");
         const trigger={...h.opener,dataset:{openPopup:"reading-dialog"},closest(selector){return selector==="[data-open-popup]"||selector==="[data-open-popup='reading-dialog']"?this:null;}};
-        h.doc.activeElement=trigger;listeners[0]({target:trigger});
+        h.doc.activeElement=trigger;for(const listener of [...listeners])listener({target:trigger});
         const shared=popupHost(h.doc,h.win);assert.equal(shared,popupHost(h.doc,h.win));
         assert.equal(h.reading.open,true);assert.equal(h.reading.modal,0);assert.equal(h.reading.nonmodal,1);
         const inside={parent:h.reading,closest:()=>null};h.documentHandlers.get("click")({target:inside});assert.equal(h.reading.open,true);

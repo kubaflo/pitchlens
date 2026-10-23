@@ -1,30 +1,26 @@
 <section class="agent-workflow" aria-label="Explanation research team">
-    <header><div><h3>How your explanation is made</h3><p>Three specialists work in order, sharing the same observed moment at @Report.Identity.Cutoff.ToString("0.0")s. No future events.</p></div></header>
+    <header><div class="section-with-info"><h3>How your explanation is made</h3><InfoDisclosure About="the explanation team">Three specialists work in order, sharing the same observed moment at @Report.Identity.Cutoff.ToString("0.0")s. No future events. AI review and structural checks are not a guarantee that every interpretation is true. Up to 3 responses / 12 read-only calls within 270s, plus bounded cleanup.</InfoDisclosure></div></header>
     <ol class="agent-steps">
         @foreach(var role in Enum.GetValues<ExplanationRole>())
         {
             var stage=Report.Stages.SingleOrDefault(s=>s.Role==role.ToString());
             var state=State(stage);
             <li class="agent-step @StateClass(stage)" aria-current="@(IsActive(stage)?"step":null)">
-                <div class="agent-step-top"><span class="agent-number">@((int)role+1)</span><strong>@Title(role)</strong></div>
-                <span class="agent-role">@RoleName(role)</span>
-                <p>@Description(role)</p>
+                <div class="agent-step-top"><span class="agent-number">@((int)role+1)</span><strong>@Title(role)</strong><InfoDisclosure About="@Title(role)">@RoleName(role). @Description(role)</InfoDisclosure></div>
                 <div class="agent-state"><span aria-hidden="true">@(state=="Complete"?"✓":stage is null?"○":Report.Failure is not null?"!":"…")</span> @state</div>
-                @if(stage is not null&&stage.Reads.Length>0){<small>@stage.Reads.Length evidence reads</small>}
-                else if(stage is not null&&role==ExplanationRole.AudienceEditor){<small>Writes from the analyst's findings · No tools</small>}
             </li>
         }
     </ol>
-    @if(Report.Approved){<p class="agent-result">All 3 steps completed · Review accepted this exact explanation.</p>}
+    @if(Report.Approved){<p class="agent-result">All 3 steps completed · Review accepted</p>}
     else if(Report.Failure is { } failure){<p class="agent-result agent-failed" role="status">Team stopped. No new answer was accepted. @failure</p>}
-    else{<p class="agent-result">Working through the steps. The final review has not approved an answer yet.</p>}
-    <p class="caption">AI review and structural checks are not a guarantee that every interpretation is true. Up to 3 responses / 12 read-only calls within 270s, plus bounded cleanup.</p>
     <details class="agent-technical">
         <summary>Technical details</summary>
         <small>Run @Report.Identity.RunId · @Report.Pipeline · Facts @Report.Identity.FactsHash</small>
         @foreach(var stage in Report.Stages)
         {
             <section><strong>@stage.Role</strong><p>@stage.Status · @stage.Model · Sessions @stage.SessionsCreated · Sends @stage.SdkSends · Responses @stage.Responses · Tool calls @stage.ToolCalls</p>
+                @if(stage.Reads.Length>0){<small>@stage.Reads.Length evidence reads</small>}
+                else if(stage.Role==nameof(ExplanationRole.AudienceEditor)){<small>Writes from the analyst's findings · No tools</small>}
                 <small>Input @stage.InputHash<br />Output @(stage.OutputHash??"Not validated yet")</small>
                 @foreach(var read in stage.Reads){<p>@read.Sequence · @read.Tool · @(read.EventId??"captured index") · Cutoff @read.Cutoff.ToString("0.0")s</p>}
             </section>

@@ -1,0 +1,9 @@
+<span class="info-disclosure">
+    <button type="button" class="info-button" data-info-toggle aria-label="@($"About {About}")" aria-expanded="false" aria-controls="@contentId"><span aria-hidden="true">i</span></button>
+    <span id="@contentId" class="info-content" hidden>@ChildContent</span>
+</span>
+@code {
+    [Parameter, EditorRequired] public string About { get; set; } = "";
+    [Parameter, EditorRequired] public RenderFragment ChildContent { get; set; } = null!;
+    private readonly string contentId = "info-" + Guid.NewGuid().ToString("N");
+}

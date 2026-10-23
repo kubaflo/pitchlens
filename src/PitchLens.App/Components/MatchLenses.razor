@@ -17,13 +17,13 @@
                 else
                 { <label>Player<select aria-label="Movement player" value="@SelectedId" @onchange="PlayerChanged">@foreach(var player in Match.Players){<option value="@player.Id">@player.Name</option>}</select></label> }
             }
-            <label class="my-match-select"><span>My match <small>Story focus</small></span><select aria-label="My match story focus" value="@FocusValue" @onchange="FocusChanged"><option value="all">All observed stories</option>
+            <InfoDisclosure About="My match story focus">Story focus keeps every observed goal. Score and subtitles stay unchanged. This is a local story filter, separate from your next AI explanation request.</InfoDisclosure>
+            <label class="my-match-select"><span>My match</span><select aria-label="My match story focus" value="@FocusValue" @onchange="FocusChanged"><option value="all">All observed stories</option>
                 <optgroup label="Favorite club">@foreach(var club in Match.Teams){<option value="@("club:"+club.Id)">@club.Name</option>}</optgroup>
                 <optgroup label="Favorite player">@foreach(var player in Match.Players){<option value="@("player:"+player.Id)">@player.Name</option>}</optgroup>
             </select></label>
         </div>
         @if(FavoriteNotice is not null){<p class="lens-notice" role="status">@FavoriteNotice</p>}
-        @if(Focus.Kind!=StoryFocusKind.All){<p class="lens-notice">Story focus keeps every observed goal. Score and subtitles stay unchanged.</p>}
         @if(!FilmActive&&View is { } lens)
         {
             <details class="lens-summary"><summary>Overlay details · @(lens.Mode=="connections"?"Connections":"Movement")</summary><div class="lens-metrics">

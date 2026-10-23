@@ -86,6 +86,7 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         showModal() { this.open = true; this.modalOpens++; }, show() { this.open = true; this.nonmodalOpens++; },
         close() { this.open = false; this.handlers.get("close")?.(); },
         contains(target) { return target === this; },
+        querySelectorAll: () => [],
         getBoundingClientRect() {
             cardReads++;
             return { left: 100, top: 100, width: 376, height: Math.min(460, parseFloat(this.style["--player-lens-height"] ?? "460")) };
@@ -98,7 +99,7 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         hidden: false, activeElement: canvas, fonts,
         getElementById: id => {domQueries++;return dialogs.find(d => d.id === id) ?? goalNodes[id] ?? (id === "pitch-players" ? layer : id === "commentary-caption" ? caption : null);},
         querySelector: selector => dialogs.find(d => d.open && (!selector.includes("aria-modal") || d.attributes["aria-modal"] === "true")),
-        querySelectorAll: () => dialogs.filter(d => d.open),
+        querySelectorAll: selector => selector?.includes("data-info-toggle") ? [] : dialogs.filter(d => d.open),
         addEventListener: (name, fn) => documentHandlers.set(name, fn), removeEventListener: name => documentHandlers.delete(name),
         createElement: tag => tag === "button" ? new Button() : ({ width: 0, height: 0, getContext: () => background })
     };
@@ -589,17 +590,21 @@ test("production renderer aligns22 accessible player buttons with shirts and dis
         setViewSettings(JSON.stringify({...viewBase,style:5,smartDetail:true}));
         setClock(JSON.stringify({revision:7,sequence:++sequence,time:45,playing:false,rate:3,selectedId:"arsenal-saka",highlightsEnabled:true}));
         assert.equal(diagnostics().cameraOwner,"goal");
+        assert.match(goalNodes["view-camera-status"].textContent,/Goal highlight owns the camera/);
         const goalView=diagnostics().viewport.view;
         setViewSettings(JSON.stringify({...viewBase,style:5,smartDetail:true,markerScale:1.5}));
         assert.deepEqual(diagnostics().viewport.view,goalView,"user zoom cannot fight the goal camera");
         assert.equal(goalNodes["view-detail-camera"].disabled,true);
         setClock(JSON.stringify({revision:7,sequence:++sequence,time:60,playing:false,rate:3,selectedId:"arsenal-saka",highlightsEnabled:false}));
         assert.equal(diagnostics().cameraOwner,"user");assert.equal(goalNodes["view-detail-camera"].disabled,false);
+        assert.equal(goalNodes["view-camera-status"].textContent,"","optional camera guidance is not persistent status");
         setEvidence(7,JSON.stringify({id:"pin",start:59,time:60,ball:[{time:59,x:50,y:34},{time:60,x:52,y:34}]}));
         assert.equal(diagnostics().cameraOwner,"pinned");assert.deepEqual(diagnostics().viewport.view,ARENA);
+        assert.match(goalNodes["view-camera-status"].textContent,/Pinned evidence owns the camera/);
         setViewSettings(JSON.stringify({...viewBase,style:1}));assert.deepEqual(diagnostics().viewport.view,ARENA);
         loadFilm(JSON.stringify({...edit,revision:7}));setFilmClock(10,false,++sequence,7);
         assert.equal(diagnostics().cameraOwner,"film");
+        assert.match(goalNodes["view-camera-status"].textContent,/Director's Cut owns the camera/);
         assert.equal(diagnostics().renderTime,49);
         setViewSettings(JSON.stringify({...viewBase,style:5,smartDetail:true}));assert.equal(diagnostics().renderTime,49);
         assert.equal(diagnostics().cameraOwner,"film");

@@ -34,7 +34,8 @@
                 <div class="team away"><strong>@match.Teams[1].Name</strong><img src="@Crest(match.Teams[1].Id)" alt="" /></div>
             </section>
             <nav class="match-actions" aria-label="Match actions">
-                <button id="explain-button" class="button purple" disabled="@(!Session.CanExplainCurrent)" title="@(Session.Mode==SessionMode.Test?"Matching recorded goal analysis after86s. No AI call.":Session.Explainer.UsesTeam?"Uses Copilot usage: 3 specialist sessions, up to 3 responses and 12 reads within 270s.":"Uses Copilot usage. Explains the current observed moment.")" aria-label="@(Session.Mode==SessionMode.Test?"Recorded analysis. No AI call.":Session.Explainer.UsesTeam?"Explain this moment with 3 agents. Uses Copilot usage, up to 3 responses.":"Explain this moment. Uses Copilot usage.")" @onclick="OpenMoment">@(Session.Mode==SessionMode.Test?"Recorded analysis":Session.Explainer.UsesTeam?"Explain this moment · 3 agents":"Explain this moment")</button>
+                <div><button id="explain-button" class="button purple" disabled="@(!Session.CanExplainCurrent)" title="@(Session.Mode==SessionMode.Test?"Matching recorded goal analysis after86s. No AI call.":Session.Explainer.UsesTeam?"Uses Copilot usage: 3 specialist sessions, up to 3 responses and 12 reads within 270s.":"Uses Copilot usage. Explains the current observed moment.")" aria-label="@(Session.Mode==SessionMode.Test?"Recorded analysis. No AI call.":Session.Explainer.UsesTeam?"Explain this moment with 3 agents. Uses Copilot usage, up to 3 responses.":"Explain this moment. Uses Copilot usage.")" @onclick="OpenMoment">@(Session.Mode==SessionMode.Test?"Recorded analysis":Session.Explainer.UsesTeam?"Explain this moment · 3 agents":"Explain this moment")</button>
+                    <small class="explain-usage">@(Session.Mode==SessionMode.Test?"No AI calls · Matching goal after 86s":Session.Explainer.UsesTeam?"Uses Copilot usage · Up to 3 responses":"Uses Copilot usage · 1 response")</small></div>
                 <button id="analysis-button" class="button analysis-button" disabled="@Session.FilmActive" aria-controls="analysis-dialog" @onclick='() => Open("analysis-dialog")'>
                     <span>Analysis</span>
                     @if(lensOptions.Mode!=PitchLensMode.Off)
@@ -65,7 +66,7 @@
                 <div id="commentary-caption" class="commentary-caption" hidden aria-label="AI commentator subtitles" aria-live="off"></div>
                 <div class="film-heading" hidden="@(!Session.FilmActive)"><span>DIRECTOR'S CUT · SYNTHETIC IN-APP FILM · @(Session.Director.Current?.Fresh == true ? Session.Director.Current.Cached ? "CACHED SDK EDIT" : "FRESH SDK EDIT" : "RECORDED SDK / NOT FRESH")</span><strong id="film-position"></strong><p id="film-insight" hidden></p></div>
             </div>
-            <div class="pitch-caption"><span>@(Session.FilmActive ? "Film view · Return to the paused match for player lenses." : "Click a shirt. Get the player lens.")</span><span>@(storyFocus.Kind!=StoryFocusKind.All?$"My match · {focusedHeading??"No observed story for this focus yet."}":match.Narrative is null ? frame.Explanations.LastOrDefault()?.Text ?? "Play to reveal the story." : frame.Story.LastOrDefault()?.Heading ?? "The story unfolds as you watch.")</span></div>
+            <div class="pitch-caption"><InfoDisclosure About="pitch controls">@(Session.FilmActive ? "Film view · Return to the paused match for player lenses." : "Click a shirt to open its player lens, or use More → Players for keyboard selection.")</InfoDisclosure><span>@(storyFocus.Kind!=StoryFocusKind.All?$"My match · {focusedHeading??"No observed story for this focus yet."}":match.Narrative is null ? frame.Explanations.LastOrDefault()?.Text ?? "Play to reveal the story." : frame.Story.LastOrDefault()?.Heading ?? "The story unfolds as you watch.")</span></div>
         </main>
         <GuidedDemoControls Step="Session.GuidedDemoStep" Navigate="TourStep" Exit="ExitTour" />
         @if (Session.FilmFrame is { } filmFrame)
@@ -101,13 +102,13 @@
         <dialog id="more-dialog" class="more-dialog" aria-modal="false" aria-labelledby="more-title">
             <header class="dialog-head"><h2 id="more-title">More</h2><button class="close" data-close-popup aria-label="Close more actions">Close</button></header>
             <div class="more-actions">
-                <button id="view-button" aria-controls="view-dialog" @onclick='() => Open("view-dialog")'><strong>Camera &amp; player appearance</strong><small>Change zoom, portraits, marker size and shirt numbers</small></button>
-                <button id="insight-preferences-button" aria-controls="moment-dialog" @onclick='() => Open("moment-dialog")'><strong>Insight preferences</strong><small>Choose a task and focus before your next explicit explanation request</small></button>
-                <button id="guided-demo-button" disabled="@(!Session.CanStartGuidedDemo)" @onclick="StartTour"><strong>Guided demo · No AI calls</strong><small>Recorded pitch, explanation, evidence and film · Requires the matching Test recording; current Live game is kept</small></button>
-                <button id="players-button" disabled="@Session.FilmActive" @onclick='() => Open("roster-dialog")'><strong>Players</strong><small>Choose a shirt and open its player lens</small></button>
-                <button id="story-button" disabled="@Session.FilmActive" @onclick='() => Open("story-dialog")'><strong>Match story</strong><small>Observed Fan / Analyst chapters</small></button>
+                <button id="view-button" aria-controls="view-dialog" @onclick='() => Open("view-dialog")'><strong>Camera &amp; player appearance</strong></button>
+                <button id="insight-preferences-button" aria-controls="moment-dialog" @onclick='() => Open("moment-dialog")'><strong>Insight preferences</strong></button>
+                <button id="guided-demo-button" disabled="@(!Session.CanStartGuidedDemo)" @onclick="StartTour"><strong>Guided demo · No AI calls</strong>@if(!Session.CanStartGuidedDemo){<small>Requires matching Test recording</small>}</button>
+                <button id="players-button" disabled="@Session.FilmActive" @onclick='() => Open("roster-dialog")'><strong>Players</strong>@if(Session.FilmActive){<small>Return to paused match first</small>}</button>
+                <button id="story-button" disabled="@Session.FilmActive" @onclick='() => Open("story-dialog")'><strong>Match story</strong>@if(Session.FilmActive){<small>Return to paused match first</small>}</button>
                 <button id="director-button" disabled="@(Session.Mode!=SessionMode.Live||!Session.CanDirect)" aria-label="Director's Cut. Uses Copilot usage." title="Uses Copilot usage. Test mode has a recorded preview in Settings." @onclick="OpenDirector"><strong>Director's Cut</strong><small>@(Session.Mode==SessionMode.Test?"Live only · Recorded preview in Settings":"Uses Copilot usage · Create an in-app film")</small></button>
-                <button id="settings-button" @onclick='() => Open("settings-dialog")'><strong>Settings &amp; source</strong><small>Playback options, Test / Live mode and provenance</small></button>
+                <button id="settings-button" @onclick='() => Open("settings-dialog")'><strong>Settings &amp; source</strong></button>
             </div>
         </dialog>
         <dialog id="player-dialog" class="player-dialog" aria-modal="false" aria-labelledby="player-title">
@@ -121,7 +122,7 @@
                     <div><dt>Goals</dt><dd>@stats.Goals</dd></div>
                 </dl>
                 <details><summary>More player facts</summary><p>Shots: @stats.Shots · Max speed: @stats.MaxSpeed.ToString("F2") m/s</p></details>
-                <p class="caption">Player facts at the replay time. Real roster name; invented match actions.</p>
+                <InfoDisclosure About="player facts">Player facts at the replay time. Real roster name; invented match actions.</InfoDisclosure>
             </div>
         </dialog>
         <dialog id="roster-dialog" aria-modal="false" aria-labelledby="roster-title">
@@ -150,8 +151,9 @@
             </div>
         </dialog>
         <dialog id="moment-dialog" class="moment-dialog" aria-labelledby="moment-title">
-            <header class="dialog-head"><div><span class="eyebrow">PitchLens / Evidence studio</span><h2 id="moment-title">Explain this moment</h2><span class="caption">Synthetic football · AI interpretation, not verified causal truth</span></div><button class="close" data-close-popup>Close</button></header>
+            <header class="dialog-head"><h2 id="moment-title">Explain this moment</h2><button class="close" data-close-popup>Close</button></header>
             <div class="dialog-body studio-body">
+                <InfoDisclosure About="moment explanations">Synthetic football · AI interpretation, not verified causal truth.</InfoDisclosure>
                 <GuidedDemoControls Step="Session.GuidedDemoStep" Context="moment" Navigate="TourStep" Exit="ExitTour" />
                 <details class="insight-preferences"><summary>Insight task &amp; focus · Configure before requesting</summary>
                     <label for="insight-task">Task</label><select id="insight-task" value="@((int)Session.InsightPreferences.Task)" disabled="@(Session.Mode!=SessionMode.Live||Session.Explainer.Busy)" @onchange="InsightTaskChanged"><option value="0">Why this matters</option><option value="1">Explain the build-up</option><option value="2">Player contribution · Selects current player</option></select>
@@ -159,7 +161,7 @@
                         <option value="all">Both clubs</option>@foreach(var club in match.Teams){<option value="@($"club:{club.Id}")">@club.Name</option>}
                         @foreach(var person in match.Players){<option value="@($"player:{person.Id}")">@person.Name</option>}
                     </select>
-                    <p class="caption">These choices condition the next AI request, not just a local filter. Both clubs' observed events and score remain available. Player contribution selects the current player; you can choose another player focus.</p>
+                    <InfoDisclosure About="insight task and focus">These choices condition the next AI request, not just a local filter. Both clubs' observed events and score remain available. Player contribution selects the current player; you can choose another player focus.</InfoDisclosure>
                     @if(Session.Mode==SessionMode.Test){<p class="caption">Test uses the recorded default briefing, not a tailored answer. No AI calls.</p>}
                     @if(insightError is not null){<p class="error" role="alert">@insightError</p>}
                     @if(Session.InsightPreferenceNotice is { } preferenceNotice){<p role="status">@preferenceNotice</p>}
@@ -177,7 +179,7 @@
                 @if (Session.MomentIntentNotice is { } intentNotice) { <p role="status">@intentNotice</p> }
                 @if (Session.Explainer.VisibleAt(frame.Revision, snapshot.Time) is { } explained)
                 {
-                    <MomentStudio Result="explained" Pending="Session.Explainer.Busy" Earlier="@(Session.Explainer.Activity.Snapshot.Stage is RequestStage.Failed or RequestStage.Cancelled || explained.Evidence.Hash != Session.ExplanationSnapshot?.Hash)" Inspect="id => InspectEvidence(explained.Evidence, id)" />
+                    <MomentStudio @key="explained.Evidence.Hash" Result="explained" Pending="Session.Explainer.Busy" Earlier="@(Session.Explainer.Activity.Snapshot.Stage is RequestStage.Failed or RequestStage.Cancelled || explained.Evidence.Hash != Session.ExplanationSnapshot?.Hash)" Inspect="id => InspectEvidence(explained.Evidence, id)" />
                 }
                 else if (Session.Explainer.Current is { } hiddenExplanation)
                 { <p class="caption">Saved analysis is hidden before its captured cutoff of @hiddenExplanation.Evidence.Cutoff.ToString("0.0")s. Seek forward to that time to view it again.</p> }
@@ -202,7 +204,7 @@
                 }
                 @if (Session.Mode==SessionMode.Live && !Session.Director.Busy && Session.Director.Activity.Snapshot.Stage is RequestStage.Failed or RequestStage.Cancelled)
                 { <button class="button" @onclick="RetryDirector" title="Uses Copilot usage">Retry editorial request</button> }
-                <p class="caption">Not MP4, audio or real video. Actual synthetic match positions; AI selects clips and explains observed evidence. Main match remains paused and unchanged. Exit returns to its saved position/speed/selection.</p>
+                <InfoDisclosure About="Director's Cut">Not MP4, audio or real video. Actual synthetic match positions; AI selects clips and explains observed evidence. Main match remains paused and unchanged. Exit returns to its saved position/speed/selection.</InfoDisclosure>
             </div>
         </dialog>
         <dialog id="generation-dialog" aria-labelledby="generation-title">
@@ -210,14 +212,13 @@
             <div class="dialog-body">
                 <RequestActivityView Activity="Session.GenerationActivity" Title="Sol · Creating your match" Budget="15-minute total budget · Paths, optional correction, commentary" Cancel="Session.Cancel" />
                 <p>@(Session.RequestedFixture is { } fixture?$"{fixture.Home.Name} v {fixture.Away.Name}":"Selected Premier League clubs") · Five minutes (300 seconds) · Synthetic 11v11. All 22 player paths and events authored by AI.</p>
-                <p>Only GPT-6.1 Sol (@CopilotScenarioSource.Model), using normal local Copilot login. Paths/events, at most one shared AI correction for measured shape/speed/velocity defects OR unsupported phase labels, then grounded subtitles: at most three model responses, bounded to fifteen minutes. Path correction keeps events and phases immutable; phase correction cannot change events or paths. May consume usage. No model fallback.</p>
+                <InfoDisclosure About="match generation">Only GPT-6.1 Sol (@CopilotScenarioSource.Model), using normal local Copilot login. Paths/events, at most one shared AI correction for measured shape/speed/velocity defects OR unsupported phase labels, then grounded subtitles: at most three model responses, bounded to fifteen minutes. Path correction keeps events and phases immutable; phase correction cannot change events or paths. No model fallback. Closing this popup does not cancel creation; use Cancel. Invalid output or cancellation keeps the last valid match.</InfoDisclosure>
                 <div class="actions"><button class="button purple" @onclick="Generate" disabled="@(Session.Mode!=SessionMode.Live||Session.Generating || Session.CheckingConnection || Session.Explainer.Busy)">Choose teams for a new match</button>@if (Session.Generating) { <button class="button" @onclick="Session.Cancel">Cancel creation</button> }</div>
                 <p id="generation-status" role="@(Session.RequestState == GenerationState.Failed && !Session.RecordedDemoAfterGenerationIssue ? "alert" : "status")">@Session.Status</p>
                 @if(Session.PriorGenerationIssue is { } priorIssue)
                 {
                     <details id="earlier-generation-issue"><summary>Earlier generation @(priorIssue.State==GenerationState.Cancelled?"cancelled":"failed") · Recorded demo was explicitly selected</summary><p>@priorIssue.Message</p><p class="caption">Elapsed @TimeSpan.FromSeconds(priorIssue.ElapsedSeconds).ToString(@"m\:ss"). This is a prior request outcome, not the current match's source or an active request.</p></details>
                 }
-                <p class="caption">Closing this popup does not cancel creation. Cancel is also available in the main brand bar. Invalid output or cancellation keeps the last valid match.</p>
             </div>
         </dialog>
         <dialog id="fixture-dialog" class="fixture-dialog" aria-modal="false" aria-labelledby="fixture-picker-title">
@@ -225,29 +226,26 @@
             <div class="dialog-body"><FixturePicker Value="Session.FixtureChoice" Busy="Session.Generating" Error="@fixtureError" Changed="SetFixtureChoice" Create="CreateFixture" Cancel="CancelFixture" /></div>
         </dialog>
         <dialog id="settings-dialog" aria-labelledby="settings-title">
-            <header class="dialog-head"><div><h2 id="settings-title">Replay settings</h2><span class="caption">Camera, playback and source</span></div><button class="close" data-close-popup>Close</button></header>
+            <header class="dialog-head"><h2 id="settings-title">Replay settings</h2><button class="close" data-close-popup>Close</button></header>
             <div class="dialog-body">
-                <section class="camera-entry"><h3>Camera &amp; player appearance</h3><p>Change zoom, portraits, marker size and shirt numbers.</p><button id="settings-camera-button" class="button purple" aria-controls="view-dialog" @onclick='() => Open("view-dialog")'>Open camera &amp; player appearance</button></section>
-                <section><h3>Reading size</h3><p>Make interface text and subtitles easier to read.</p><button class="button" data-open-popup="reading-dialog" aria-controls="reading-dialog">Text size · @Session.Reading.Percent%</button></section>
-                <section><h3>Guided demo · No AI calls</h3><p>Recorded pitch, Fan / Analyst explanation, canonical evidence and 58-second film. Requires Test mode with the matching recording. Never replaces a current Live game.</p><button id="settings-guided-demo" class="button" disabled="@(!Session.CanStartGuidedDemo)" @onclick="StartTour">Start recorded guided demo</button></section>
+                <section class="camera-entry"><button id="settings-camera-button" class="button purple" aria-controls="view-dialog" @onclick='() => Open("view-dialog")'>Camera &amp; player appearance</button></section>
+                <section><button class="button" data-open-popup="reading-dialog" aria-controls="reading-dialog">Text size · @Session.Reading.Percent%</button></section>
+                <section><div class="section-with-info"><h3>Guided demo · No AI calls</h3><InfoDisclosure About="the guided demo">Recorded pitch, Fan / Analyst explanation, canonical evidence and 58-second film. Requires Test mode with the matching recording. Never replaces a current Live game.</InfoDisclosure></div>@if(!Session.CanStartGuidedDemo){<p class="caption">Requires matching Test recording</p>}<button id="settings-guided-demo" class="button" disabled="@(!Session.CanStartGuidedDemo)" @onclick="StartTour">Start recorded guided demo</button></section>
                 <RequestActivityView Activity="Session.ConnectionActivity" Title="SDK connection check · No AI request" Budget="45-second check · No generation or model usage" Cancel="Session.CancelConnection" />
-                <section><h3>@Session.Mode mode</h3><p>Test blocks all SDK requests. Switching modes preserves your current game; generating a new Live match is an explicit separate action. Exit the guided demo before changing modes.</p><div class="actions"><button class="button" disabled="@(Session.GuidedDemoActive||Session.Generating||Session.Explainer.Busy||Session.Director.Busy||Session.CheckingConnection)" @onclick="UseTest">Use Test mode · No AI calls</button><button class="button" disabled="@(Session.GuidedDemoActive||Session.Generating||Session.Explainer.Busy||Session.Director.Busy||Session.CheckingConnection)" @onclick="UseLive">Use Live mode · Keep current match</button></div></section>
-                <section id="scenario-provenance"><h3>@(view!.Origin == ScenarioOrigin.DeterministicDemo ? "Authored five-minute demo" : view.Fresh ? "New SDK-generated match" : "Recorded SDK example")</h3><p>Source model: @(view.Model ?? "None — authored locally"). @(view.Fresh ? "Generated in this session." : "Not a fresh request.")</p><p>All actions are synthetic. Real 2026/27 roster names; no real match result or athlete performance claim.</p></section>
+                <section><div class="section-with-info"><h3>@Session.Mode mode</h3><InfoDisclosure About="Test and Live modes">Test blocks all SDK requests. Switching modes preserves your current game; generating a new Live match is an explicit separate action.</InfoDisclosure></div>@if(Session.GuidedDemoActive){<p class="caption">Exit the guided demo before changing modes.</p>}else if(Session.Generating||Session.Explainer.Busy||Session.Director.Busy||Session.CheckingConnection){<p class="caption">Cancel or finish the active request before changing modes.</p>}<div class="actions"><button class="button" disabled="@(Session.GuidedDemoActive||Session.Generating||Session.Explainer.Busy||Session.Director.Busy||Session.CheckingConnection)" @onclick="UseTest">Use Test mode · No AI calls</button><button class="button" disabled="@(Session.GuidedDemoActive||Session.Generating||Session.Explainer.Busy||Session.Director.Busy||Session.CheckingConnection)" @onclick="UseLive">Use Live mode · Keep current match</button></div></section>
+                <section id="scenario-provenance"><div class="section-with-info"><h3>@(view!.Origin == ScenarioOrigin.DeterministicDemo ? "Authored five-minute demo" : view.Fresh ? "New SDK-generated match" : "Recorded SDK example")</h3><InfoDisclosure About="match source">Source model: @(view.Model ?? "None — authored locally"). Real 2026/27 roster names; no real match result or athlete performance claim. All 22 explicit player trajectories and events are authored; the viewer interpolates those knots. Ball motion follows validated possession and events, not a procedural support-path or formation solver. Illustrative 11v11 selection, not an actual starting XI.</InfoDisclosure></div><span class="caption">Synthetic · @(view.Fresh ? "Fresh" : "Not fresh")</span></section>
                 <details><summary>Official player photos · Offline</summary><p>@PlayerPortraitCatalog.Entries.Count(p=>p.ImagePath is not null) verified portraits for @PlayerPortraitCatalog.Entries.Count selected identities. Missing or failed images show a shirt-number fallback. Premier League/rightsholder images used with user-confirmed permission for this non-commercial project; no endorsement or open-source image license is claimed. Portraits do not describe real match performance.</p></details>
-                <p>@(match.Commentary is { } commentary ? $"AI commentator subtitles: {commentary.Model}, {commentary.Cues.Count} timed cues for this match. {(view.Fresh ? "Generated with this match." : "Recorded generation, not a fresh request.")} {(match.Narrative is null ? "Historical story facts are scripted." : $"AI story: {match.Narrative.Chapters.Count} evidence-bound Fan/Analyst chapters from the same response.")}" : "AI narration unavailable; historical event facts are scripted.")</p>
+                <div class="section-with-info"><h3>Subtitles &amp; story</h3><InfoDisclosure About="subtitles and story">@(match.Commentary is { } commentary ? $"AI commentator subtitles: {commentary.Model}, {commentary.Cues.Count} timed cues for this match. {(view.Fresh ? "Generated with this match." : "Recorded generation, not a fresh request.")} {(match.Narrative is null ? "Historical story facts are scripted." : $"AI story: {match.Narrative.Chapters.Count} evidence-bound Fan/Analyst chapters from the same response.")}" : "AI narration unavailable; historical event facts are scripted.")</InfoDisclosure></div>
+                @if(match.Commentary is null){<p class="caption">AI narration unavailable</p>}
                 @if(match.Commentary is { Contract:2 } denseTrack)
                 {
                     var coverage=CaptionSchedule.Measure(denseTrack.Cues.Select(c=>new CaptionSlot(c.EventId,c.Start,c.End)),match.Duration);
-                    <p class="caption">Dense caption contract 2 · @coverage.Seconds.ToString("0.#")s / @coverage.Fraction.ToString("P1") covered · Maximum observed interior gap @coverage.MaximumInteriorGap.ToString("0.#")s. @(coverage.MaximumInteriorGap>4?"Sparse source events leave an unavoidable gap above 4s; no stale filler is shown.":"Every interior gap is at most 4s.")</p>
-                }
-                @if (match.Players.Count == 22)
-                {
-                    <p>All 22 explicit player trajectories and events were authored by Sol. The viewer only interpolates those knots; ball motion follows validated possession and events. No procedural support-path or formation solver. Illustrative 11v11 selection, not an actual starting XI.</p>
+                    <InfoDisclosure About="subtitle coverage">Dense caption contract 2 · @coverage.Seconds.ToString("0.#")s / @coverage.Fraction.ToString("P1") covered · Maximum observed interior gap @coverage.MaximumInteriorGap.ToString("0.#")s. No stale filler is shown.</InfoDisclosure>
+                    @if(coverage.MaximumInteriorGap>4){<p class="caption">Sparse events leave subtitle gaps above 4s.</p>}
                 }
                 <div class="actions"><button class="button" @onclick="() => Seek(-5)">−5 seconds</button><button class="button" @onclick="() => Seek(5)">+5 seconds</button></div>
-                <button class="button" aria-pressed="@(frame.HighlightsEnabled ? "true" : "false")" @onclick="ToggleGoalReplays">Goal highlights: @(frame.HighlightsEnabled ? "On" : "Off")</button>
-                <p class="caption">Highlights use a contextual 2D camera and readable 1x buildup/finish/replay pace, then restore your selected speed at kickoff. The native clock owns both rates. Reduced motion keeps the tactical camera and suppresses extra effects.</p>
-                <p>Space plays or pauses; Left/Right seek one second outside form controls. Player lens and roster preserve playback. Story, settings and creation pause replay.</p>
+                <div class="section-with-info"><button class="button" aria-pressed="@(frame.HighlightsEnabled ? "true" : "false")" @onclick="ToggleGoalReplays">Goal highlights: @(frame.HighlightsEnabled ? "On" : "Off")</button><InfoDisclosure About="goal highlights">Highlights use a contextual 2D camera and readable 1x buildup/finish/replay pace, then restore your selected speed at kickoff. The native clock owns both rates. Reduced motion keeps the tactical camera and suppresses extra effects.</InfoDisclosure></div>
+                <div class="section-with-info"><span class="caption">Replay controls</span><InfoDisclosure About="replay controls">Space plays or pauses; Left/Right seek one second outside form controls. Player lens and roster preserve playback. Story, settings and creation pause replay.</InfoDisclosure></div>
                 <details><summary>Recorded Director's Cut demo · No AI call</summary><p>A real Sol-authored58second edit of the startup recording. Requires that matching scene observed through300s (seek to the end to preview). Clearly labelled Recorded SDK / Not fresh; the main Director action still requests a new edit.</p><button class="button" disabled="@(Session.Director.Busy || Session.Explainer.Busy || Session.Generating || Session.CheckingConnection || Session.FilmActive || !DirectorRecording.Available(match, frame.Revision, snapshot.Time))" @onclick="PreviewDirector">Watch recorded film · No AI call</button></details>
                 <details><summary>Advanced generation setup</summary><p>New requests use @CopilotScenarioSource.Model. Normal Copilot login and model access are required.</p><label for="cli">Compatible runtime override</label><input id="cli" placeholder="Bundled runtime (leave blank)" @bind="Session.CliOverride" disabled="@(Session.Mode!=SessionMode.Live||Session.Generating || Session.CheckingConnection || Session.Explainer.Busy)" /><button class="button" @onclick="Session.CheckConnectionAsync" disabled="@(Session.Mode!=SessionMode.Live||Session.Generating || Session.CheckingConnection || Session.Explainer.Busy)">Check SDK connection (no generation)</button><p role="status">@Session.ConnectionStatus</p></details>
             </div>
@@ -262,7 +260,7 @@ else
             <div class="setup-card">
             @if(Session.Mode==SessionMode.Unchosen)
             {
-                <h1>Your matchday starts here</h1><p class="setup-description">Play a recorded match, take the guided tour, or choose teams for a new AI match.</p>
+                <div class="section-with-info"><h1>Your matchday starts here</h1><InfoDisclosure About="starting a match">Play a recorded match, take the guided tour, or choose teams for a new AI match. No request starts until Create match.</InfoDisclosure></div><span class="caption">Synthetic football</span>
                 <div class="setup-mode-actions"><button id="first-live-choice" class="button purple" title="Choose teams first. No AI request until Create match." @onclick="StartLive">Choose teams · AI match</button><button class="button" @onclick="StartTest">Test mode · Instant · No AI calls</button><button id="first-guided-demo" class="text-button" @onclick="StartTour">Guided demo · No AI calls · Starts Test mode</button></div>
             }
             else if(Session.Generating)
@@ -275,7 +273,7 @@ else
             {
                 @if(Session.Mode==SessionMode.Live&&Session.FixturePickerOpen)
                 {<FixturePicker Value="Session.FixtureChoice" Startup="true" Error="@fixtureError" Changed="SetFixtureChoice" Create="CreateFixture" Cancel="CancelFixture" />}
-                else{<h1>Choose your teams</h1><p class="setup-description">Choose your clubs before creating a five-minute AI match.</p><button id="choose-startup-teams" class="button purple" @onclick="Generate">Choose teams</button>}
+                else{<h1>Choose your teams</h1><button id="choose-startup-teams" class="button purple" @onclick="Generate">Choose teams</button>}
                 @if(Session.RequestState==GenerationState.Failed){<p class="error" role="alert">@Session.Status</p>}
                 else if(Session.RequestState==GenerationState.Cancelled){<p class="caption" role="status">@Session.Status</p>}
                 <button id="startup-test-demo" class="text-button setup-demo" @onclick="StartTest">Try recorded demo · No AI calls</button>

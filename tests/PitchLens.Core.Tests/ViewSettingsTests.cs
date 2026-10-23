@@ -131,9 +131,10 @@ namespace PitchLens.Core.Tests
             var root=await renderer.Dispatcher.InvokeAsync(()=>renderer.RenderComponentAsync<Components.AgentCollaboration>(
                 ParameterView.FromDictionary(new Dictionary<string,object?>{{"Report",report}})));
             var html=System.Net.WebUtility.HtmlDecode(await renderer.Dispatcher.InvokeAsync(root.ToHtmlString));
-            var technical=html.IndexOf("<details",StringComparison.Ordinal);var visible=html[..technical];
+            var visible=InfoDisclosureTests.VisibleText(html);
             Assert.Contains("Find the evidence",visible);Assert.Contains("Write the explanation",visible);Assert.Contains("Check the evidence",visible);
-            Assert.Contains("Receives the inspected findings",visible);Assert.Contains("independently reads every claim",visible);
+            Assert.DoesNotContain("Receives the inspected findings",visible);Assert.DoesNotContain("independently reads every claim",visible);
+            Assert.Contains("Receives the inspected findings",html);Assert.Contains("independently reads every claim",html);
             Assert.DoesNotContain(approved.Identity.RunId,visible);Assert.DoesNotContain(approved.Identity.FactsHash,visible);
             Assert.DoesNotContain("gpt-6.1-sol",visible);Assert.DoesNotContain("<details open",html);Assert.Contains("Technical details",html);
             Assert.Equal(state=="approved",visible.Contains("All 3 steps completed"));

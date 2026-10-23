@@ -3,14 +3,14 @@
 <div class="studio-provenance"><span class="source-pill">@(Result.Fresh ? Result.Cached ? "Cached Sol / Exact snapshot" : "Fresh Sol" : "Recorded Sol / Not fresh")</span><span>Captured @facts.Cutoff.ToString("0.0")s · Synthetic football</span>@if (Pending || Earlier) { <strong>@(Pending ? "Earlier answer — a new request is running" : "Earlier answer — latest request did not replace it")</strong> }</div>
 @if(Result.Collaboration is { } team)
 {
-    @if(Result.Cached){<p class="caption">Collaboration below is the original approved run. This exact-cache lookup made no new agent calls.</p>}
+    @if(Result.Cached){<InfoDisclosure About="cached collaboration">Collaboration below is the original approved run. This exact-cache lookup made no new agent calls.</InfoDisclosure>}
     @if(Pending||Earlier){<details><summary>Earlier answer's research team</summary><AgentCollaboration Report="team" /></details>}
     else{<AgentCollaboration Report="team" />}
 }
-else if(!Result.Fresh){<p class="caption">Single-agent recorded explanation · No team run or reviewer approval is recorded for this answer.</p>}
+else if(!Result.Fresh){<div class="section-with-info"><span class="caption">Single-agent recording</span><InfoDisclosure About="the recorded explanation">No team run or reviewer approval is recorded for this answer. No new AI calls.</InfoDisclosure></div>}
 <div class="studio-grid">
     <section class="studio-main">
-        <div class="studio-section-title"><div><span class="eyebrow">Follow the move</span><h3>Evidence, on the pitch.</h3></div><span class="caption">Recorded coordinates · No inferred team direction</span></div>
+        <div class="studio-section-title"><div class="section-with-info"><h3>Evidence, on the pitch.</h3><InfoDisclosure About="pitch evidence">Follow the move using recorded coordinates, not inferred team direction. Select an action, then watch its evidence.</InfoDisclosure></div></div>
         <EvidenceSequence Visuals="visuals" Selected="_ => StateHasChanged()" />
         @if (selectedEvent is { } chosen)
         {
@@ -22,7 +22,7 @@ else if(!Result.Fresh){<p class="caption">Single-agent recorded explanation · N
         <div class="insight-lead"><span class="eyebrow">@(analyst ? "The pattern" : "The moment")</span><p>@Claims[0].Text</p><div class="insight-links">@foreach (var id in Claims[0].EvidenceIds)
             { <button class="text-button" @onclick="() => Select(id)">Highlight @Result.Evidence.Resolve(id).Time.ToString("0.#")s</button> }</div></div>
         <div class="histogram">
-            <div class="studio-section-title"><h3>Pass distance</h3><strong>@visuals.MeasuredPasses measured</strong></div>
+            <div class="studio-section-title"><div class="section-with-info"><h3>Pass distance</h3><InfoDisclosure About="pass distance">All teams' attempts in this recent window, completed or intercepted; not a team comparison. Recorded ball-path travel in metres, lower bound inclusive, upper exclusive. Unknown distances excluded, not zero. Bar length scales to the largest count, not a percentage. Select a bar to highlight its event IDs.</InfoDisclosure></div><strong>@visuals.MeasuredPasses measured</strong></div>
             <p class="caption">Recent @facts.Events.Length-event window · @visuals.WindowStart.ToString("0.#")–@facts.Events.LastOrDefault()?.Time.ToString("0.#")s</p>
             @if (visuals.Passes.Count == 0) { <p class="caption">No pass attempts in this window.</p> }
             else if (visuals.MeasuredPasses == 0) { <p class="caption">Recorded pass distances are unavailable.</p> }
@@ -34,7 +34,6 @@ else if(!Result.Fresh){<p class="caption">Single-agent recorded explanation · N
                 </button>
             }
             <div class="studio-kpis"><div><span>Mean pass travel</span><strong>@(visuals.MeanPassMetres is double mean ? $"{mean:F1} m" : "Unavailable")</strong></div><div><span>Unknown distance</span><strong>@visuals.UnknownDistances</strong></div></div>
-            <details class="chart-definition"><summary>Sample & units</summary><p class="caption">All teams' attempts in this recent window, completed or intercepted; not a team comparison. Recorded ball-path travel in metres, lower bound inclusive, upper exclusive. Unknown distances excluded, not zero. Bar length scales to the largest count, not a percentage. Select a bar to highlight its event IDs.</p></details>
             @if (visuals.SelectedBin is { } activeBin)
             { <div class="insight-links">@foreach (var id in activeBin.EventIds) { <button class="text-button" @onclick="() => Select(id)">@id · @Result.Evidence.Resolve(id).Time.ToString("0.#")s</button> }</div> }
         </div>

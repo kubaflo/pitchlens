@@ -1,6 +1,7 @@
 import { ReplayEngine, at, keyboardAction } from "./replay.mjs";
 import { broadcastFrame, prepareBroadcast, netPoints } from "./broadcast.mjs";
 import { popupHost, releasePopupHost } from "./popups.mjs";
+import { closeInfo } from "./info-disclosures.mjs";
 import { pinnedEvidence, evidenceVisible, drawEvidence } from "./evidence.mjs";
 import { FilmProjection } from "./director.mjs";
 import { validateLens, drawLens } from "./lenses.mjs";
@@ -185,7 +186,7 @@ function draw() {
     if(lastOwner!==cameraOwner) {
         lastOwner=cameraOwner;
         if(viewCameraStatus)viewCameraStatus.textContent=cameraOwner==="user"?
-            "Your camera is active. Detail follows the selected player and ball.":
+            "":
             `${cameraOwner==="film"?"Director's Cut":cameraOwner==="goal"?"Goal highlight":"Pinned evidence"} owns the camera. Your Smart zoom choice resumes afterward.`;
         if(viewWide)viewWide.disabled=cameraOwner!=="user";
         if(viewDetail)viewDetail.disabled=cameraOwner!=="user";
@@ -314,6 +315,7 @@ function buildPlayerTargets() {
 }
 export function loadScenario(json) {
     if (engine?.load(JSON.parse(json), now())) {
+        closeInfo(document);
         film = null;
         evidence = null;
         pitchLens = visibleLens = null; lensSequence = -1;

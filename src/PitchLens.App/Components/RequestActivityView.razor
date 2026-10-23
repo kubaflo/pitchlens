@@ -7,7 +7,7 @@
 {
     <section class="request-activity @(state.Active ? "is-active" : "is-terminal")" aria-busy="@(state.Active ? "true" : "false")">
         <span class="request-orbit" aria-hidden="true"></span>
-        <div class="request-copy"><strong>@Title</strong><span role="@(state.Stage == RequestStage.Failed ? "alert" : "status")">@state.Message</span><small>@Budget @(state.ToolCalls > 0 ? $"· {state.ToolCalls} observed tool calls" : "")</small></div>
+        <div class="request-copy"><div class="section-with-info"><strong>@Title</strong><InfoDisclosure About="request limits">@Budget @(state.ToolCalls > 0 ? $"· {state.ToolCalls} observed tool calls" : "")</InfoDisclosure></div><span role="@(state.Stage == RequestStage.Failed ? "alert" : "status")">@state.Message</span></div>
         <output aria-label="Elapsed request time" aria-live="off">@TimeSpan.FromSeconds(state.ElapsedSeconds).ToString(@"m\:ss")</output>
         @if (state.Active) { <button class="button" @onclick="Cancel">Cancel</button> }
     </section>

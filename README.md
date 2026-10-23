@@ -19,6 +19,66 @@ or either club; submission remains deferred.
 
 ## Task-conditioned insights and recorded guided demo
 
+### Less text, same Matchday
+
+The main Matchday layout, pitch, controls, answer text and global **100–200%**
+reading size are unchanged. Optional setup, camera, reading, story-focus,
+request-limit and chart explanations now live behind small **i** buttons beside
+the relevant section, rather than repeating paragraphs by default. Each has an
+**About [setting]** accessible name, native Enter/Space/click activation and an
+explicit expanded/control relationship. Closed guidance is hidden from both
+layout and the accessibility tree. Help expands inline and scrolls with its
+section; it is not another dialog or a replacement for the current popup.
+Escape closes help first and returns focus to its button; another Escape closes
+the parent normally. Popup/fixture transitions reset help without rebuilding the
+pitch canvas. Reading help stays in the scrollable body, not the sticky header.
+
+Actual results, evidence actions, errors, current request stage/elapsed/Cancel,
+synthetic and Recorded/Fresh/Cached labels, current editorial camera locks and
+pre-click Copilot usage remain visible. Technical agent identities/hashes/reads
+stay under **Technical details**. The ordered three-agent cards keep their title
+and actual status; each specialist's purpose is optional. No requests, budget,
+physics, recording or cache behavior changed, and no new SDK/model calls were
+made for this UI change.
+
+Real Razor renders use a **minimum 25% reduction** regression gate per sampled
+screen against `551088c`. Counts are visible words, not HTML bytes: closed
+dialogs/details/help, icon/AX-only text, SVG titles and unselected options are
+excluded. The same controlled three-role report/answer is used on both sides;
+the pending sample is controlled, not a fabricated live witness.
+
+| Default screen | Before | After | Reduction |
+|---|---:|---:|---:|
+| Startup, manual teams | 49 | 35 | 29% |
+| Startup, random teams | 55 | 30 | 45% |
+| Camera & player appearance | 110 | 33 | 70% |
+| Reading size | 59 | 20 | 66% |
+| Replay settings | 312 | 64 | 79% |
+| Three-agent pending cards | 128 | 24 | 81% |
+| Approved team + unchanged answer/evidence | 246 | 130 | 47% |
+
+`InfoDisclosureTests` renders actual production components and checks visible
+safety/results and hidden guidance. Node tests exercise the production help
+handlers with PopupHost, first/second Escape, focus return, native-button
+activation semantics, transitions and visible camera lock reasons. These are
+headless interaction tests, not native AX certification.
+Set `PITCHLENS_INFO_MEASURE` to an artifact directory when running that Razor
+test to export counts plus closed/open static production HTML at100/150/200%.
+Copy production `app.css`, `fonts/` and `images/` beside those previews.
+`swift tests/js/fixtures/measure-info-reflow.swift <artifact-directory>` uses
+offscreen, ephemeral WebKit with **no window or app launch**. The disclosure
+witness covered **126 layouts** (seven samples, open/closed, three scales, and
+1280×800 / 640×480 / 390×500), with no horizontal overflow, offscreen help or
+unreachable dialog Close controls. Static previews have disconnected native
+handlers and are **not native/pixel certification**.
+
+This host lacks pinned **SDK10.0.402 / workload set10.0.302**. Signed Debug and
+trimmed Release attempts stopped before compilation; no new app bundle or hash
+is claimed. Headless Razor checks used already-installed SDK10.0.100 with its
+workload resolver disabled for the workload-free test project. The pinned
+repository toolchain is unchanged. No app was staged, launched, quit or replaced,
+and no real reading preferences were changed.
+
 ### Three collaborating explanation agents
 
 Fresh product **Explain this moment** now coordinates **three distinct SDK
@@ -54,8 +114,8 @@ responses and optional geometry/phase correction are unchanged.
 
 **How your explanation is made** shows three ordered, readable steps while
 working and alongside the accepted answer: **Find the evidence → Write the
-explanation → Check the evidence**. Each card explains its specialist's job and
-actual state; future steps say **Not started**. A response or runtime cleanup is
+explanation → Check the evidence**. Each card shows its actual state, with its
+specialist's job behind an info button; future steps say **Not started**. A response or runtime cleanup is
 not approval: only the completed acceptance gate displays **Review accepted**.
 One collapsed **Technical details** disclosure retains actual model/session/send/
 tool counts, input/output hashes, canonical reads and claim checks. An earlier
@@ -708,7 +768,7 @@ rendering and activation do not write fixture history or send a request.
 Draft choices stay in memory only; no new preference/profile storage is added.
 Setup uses one centered, width-bounded card with Home/Away crests beside the
 selectors, one Create action and a single recorded-demo alternative. Short
-windows scroll safely; technical limits remain in collapsed **How it works**.
+windows scroll safely; technical limits live behind **About creating a match**.
 Only real nonempty validation errors appear—ready selection is not an error.
 
 **Random matchup** explicitly retains the original rotation: without history
@@ -1600,12 +1660,10 @@ popup-led interactions, but all playback/statistics/generation use real app
 services rather than mock controllers. Body text is 18 px, controls at least
 16 px, page headings 40–48 px and scores 40–56 px where space permits.
 
-The newer [five simpler UI proposals](design/simple-ui/index.html) explore
-Essential, Companion, Cinema, Two views and Moments. Open the chooser directly
-in Safari; each local HTML mock supports scripted playback, a short explanation,
-an expandable three-agent handoff and preview-only 100–200% text sizing.
-No direction has been selected or applied to the app. These make no AI/network
-requests and do not change the running app or its saved preferences.
+The [five simpler UI proposals](design/simple-ui/index.html) were **rejected as
+product directions**. They remain unchanged historical design artifacts, not
+the implementation plan. The correction is less default explanatory text in
+the existing Matchday UI, not a new layout or smaller fonts.
 
 Barlow Regular, Semibold and Bold are bundled locally under
 `src/PitchLens.App/wwwroot/fonts/` with their `OFL.txt`, reused from the approved

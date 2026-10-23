@@ -1,3 +1,5 @@
+import { closeInfo } from "./info-disclosures.mjs";
+
 export function popupPosition(point, size, viewport, bounds = null, gap = 24) {
     const screen = { left: 16, top: 16, right: viewport.width - 16, bottom: viewport.height - 16 };
     const area = bounds ? {
@@ -85,6 +87,7 @@ export class PopupHost {
     open(id) {
         const dialog = this.doc.getElementById(id);
         if (!dialog || dialog.tagName !== "DIALOG") throw new Error("Requested popup is missing.");
+        closeInfo(this.doc);
         if (!this.handlers.has(dialog)) {
             const close = () => {
                 if (dialog.open) return;
@@ -123,7 +126,7 @@ export class PopupHost {
     }
     close(id, restoreFocus = true) {
         const dialog = id ? this.doc.getElementById(id) : null;
-        if (dialog?.open) { this.restoreOnClose.set(dialog, restoreFocus); dialog.close(); }
+        if (dialog?.open) { closeInfo(dialog); this.restoreOnClose.set(dialog, restoreFocus); dialog.close(); }
     }
     dispose() {
         this.doc.removeEventListener("click", this.click); this.doc.removeEventListener("keydown", this.keydown);

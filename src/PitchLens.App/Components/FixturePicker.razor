@@ -1,7 +1,10 @@
 <section class="fixture-picker" aria-labelledby="fixture-picker-title">
     <header>
-        @if(Startup){<h1 id="fixture-picker-title">Choose your teams</h1>}else{<h2 id="fixture-picker-title">Choose your teams</h2>}
-        <p class="setup-description">A five-minute AI match with synthetic action—not a real match.</p>
+        <div class="section-with-info">
+            @if(Startup){<h1 id="fixture-picker-title">Choose your teams</h1>}else{<h2 id="fixture-picker-title">Choose your teams</h2>}
+            <InfoDisclosure About="creating a match">Choose two different clubs or use Random; the matchup is chosen only when you press Create. Official selected squad identities, not an actual starting XI. GPT-6.1 Sol authors five minutes of paths, events and narration. Normal Copilot access is required after Create. Up to three responses, one shared correction, fifteen minutes overall and 270 seconds per response. No automatic retry.</InfoDisclosure>
+        </div>
+        <span class="caption">Synthetic match</span>
     </header>
     <div class="segments" role="group" aria-label="Fixture selection">
         <button id="fixture-manual" class="@(Value.Kind==FixtureChoiceKind.Manual?"selected":"")" aria-pressed="@(Value.Kind==FixtureChoiceKind.Manual?"true":"false")" disabled="@Busy" @onclick="()=>Changed.InvokeAsync(new FixtureChoice())">Choose clubs</button>
@@ -14,11 +17,9 @@
             <label for="fixture-away"><span>Away</span><span class="club-input"><img src="@FixtureCatalog.Clubs.Single(t=>t.Id==Value.AwayId).Crest" alt="" /><select id="fixture-away" value="@Value.AwayId" disabled="@Busy" @onchange="e=>Changed.InvokeAsync(Value with{AwayId=e.Value?.ToString()})">@foreach(var club in FixtureCatalog.Clubs){<option value="@club.Id" disabled="@(club.Id==Value.HomeId)">@club.Name</option>}</select></span></label>
         </div>
     }
-    else{<p class="setup-description">Your matchup is chosen when you press Create. Nothing starts yet.</p>}
     @if(!string.IsNullOrWhiteSpace(Error)){<p class="error" role="alert">@Error</p>}
-    <div class="fixture-primary"><button id="fixture-create" class="button purple" disabled="@(Busy||!string.IsNullOrWhiteSpace(Error))" @onclick="Create">Create match</button><small>Uses Copilot usage · Starts only when you create</small></div>
+    <div class="fixture-primary"><button id="fixture-create" class="button purple" disabled="@(Busy||!string.IsNullOrWhiteSpace(Error))" @onclick="Create">Create match</button><small>Uses Copilot usage · Up to 3 responses</small></div>
     <button id="fixture-cancel" class="text-button fixture-back" disabled="@Busy" @onclick="Cancel">Back</button>
-    <details class="setup-details"><summary>How it works</summary><p>Choose two different clubs or use Random. Official selected squad identities; not an actual starting XI. GPT-6.1 Sol authors the paths, events and narration. Normal Copilot access is required after Create. Up to three responses, one shared correction, fifteen minutes overall and 270 seconds per response. No automatic retry.</p></details>
 </section>
 @code{
     [Parameter] public FixtureChoice Value{get;set;}=new();

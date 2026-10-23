@@ -62,7 +62,8 @@ namespace PitchLens.Core.Tests
             var root = await renderer.Dispatcher.InvokeAsync(() => renderer.RenderComponentAsync<Page>());
             Assert.Equal(0,source.Calls);
             var before = await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
-            Assert.Contains("Choose your clubs before creating",before);
+            Assert.Contains("Choose your teams",before);
+            Assert.DoesNotContain("Choose your clubs before creating",InfoDisclosureTests.VisibleText(before));
             Assert.DoesNotContain("id=\"pitch\"",before);
             Assert.DoesNotContain("Recorded SDK example",before);
             Assert.False(native.HasMatch);
