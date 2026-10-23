@@ -31,7 +31,7 @@
                 <div class="team away"><strong>@match.Teams[1].Name</strong><img src="@Crest(match.Teams[1].Id)" alt="" /></div>
             </section>
             <nav class="match-actions" aria-label="Match actions">
-                <button id="explain-button" class="button purple" disabled="@(!Session.CanExplainCurrent)" title="@(Session.Mode==SessionMode.Test?"Matching recorded goal analysis after86s. No AI call.":"Uses Copilot usage. Explains the current observed moment.")" aria-label="@(Session.Mode==SessionMode.Test?"Recorded analysis. No AI call.":"Explain this moment. Uses Copilot usage.")" @onclick="OpenMoment">@(Session.Mode==SessionMode.Test?"Recorded analysis":"Explain this moment")</button>
+                <button id="explain-button" class="button purple" disabled="@(!Session.CanExplainCurrent)" title="@(Session.Mode==SessionMode.Test?"Matching recorded goal analysis after86s. No AI call.":Session.Explainer.UsesTeam?"Uses Copilot usage: 3 specialist sessions, up to 3 responses and 12 reads within 270s.":"Uses Copilot usage. Explains the current observed moment.")" aria-label="@(Session.Mode==SessionMode.Test?"Recorded analysis. No AI call.":Session.Explainer.UsesTeam?"Explain this moment with 3 agents. Uses Copilot usage, up to 3 responses.":"Explain this moment. Uses Copilot usage.")" @onclick="OpenMoment">@(Session.Mode==SessionMode.Test?"Recorded analysis":Session.Explainer.UsesTeam?"Explain this moment · 3 agents":"Explain this moment")</button>
                 <button id="analysis-button" class="button analysis-button" disabled="@Session.FilmActive" aria-controls="analysis-dialog" @onclick='() => Open("analysis-dialog")'>
                     <span>Analysis</span>
                     @if(lensOptions.Mode!=PitchLensMode.Off)
