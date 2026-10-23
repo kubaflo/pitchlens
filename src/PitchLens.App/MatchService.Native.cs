@@ -67,13 +67,15 @@ public sealed partial class MatchService
 
     private sealed class NativeMomentSource(MatchService owner) : IMomentSource
     {
-        private CopilotMomentSource? source;
+        private ExplanationTeamSource? source;
+        public string PipelineVersion=>ExplanationTeamContract.Pipeline;
+        public TeamReport? Collaboration=>source?.Collaboration;
         public int ToolCalls => source?.ToolCalls ?? 0;
         public IReadOnlyList<MomentReadAudit>? ReadLedger=>source?.ReadLedger;
         public Task<string> ExplainAsync(MomentEvidence evidence, CancellationToken token) => ExplainAsync(evidence, token, null);
         public Task<string> ExplainAsync(MomentEvidence evidence, CancellationToken token, IProgress<RequestProgress>? progress)
         {
-            source = new(Executable(owner), FileSystem.AppDataDirectory);
+            source = new(new CopilotExplanationRoleRunner(Executable(owner),FileSystem.AppDataDirectory));
             return Task.Run(() => source.ExplainAsync(evidence, token, progress), token);
         }
     }

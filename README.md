@@ -19,6 +19,56 @@ or either club; submission remains deferred.
 
 ## Task-conditioned insights and recorded guided demo
 
+### Three collaborating explanation agents
+
+Fresh product **Explain this moment** now coordinates **three distinct SDK
+sessions**, all exact **gpt-6.1-sol**:
+
+1. **EvidenceAnalyst** reads the captured index and event details and produces
+   three typed findings, with coordinator-owned IDs. It can cite only events it
+   actually read, at most five unique IDs.
+2. **AudienceEditor** has **no tools**. It receives the frozen validated
+   findings, their SHA-256 handoff identity and the canonical fact packet, then
+   composes the existing Fan/Analyst answer using only the analyst's cited IDs.
+3. **EvidenceReviewer**, in a separate context, checks the **final wording**.
+   It must independently read every cited event, cover every coordinator claim
+   ID in order and bind approval to the exact final answer hash. It cannot
+   rewrite the answer. Missing coverage, rejection or any invalid stage stops
+   the run and retains the previous valid answer.
+
+This is real dataflow and an independent acceptance gate, not one response with
+three labels or unrelated generation/editorial calls. Each packet carries the
+same version/run/facts/revision/cutoff/focus/task/subject identity. Canonical
+validation still runs; an AI review approval **does not certify every sentence
+true**, improve measured accuracy, or establish user benefit.
+
+**Usage changed:** one successful fresh Explain can make **3 SDK Sends/responses**
+instead of one. Evidence roles have at most **6 reads each**, editor0, aggregate
+at most12. The **270-second whole-run deadline is retained**, not multiplied by
+three; existing cleanup remains bounded. No retry, revision loop, model fallback
+or extra agent scan. Main Explain is still immediate capture/pause/open/start,
+rapid reopen deduplicates one run, and an exact successful cache makes no calls.
+Cache identity includes the pipeline version; an old single-agent answer cannot
+masquerade as reviewed team output. Match generation's separate2normal/3maximum
+responses and optional geometry/phase correction are unchanged.
+
+**Agent collaboration** is an optional explanation disclosure with actual
+role/model/status/session/send/tool counts, input/output hashes, canonical read
+IDs and final claim checks. No private reasoning, raw prompts, system logs or
+fake activity is shown. Test/Guided demo remain hard-zero-SDK and explicitly use
+the **single-agent recorded explanation**, without invented team review.
+
+One authorized backend team witness used the accepted Liverpool–United scene
+at236s, Isak/player-contribution focus: **3 separate sessions,3 Sends/3responses,
+5/0/5 actual tool calls**, and all four final claim checks approved. Analyst and
+reviewer each read e65/e66/e67/e68; reviewer coverage is enforced, not inferred
+from a verdict. One wall-clock run measured about**70.7s**, including SDK setup
+and cleanup—not a latency guarantee or a comparison study. Earlier verified
+single-agent witnesses are historical baselines; different wording and one
+approved team run do not prove better accuracy. No new match, narration,
+Director, baseline call or retry was made. Native UI/video acceptance remains
+separate from the controlled and real-backend evidence.
+
 The [hackathon scorecard](docs/hackathon-scorecard.md) separates the five official
 20% criteria, internal estimates, actual implementation evidence and unmet entry
 gates. Historical **69**, conditional **77/83** targets are not awarded scores or
@@ -382,7 +432,8 @@ It does not generate another match or add a response to the two/three-response
 match-generation pipeline. Tools remain disabled for editorial planning.
 
 This milestone is an **interactive in-app 2D film**, not MP4 export or produced audio,
-photorealistic video, a multi-agent system or a live-match claim. Personalized
+photorealistic video, a multi-agent Director or a live-match claim. Fresh Explain
+has its own separate bounded three-agent team. Personalized
 editions and downloadable video remain deferred. No new provider, cloud service,
 language or CV pipeline is included.
 
@@ -604,7 +655,9 @@ equally at 20%; this focused slice improves the evidence-to-experience story
 without claiming a score or guaranteed win.
 The narration/story slice adds the same measured-facts → bounded interpretation →
 explanation → visual/timed rendering → local Fan/Analyst personalization path.
-It is one structured response, not a multi-agent system or an eligibility claim.
+The match narration/story remains one structured response, not itself a
+multi-agent system. Fresh Explain separately uses the three-session evidence
+team described above; neither establishes eligibility.
 
 The rules exclude Microsoft employees and specify registration by October 20,
 noon Pacific, submission by October 27, 23:59 Pacific, a public repository,
@@ -612,7 +665,8 @@ a video under two minutes, and free judging access through November 10.
 Eligibility has not been established. This repository remains private; no
 registration, submission, visibility/access change or deployment was performed.
 The prototype and no-auth recorded demo are not a claim of entry readiness.
-Cloud/Foundry, CV, live feeds and a multi-agent system remain deferred.
+Cloud/Foundry, CV, live feeds and full-match multi-agent orchestration remain
+deferred; only the bounded explanation team is implemented.
 
 ## Generate a match with Copilot
 
@@ -1559,5 +1613,5 @@ returned or licensed these assets.
 The original internal `DemoMatch` fixture remains fictional for stable regression
 tests only; it is no longer the startup scenario. Dependencies and bundled Copilot runtime retain upstream licenses.
 No credentials, private personal data or proprietary match assets are committed.
-Foundry, CV/video, other platforms, backend/database/SignalR, multi-agent runtime
+Foundry, CV/video, other platforms, backend/database/SignalR, full-pipeline multi-agent runtime
 and hackathon submission remain out of scope.

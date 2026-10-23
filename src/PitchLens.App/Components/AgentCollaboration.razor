@@ -1,0 +1,18 @@
+<details class="agent-collaboration">
+    <summary>Agent collaboration · @(Report.Approved?"Final candidate approved":"In progress / stopped")</summary>
+    <p class="caption">Three separate GPT-6.1 Sol sessions · Up to 3 responses and 12 read-only calls · 270s whole-run deadline. Review is not certification of prose truth.</p>
+    <small>Run @Report.Identity.RunId · @Report.Pipeline · Captured @Report.Identity.Cutoff.ToString("0.0")s</small>
+    @foreach(var stage in Report.Stages)
+    {
+        <section><strong>@stage.Role</strong><p class="caption">@stage.Status · @stage.Model · Sessions @stage.SessionsCreated · Sends @stage.SdkSends · Responses @stage.Responses · Tool calls @stage.ToolCalls</p>
+            <small>Input @stage.InputHash<br />Output @(stage.OutputHash??"Not validated yet")</small>
+            @foreach(var read in stage.Reads){<p class="caption">@read.Sequence · @read.Tool · @(read.EventId??"captured index") · Cutoff @read.Cutoff.ToString("0.0")s</p>}
+        </section>
+    }
+    @if(Report.CandidateHash is { } candidate){<small>Exact candidate @candidate</small>}
+    @foreach(var check in Report.Checks){<p class="caption">@check.ClaimId · @(check.Approved?"Approved":"Rejected") · @string.Join(", ",check.EvidenceIds) · @check.Note</p>}
+    @if(Report.Failure is { } reason){<p class="error" role="alert">@reason</p>}
+</details>
+@code{
+    [Parameter,EditorRequired] public TeamReport Report{get;set;}=null!;
+}

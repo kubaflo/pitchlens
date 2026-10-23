@@ -374,7 +374,7 @@ public sealed partial class MatchService : IDisposable
                     MomentIntentNotice="No observed involvement for that player in this captured event window. No AI request sent; choose another focus or task.";
                     NotifyChanged();return Task.CompletedTask;
                 }
-                var failedSameSnapshot = Explainer.LastRequestedHash == captured.Hash &&
+                var failedSameSnapshot = Explainer.LastRequestedHash == Explainer.RequestKey(captured) &&
                     Explainer.Activity.Snapshot.Stage is RequestStage.Failed or RequestStage.Cancelled;
                 if (!retry && failedSameSnapshot)
                     pending = Task.CompletedTask;

@@ -18,7 +18,7 @@
             </div>
         </header>
         <div class="persistent-activities">
-            <RequestActivityView Activity="Session.Explainer.Activity" Title="Sol · Explain this moment" Budget="270s response budget · Up to 6 read-only tool calls · Bounded cleanup" Cancel="Session.Explainer.Cancel" />
+            <RequestActivityView Activity="Session.Explainer.Activity" Title="Sol · Explain this moment" Budget="@ExplainBudget" Cancel="Session.Explainer.Cancel" />
             <RequestActivityView Activity="Session.GenerationActivity" Title="@(Session.RequestedFixture is { } creating?$"Sol · {creating.Home.Name} v {creating.Away.Name}":"Sol · Creating your match")" Budget="15-minute total budget · Up to 3 model responses · No fallback" Cancel="Session.Cancel" />
             <RequestActivityView Activity="Session.ConnectionActivity" Title="SDK connection check · No AI request" Budget="45-second check · No generation or model usage" Cancel="Session.CancelConnection" />
             <RequestActivityView Activity="Session.Director.Activity" Title="Sol · Director's Cut" Budget="One editorial request · 270s response budget · Bounded cleanup" Cancel="Session.Director.Cancel" />
@@ -162,7 +162,10 @@
                     @if(Session.InsightPreferenceNotice is { } preferenceNotice){<p role="status">@preferenceNotice</p>}
                     @if(Session.Mode==SessionMode.Live){<button id="tailor-explain-button" class="button" disabled="@(!Session.CanExplainCurrent||Session.Explainer.Busy)" title="Uses Copilot usage unless this exact request is already cached. No automatic retry." @onclick="OpenMoment">Explain with these preferences · Uses Copilot usage</button>}
                 </details>
-                <RequestActivityView Activity="Session.Explainer.Activity" Title="Sol · Moment analysis" Budget="270s response budget · Up to 6 read-only tool calls · Bounded cleanup" Cancel="Session.Explainer.Cancel" />
+                <RequestActivityView Activity="Session.Explainer.Activity" Title="Sol · Moment analysis" Budget="@ExplainBudget" Cancel="Session.Explainer.Cancel" />
+                @if(Session.Mode==SessionMode.Live&&Session.Explainer.Team is { } activeTeam&&
+                    (Session.Explainer.Busy||Session.Explainer.Current?.Collaboration!=activeTeam))
+                {<AgentCollaboration Report="activeTeam" />}
                 @if (Session.ExplanationSnapshot is { } captured)
                 {
                     var focus = captured.Resolve(captured.FocusId);
@@ -178,7 +181,7 @@
                 @if (Session.Mode==SessionMode.Live && !Session.Explainer.Busy && Session.Explainer.Activity.Snapshot.Stage is RequestStage.Failed or RequestStage.Cancelled)
                 { <button class="button" disabled="@(!Session.CanExplainCurrent)" title="Uses Copilot usage. One explicit retry of the current captured moment." @onclick="RetryMoment">Retry current moment</button> }
                 <span class="caption" role="status">@Session.Explainer.Status</span>
-                <details class="caption"><summary>Request limits & data handling</summary><p>Exact @CopilotScenarioSource.Model, up to six read-only evidence calls, one response for both modes. Response budget 270 seconds plus bounded SDK cleanup. No automatic retries or fallback. Raw responses are not automatically logged. Invalid output keeps the earlier answer.</p></details>
+                <details class="caption"><summary>Request limits &amp; data handling</summary><p>Exact @CopilotScenarioSource.Model. @ExplainBudget. Fresh product Explain uses Evidence analyst → Audience editor → independent Evidence reviewer in separate sessions. The editor has no tools; each evidence role has at most six read-only calls. No automatic retries, rewrite cycles or single-agent fallback. Invalid/rejected output keeps the earlier answer. Raw responses are not automatically logged; Test recordings are single-agent history, not a new team run.</p></details>
             </div>
         </dialog>
         <dialog id="director-dialog" aria-labelledby="director-title">
@@ -300,6 +303,8 @@ else
     private bool captionsEnabled = true;
     private PitchViewSettings? loadedViewSettings;
     private string? viewError;
+    private string ExplainBudget=>Session.Explainer.UsesTeam?"270s whole team · Up to 3 responses / 12 read-only calls · Bounded cleanup":
+        "270s response budget · Up to 6 read-only tool calls · Single-agent source";
     private string? fixtureError;
     private string? insightError;
     private string InsightFocusValue=>Session.InsightPreferences.Scope switch {InsightScope.Club=>$"club:{Session.InsightPreferences.SubjectId}",InsightScope.Player=>$"player:{Session.InsightPreferences.SubjectId}",_=>"all"};

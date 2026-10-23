@@ -3,6 +3,38 @@ using PitchLens.Generation;
 using GitHub.Copilot;
 
 string? observedMatchPath=null;
+if(args is ["--team-explain-stored",var teamRuntime,var teamWork,var teamWitness,var teamMatchFile])
+{
+    var data=await File.ReadAllBytesAsync(teamMatchFile);
+    if(Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(data))!="0332e31623b43f17a6b48c16555076eb0a5c2a52895fc924b6d17aa1ccffc1bf")
+        throw new InvalidOperationException("This authorized team probe requires the exact accepted Liverpool/United match.");
+    var match=StoredMatch(System.Text.Encoding.UTF8.GetString(data));var goal=match.Events.First(e=>e.Kind==EventKind.Goal);
+    var evidence=MomentEvidence.Capture(match,1,goal.Time,goal.Id,preferences:new(InsightTask.PlayerContribution,InsightScope.Player,goal.ActorId));
+    Directory.CreateDirectory(teamWitness);
+    var team=new ExplanationTeamSource(new CopilotExplanationRoleRunner(teamRuntime,teamWork,teamWitness));
+    var service=new MomentExplanationService(team);service.ChangeScene(1);var clock=System.Diagnostics.Stopwatch.StartNew();
+    await service.GenerateAsync(evidence,CancellationToken.None);
+    var report=team.Collaboration??throw new InvalidOperationException("Team did not report its attempted execution.");
+    await File.WriteAllTextAsync(Path.Combine(teamWitness,"team-report.json"),System.Text.Json.JsonSerializer.Serialize(report,TeamJsonContext.Default.TeamReport));
+    await File.WriteAllTextAsync(Path.Combine(teamWitness,"captured-facts.json"),evidence.Json);
+    var approved=service.Current is {Collaboration.Approved:true};
+    if(approved)
+    {
+        await File.WriteAllTextAsync(Path.Combine(teamWitness,"validated-answer.json"),ExplanationTeamContract.AnswerJson(service.Current!.Answer));
+        var sends=report.Stages.Sum(s=>s.SdkSends);
+        if(!service.TryReuseFresh(evidence)||team.Collaboration!.Stages.Sum(s=>s.SdkSends)!=sends||sends!=3||
+            report.Stages.Sum(s=>s.Responses)!=3||service.VisibleAt(1,evidence.Cutoff-.001) is not null||service.VisibleAt(2,evidence.Cutoff) is not null)
+            throw new InvalidOperationException("Team cache/count/cutoff/revision boundaries failed.");
+    }
+    await File.WriteAllTextAsync(Path.Combine(teamWitness,"outcome.json"),System.Text.Json.JsonSerializer.Serialize(new{
+        approved,service.Status,SdkSends=report.Stages.Sum(s=>s.SdkSends),Responses=report.Stages.Sum(s=>s.Responses),
+        Tools=report.Stages.Select(s=>new{s.Role,s.ToolCalls}),ElapsedMilliseconds=clock.ElapsedMilliseconds,
+        evidence.Cutoff,evidence.Hash,evidence.Preferences.SubjectId,Pipeline=team.PipelineVersion,CacheReused=approved,
+        NewMatchRequests=0,NarrationRequests=0,DirectorRequests=0,NativeUi=false,Video=false,ProseTruthCertified=false}));
+    Console.WriteLine($"ACTUAL TEAM | approved={approved} | sends={report.Stages.Sum(s=>s.SdkSends)} | responses={report.Stages.Sum(s=>s.Responses)} | tools={string.Join('/',report.Stages.Select(s=>s.ToolCalls))} | elapsedMs={clock.ElapsedMilliseconds}");
+    if(!approved)Console.Error.WriteLine(service.Status+" No retry or further model request.");
+    return approved?0:1;
+}
 var activityProbe=false;
 var activityOffline=false;
 if(args is ["--activity-check-stored",var activityInput,var activityOutput])

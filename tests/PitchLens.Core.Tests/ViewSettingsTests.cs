@@ -15,6 +15,63 @@ namespace PitchLens.Core.Tests
 #pragma warning disable BL0006 // Dispatch the real Razor event handlers in this headless interaction regression.
     public sealed class ViewSettingsTests
     {
+        [Fact]
+        public async Task Actual_Razor_Explain_starts_one_team_and_renders_actual_collaboration_not_static_agent_labels()
+        {
+            var roles=new ExplanationTeamTests.Roles();var team=new ExplanationTeamSource(roles);var other=new FixtureSelectionTests.CaptureSource();
+            using var native=new MatchService(other,team,(_,_)=>throw new InvalidOperationException("No auth"),other,replayClock:new Clock());
+            native.Command("seek",86);
+            var capture=new Capture(true);var module=new Module();
+            using var services=Provider(native,capture,new ModuleRuntime(module));
+            await using var renderer=new CameraEventRenderer(services,capture);
+            await renderer.Dispatcher.InvokeAsync(renderer.StartAsync);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("explain-button"));
+            Assert.Equal(3,roles.Inputs.Count);Assert.True(native.Explainer.Current!.Collaboration!.Approved);
+            Assert.Contains("openPopup:moment-dialog",module.Calls);Assert.False(native.Sample(true)!.Frame.Playing);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("explain-button"));
+            Assert.Equal(3,roles.Inputs.Count);Assert.True(native.Explainer.Current.Cached);
+            using var htmlServices=Provider(native,new Capture());
+            await using var htmlRenderer=new HtmlRenderer(htmlServices,htmlServices.GetRequiredService<ILoggerFactory>());
+            var root=await htmlRenderer.Dispatcher.InvokeAsync(()=>htmlRenderer.RenderComponentAsync<Page>());
+            var html=System.Net.WebUtility.HtmlDecode(await htmlRenderer.Dispatcher.InvokeAsync(root.ToHtmlString));
+            Assert.Contains("Agent collaboration",html);Assert.Contains("EvidenceAnalyst",html);Assert.Contains("AudienceEditor",html);Assert.Contains("EvidenceReviewer",html);
+            Assert.Contains(native.Explainer.Current.Collaboration.CandidateHash!,html);Assert.Contains("270s whole team",html);
+            Assert.Contains("Sends 1",html);Assert.Contains("Tool calls 0",html);
+            if(Environment.GetEnvironmentVariable("PITCHLENS_TEAM_UI_WITNESS") is {Length:>0} file)
+                await File.WriteAllTextAsync(file,html);
+            if(Environment.GetEnvironmentVariable("PITCHLENS_TEAM_REAL_WITNESS") is {Length:>0} folder&&
+                Environment.GetEnvironmentVariable("PITCHLENS_TEAM_ACCEPTED_MATCH") is {Length:>0} input)
+            {
+                var bytes=await File.ReadAllBytesAsync(input);
+                Assert.Equal("0332e31623b43f17a6b48c16555076eb0a5c2a52895fc924b6d17aa1ccffc1bf",
+                    Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bytes)));
+                var report=System.Text.Json.JsonSerializer.Deserialize(await File.ReadAllTextAsync(Path.Combine(folder,"team-report.json")),TeamJsonContext.Default.TeamReport)!;
+                var analyst=System.Text.Json.JsonSerializer.Deserialize(await File.ReadAllTextAsync(Path.Combine(folder,"EvidenceAnalyst","response.json")),TeamJsonContext.Default.AnalystPacket)!;
+                var editor=System.Text.Json.JsonSerializer.Deserialize(await File.ReadAllTextAsync(Path.Combine(folder,"AudienceEditor","response.json")),TeamJsonContext.Default.EditorPacket)!;
+                var reviewer=System.Text.Json.JsonSerializer.Deserialize(await File.ReadAllTextAsync(Path.Combine(folder,"EvidenceReviewer","response.json")),TeamJsonContext.Default.ReviewerPacket)!;
+                Assert.Equal(report.Identity,analyst.Identity);Assert.Equal(analyst.Identity,editor.Identity);Assert.Equal(editor.Identity,reviewer.Identity);
+                Assert.All(analyst.Findings,f=>Assert.InRange(f.Text.Length,8,220));
+                Assert.All(editor.Answer.Fan.Concat(editor.Answer.Analyst),c=>Assert.InRange(c.Text.Length,8,280));
+                Assert.Equal(ExplanationTeamContract.Hash(System.Text.Json.JsonSerializer.Serialize(analyst,TeamJsonContext.Default.AnalystPacket)),report.Stages[0].OutputHash);
+                Assert.Equal(ExplanationTeamContract.Hash(System.Text.Json.JsonSerializer.Serialize(editor,TeamJsonContext.Default.EditorPacket)),report.Stages[1].OutputHash);
+                Assert.Equal(ExplanationTeamContract.Hash(System.Text.Json.JsonSerializer.Serialize(reviewer,TeamJsonContext.Default.ReviewerPacket)),report.Stages[2].OutputHash);
+                Assert.Equal(ExplanationTeamContract.Claims(editor.Answer).Select(c=>c.Id),reviewer.Claims.Select(c=>c.ClaimId));
+                var reviewerIds=report.Stages[2].Reads.Where(r=>r.Tool=="observed_event").Select(r=>r.EventId).ToHashSet();
+                Assert.All(editor.Answer.Fan.Concat(editor.Answer.Analyst).SelectMany(c=>c.EvidenceIds),id=>Assert.Contains(id,reviewerIds));
+                var match=AuthoredMatchPlan.Parse(System.Text.Encoding.UTF8.GetString(bytes),false);
+                var evidence=MomentEvidence.Capture(match,report.Identity.Revision,report.Identity.Cutoff,report.Identity.FocusId,
+                    preferences:new(report.Identity.Task,report.Identity.Scope,report.Identity.SubjectId));
+                var answer=evidence.Validate(await File.ReadAllTextAsync(Path.Combine(folder,"validated-answer.json")));
+                Assert.Equal(report.CandidateHash,ExplanationTeamContract.Hash(ExplanationTeamContract.AnswerJson(answer)));
+                var result=new ExplainedMoment(evidence,answer,report.Stages.Sum(s=>s.ToolCalls),PipelineVersion:report.Pipeline,Collaboration:report);
+                var page=await htmlRenderer.Dispatcher.InvokeAsync(()=>htmlRenderer.RenderComponentAsync<Components.MomentStudio>(
+                    ParameterView.FromDictionary(new Dictionary<string,object?>{{"Result",result}})));
+                var actual=System.Net.WebUtility.HtmlDecode(await htmlRenderer.Dispatcher.InvokeAsync(page.ToHtmlString));
+                Assert.Contains(report.Identity.RunId,actual);Assert.Contains(report.CandidateHash!,actual);
+                Assert.Contains("EvidenceReviewer",actual);Assert.Contains("Sends 1",actual);
+                await File.WriteAllTextAsync(Path.Combine(folder,"actual-production-razor.html"),actual);
+            }
+        }
         [Theory]
         [InlineData("manual")]
         [InlineData("random")]

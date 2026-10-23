@@ -295,6 +295,8 @@ dialog::backdrop { background: #20002680; backdrop-filter: blur(3px); }
 .fixture-back { justify-self: center; padding: 2px 12px; font-size: 14px; }
 .setup-details { font-size: 13px; color: var(--muted); }
 .setup-details p { margin-top: 10px; line-height: 1.5; }
+.agent-collaboration { overflow-wrap: anywhere; }
+.agent-collaboration section { border-left: 2px solid var(--line); margin: 12px 0; padding-left: 12px; }
 .fixture-picker header { display: grid; gap: 10px; }
 .fixture-picker .button { font-size: 16px; }
 .view-styles { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }

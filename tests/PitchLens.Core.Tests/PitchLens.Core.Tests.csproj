@@ -32,6 +32,7 @@
     <Content Include="../../src/PitchLens.App/wwwroot/images/players/*.png" Link="PortraitAssets/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../src/PitchLens.App/Components/MatchLenses.razor" Link="Components/MatchLenses.razor" />
     <Content Include="../../src/PitchLens.App/Components/MomentStudio.razor" Link="Components/MomentStudio.razor" />
+    <Content Include="../../src/PitchLens.App/Components/AgentCollaboration.razor" Link="Components/AgentCollaboration.razor" />
     <Content Include="../../src/PitchLens.App/Components/EvidenceSequence.razor" Link="Components/EvidenceSequence.razor" />
     <Content Include="../../src/PitchLens.App/Components/NarrativeStory.razor" Link="Components/NarrativeStory.razor" />
     <Content Include="../../src/PitchLens.App/Components/RequestActivityView.razor" Link="Components/RequestActivityView.razor" />

@@ -70,6 +70,42 @@ native usability, category eligibility or a guaranteed eight-/fourteen-point gai
 
 ## Implemented P0 improvements: before and after
 
+### Subsequent bounded explanation-team implementation
+
+Fresh Explain now runs **EvidenceAnalyst → AudienceEditor → EvidenceReviewer**
+in three actual SDK sessions, all exact GPT-6.1 Sol. The analyst's validated
+typed findings are the editor's actual input; the editor has no tools and cannot
+expand the cited event set. The independent reviewer receives the final candidate
+and must actually tool-read **every** final cited event, then cover every claim
+and approve its exact answer hash. The union is at most five events, allowing
+index+five detail reads under each evidence role's six-call cap.
+
+This supersedes the historical single-agent product architecture, not the
+baseline row above. Immutable versioned identities, coordinator IDs and SHA-256
+handoffs prevent wrong-scene/task, missing/subset/reordered claim approvals and
+post-review wording changes. Controlled rejection/partial-review/mutation tests
+show the reviewer has a blocking function; no single-agent fallback is accepted.
+Test/Guided demo remain explicitly single-agent recorded history with zero SDK.
+
+**Observed backend evidence:** one authorized run on saved Liverpool–United
+236s/Isak contribution created three sessions and made **3 Sends/3 responses**,
+with **5/0/5** actual tool calls. Both evidence roles read e65/e66/e67/e68;
+all four final claims were reviewed against the exact candidate hash. Measured
+one-run wall time was approximately70.7seconds including setup/cleanup.
+The whole-run budget remains270seconds, with no retries/revision cycles.
+Separate input/output/tool/count/approval witnesses are private session artifacts.
+
+This is demonstrated collaboration, **not** proof of higher prose truth,
+comprehension, performance superiority or prize eligibility. Earlier single-agent
+requests are qualitative historical context, not a randomized baseline study.
+No automatic score increase is awarded: **69 remains the historical estimate;
+77/83 remain conditional planning targets**, with native/demo/video/access gates
+still unverified. No Foundry/cloud, full-generation/Director team or extra agent
+framework has been added.
+
+Implementation: `src/PitchLens.Generation/ExplanationTeam.cs`,
+`CopilotExplanationRoleRunner.cs`, and `tests/PitchLens.Core.Tests/ExplanationTeamTests.cs`.
+
 ### A. Task-conditioned Explain, using the existing bounded agent
 
 **Before:** `My match` locally filtered authored chapters; Explain captured a
