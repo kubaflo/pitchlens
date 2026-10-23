@@ -45,11 +45,18 @@ func next() {
             const scope = dialog ?? document.querySelector('.setup-card') ?? document.body;
             const dimensions = () => [scope.scrollWidth, scope.scrollHeight, scope.getBoundingClientRect().width, scope.getBoundingClientRect().height];
             const before = dimensions();
+            const geometry = () => [scope, ...scope.querySelectorAll('.agent-step,.agent-workflow,.setup-card,.dialog-head,.dialog-body,.view-styles,.reading-options,.studio-grid,.studio-main,.studio-analysis,.button,.info-disclosure')]
+              .filter(e => !e.closest('.info-content'))
+              .map(e => {const r=e.getBoundingClientRect(); return [r.x,r.y,r.width,r.height];});
+            const beforeBoxes = geometry();
             const opener = scope.querySelector('[data-info-toggle]');
             if (document.body.dataset.infoPreview === 'open') opener.click();
             const close = dialog?.querySelector('[data-close-popup]');
             const closeBox = close?.getBoundingClientRect();
             const help = [...scope.querySelectorAll('.info-content:not([hidden])')];
+            const afterBoxes = geometry();
+            if (beforeBoxes.length !== afterBoxes.length) throw new Error('Parent/card layout nodes changed while opening help.');
+            const layoutShiftPixels = Math.max(0,...beforeBoxes.flatMap((r,i) => r.map((v,j) => Math.abs(v-afterBoxes[i][j]))));
             const result = {
               rootOverflow: document.documentElement.scrollWidth > innerWidth + 1,
               scopeOverflow: scope.scrollWidth > scope.clientWidth + 1,
@@ -59,6 +66,8 @@ func next() {
               helpBounds: help.map(e => { const r=e.getBoundingClientRect(); return {left:r.left,top:r.top,width:r.width,height:r.height,cssLeft:e.style.left,cssTop:e.style.top}; }),
               nativePopup: help.every(e => e.matches(':popover-open') && getComputedStyle(e).position === 'fixed'),
               parentLayoutUnchanged: JSON.stringify(before) === JSON.stringify(dimensions()),
+              layoutShiftPixels,
+              parentAndCardBoxesChecked: beforeBoxes.length,
               rootFont: getComputedStyle(document.documentElement).fontSize,
               width: innerWidth,
               height: innerHeight
@@ -67,7 +76,10 @@ func next() {
               const event = new KeyboardEvent('keydown', {key:'Escape', bubbles:true, cancelable:true});
               opener.dispatchEvent(event);
               result.escapeHandled = event.defaultPrevented && !help[0].matches(':popover-open') && help[0].hidden && document.activeElement === opener && (!dialog || dialog.open);
-            } else result.escapeHandled = true;
+              opener.click();
+              (scope.querySelector('.dialog-body') ?? scope).dispatchEvent(new MouseEvent('click',{bubbles:true}));
+              result.outsideDismissedOnlyPopup = !help[0].matches(':popover-open') && help[0].hidden && (!dialog || dialog.open);
+            } else {result.escapeHandled = true; result.outsideDismissedOnlyPopup = true;}
             cleanup();
             return result;
             """, arguments: [:], in: nil, in: .page, completionHandler: { result in
@@ -97,7 +109,8 @@ try data.write(to: folder.appendingPathComponent("static-reflow.json"))
 let failures = results.filter { ($0["rootOverflow"] as? Bool == true) || ($0["scopeOverflow"] as? Bool == true) ||
     ($0["closeReachable"] as? Bool == false) || ($0["helpContained"] as? Bool == false) ||
     ($0["scaleCorrect"] as? Bool != true) || ($0["helpStateCorrect"] as? Bool != true) ||
-    ($0["nativePopup"] as? Bool != true) || ($0["parentLayoutUnchanged"] as? Bool != true) || ($0["escapeHandled"] as? Bool != true) }
+    ($0["nativePopup"] as? Bool != true) || ($0["parentLayoutUnchanged"] as? Bool != true) || ($0["escapeHandled"] as? Bool != true) ||
+    ($0["layoutShiftPixels"] as? Double != 0) || ($0["outsideDismissedOnlyPopup"] as? Bool != true) }
 print("Offscreen WebKit popups: \(results.count) layouts; \(failures.count) failures. No native-app AX or pixel certification.")
 for entry in failures { print(entry) }
 exit(failures.isEmpty ? 0 : 1)
