@@ -96,6 +96,12 @@ The same combined response provides ten matching observed Fan/Analyst chapters.
 Dense contract2 derives2–6second nonoverlapping slots locally from completed
 events, with goals preferred over their co-timed shots. The model must fill every
 slot with exact event/start/end references; only wording and chapters are AI-authored.
+Each prompt slot now explicitly names its primary event kind and whether scoring
+language is allowed. Only a primary goal permits scoring commentary; a previous
+goal in context or later goal in the full package does not authorize a pass/carry/
+restart cue to announce it. Rejections include the primary event ID/kind and the
+bounded rejected cue text for diagnosis. This does not weaken scoring validation,
+rewrite model prose, retry narration, or increase the generation budget.
 All calls are2–9words/at most65characters, at least75% are3–8words, with bounded
 participants, observed evidence, plain text and unchanged scoring/unsupported-
 claim gates. There is no fixed80-cue minimum for45–90event games. If available

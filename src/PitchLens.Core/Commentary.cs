@@ -43,7 +43,7 @@ public sealed class CommentaryTrack
             Require(!words.Any(w => w is "will" or "later" or "eventually" or "winner" or "prediction" or "finally"),
                 "Commentary cannot predict future outcomes.");
             Require(evidence!.Kind == EventKind.Goal || !NarrativeText.HasScoringClaim(cue.Text),
-                $"Cue '{cue.Id}' at {cue.Start:0.###}s: scoring commentary requires goal evidence.");
+                $"Cue '{cue.Id}' at {cue.Start:0.###}s: scoring commentary requires goal evidence. Primary event '{cue.EventId}' is {evidence.Kind.ToString().ToLowerInvariant()}; rejected text: \"{cue.Text}\".");
             Require(NarrativeText.SpatialGoalReferencesSupported(cue.Text,match,contextEvents.OfType<MatchEvent>()),
                 $"Cue '{cue.Id}' at {cue.Start:0.###}s: spatial goal wording lacks observed geometry.");
             var remainingNames = cue.Text;

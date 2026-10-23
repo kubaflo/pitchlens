@@ -7,6 +7,60 @@ namespace PitchLens.Core.Tests;
 public sealed class CaptionScheduleTests
 {
     [Fact]
+    public void Dense_prompt_labels_each_primary_slot_with_goal_permission_without_changing_schedule_or_schema()
+    {
+        var match=AuthoredMatchRecording.Create();var slots=DenseNarrationPrompt.Slots(match);var schedule=CaptionSchedule.For(match);
+        Assert.Equal(schedule.Select(s=>(s.EventId,s.Start,s.End)),slots.Select(s=>(s.EventId,s.Start,s.End)));
+        foreach(var slot in slots)
+        {
+            var primary=match.Events.Single(e=>e.Id==slot.EventId);
+            Assert.Equal(primary.Kind==EventKind.Goal,slot.ScoringLanguageAllowed);
+            Assert.Equal(primary.Kind.ToString().ToLowerInvariant(),slot.PrimaryKind);
+        }
+        var prompt=DenseNarrationPrompt.For(match);
+        var tail=prompt[(prompt.IndexOf("EXACT LOCAL OBSERVED SUBTITLE SLOTS:",StringComparison.Ordinal)+"EXACT LOCAL OBSERVED SUBTITLE SLOTS:".Length)..];
+        using var json=JsonDocument.Parse(tail);
+        Assert.Equal(slots.Length,json.RootElement.GetArrayLength());
+        Assert.Contains(json.RootElement.EnumerateArray(),s=>s.GetProperty("primaryKind").GetString()=="pass"&&!s.GetProperty("scoringLanguageAllowed").GetBoolean());
+        Assert.Contains("An earlier goal in evidenceIds",prompt);
+        Assert.Contains("scores, scored, scoring",prompt);
+        using var schema=JsonDocument.Parse(DenseNarrationPrompt.Schema);
+        Assert.False(schema.RootElement.GetProperty("properties").GetProperty("cues").GetProperty("items").GetProperty("properties").TryGetProperty("scoringLanguageAllowed",out _));
+    }
+    [Fact]
+    public void Unsupported_scoring_stays_red_with_bounded_diagnostic_and_neutral_trigger_removal_is_green()
+    {
+        var match=AuthoredMatchRecording.Create();var package=NarrationFixtures.Package(match);
+        var index=Array.FindLastIndex(package.Cues,c=>match.Events.Single(e=>e.Id==c.EventId).Kind!=EventKind.Goal);
+        var original=package.Cues[index];var cues=package.Cues.ToArray();
+        cues[index]=original with{Text="The opener changes this match."};
+        var red=Assert.Throws<ScenarioValidationException>(()=>NarrationPrompt.Attach(package with{Cues=cues},match));
+        Assert.Contains(original.Id,red.Message);Assert.Contains(original.EventId,red.Message);
+        Assert.Contains("The opener changes this match.",red.Message);
+        Assert.Contains("scoring commentary requires goal evidence",red.Message);
+        cues[index]=original with{Text="The observed move carries on."};
+        Assert.NotNull(NarrationPrompt.Attach(package with{Cues=cues},match));
+        cues[index]=original with{Text="The opener changes this match."};
+        Assert.Throws<ScenarioValidationException>(()=>NarrationPrompt.Attach(package with{Cues=cues},match));
+    }
+    [Fact]
+    public void Earlier_observed_goal_does_not_authorize_scoring_on_a_non_goal_primary_but_goal_primary_still_does()
+    {
+        var match=AuthoredMatchRecording.Create();var package=NarrationFixtures.Package(match);
+        var goal=match.Events.First(e=>e.Kind==EventKind.Goal);
+        var index=Array.FindIndex(package.Cues,c=>c.EventId!=goal.Id&&c.Start>goal.Time&&c.Start<=goal.Time+12);
+        Assert.True(index>=0);
+        var cues=package.Cues.ToArray();var original=cues[index];
+        cues[index]=original with{Text="The opener changes this match.",EvidenceIds=[original.EventId,goal.Id],
+            PlayerIds=[match.Events.Single(e=>e.Id==original.EventId).ActorId,goal.ActorId]};
+        Assert.Contains("scoring commentary requires goal evidence",Assert.Throws<ScenarioValidationException>(
+            ()=>NarrationPrompt.Attach(package with{Cues=cues},match)).Message);
+        cues=package.Cues.ToArray();
+        var goalIndex=Array.FindIndex(cues,c=>c.EventId==goal.Id);
+        cues[goalIndex]=cues[goalIndex] with{Text="The opener changes this match."};
+        Assert.NotNull(NarrationPrompt.Attach(package with{Cues=cues},match));
+    }
+    [Fact]
     public void Exact_test_recording_opportunities_are87slots289seconds_with_at_most4second_interior_blanks()
     {
         var match=AuthoredMatchRecording.Create();
