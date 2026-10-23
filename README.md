@@ -620,6 +620,10 @@ usage**. Same-club/unknown selections are rejected, never treated as Random.
 Create. New match and failure retries open this same picker. Cancel, editing,
 rendering and activation do not write fixture history or send a request.
 Draft choices stay in memory only; no new preference/profile storage is added.
+Setup uses one centered, width-bounded card with Home/Away crests beside the
+selectors, one Create action and a single recorded-demo alternative. Short
+windows scroll safely; technical limits remain in collapsed **How it works**.
+Only real nonempty validation errors appear—ready selection is not an error.
 
 **Random matchup** explicitly retains the original rotation: without history
 the pool starts with Liverpool/Chelsea/United/Spurs; later draws use all six

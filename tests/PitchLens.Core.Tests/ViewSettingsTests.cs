@@ -15,6 +15,77 @@ namespace PitchLens.Core.Tests
 #pragma warning disable BL0006 // Dispatch the real Razor event handlers in this headless interaction regression.
     public sealed class ViewSettingsTests
     {
+        [Theory]
+        [InlineData("manual")]
+        [InlineData("random")]
+        [InlineData("unchosen")]
+        [InlineData("blocked")]
+        public async Task Actual_Razor_centered_setup_has_one_heading_one_demo_action_and_honest_errors(string state)
+        {
+            var source=new FixtureSelectionTests.CaptureSource();
+            using var native=new MatchService(source,source,(_,_)=>throw new InvalidOperationException(),source,readyDemo:false,
+                mode:state=="unchosen"?SessionMode.Unchosen:SessionMode.Live,
+                variety:new MatchVariety(saveSelection:_=>{if(state=="blocked")throw new IOException("Selected fixture could not be saved (controlled test).");}));
+            await native.StartSessionAsync();
+            if(state=="manual")native.SetFixtureChoice(new(FixtureChoiceKind.Manual,"liverpool","chelsea"));
+            if(state=="random")native.SetFixtureChoice(FixtureChoice.Random);
+            if(state=="blocked"){await native.SubmitFixtureAsync();native.OpenFixturePicker();}
+            using var services=Provider(native,new Capture());
+            await using var renderer=new HtmlRenderer(services,services.GetRequiredService<ILoggerFactory>());
+            var root=await renderer.Dispatcher.InvokeAsync(()=>renderer.RenderComponentAsync<Page>());
+            var html=System.Net.WebUtility.HtmlDecode(await renderer.Dispatcher.InvokeAsync(root.ToHtmlString));
+            Assert.Equal(1,html.Split("<h1",StringSplitOptions.None).Length-1);
+            Assert.DoesNotContain(">fixtureError<",html);Assert.DoesNotContain("Ready for a different match",html);
+            Assert.DoesNotContain("Your next matchday",html);Assert.Contains("class=\"setup-card\"",html);
+            if(state!="unchosen"){Assert.Equal(1,html.Split("Try recorded demo",StringSplitOptions.None).Length-1);Assert.Contains("Choose your teams",html);}
+            if(state=="blocked"){Assert.Contains("Selected fixture could not be saved",html);Assert.Contains("role=\"alert\"",html);}
+            else Assert.DoesNotContain("class=\"error\" role=\"alert\"",html);
+            Assert.Empty(source.Requests);
+            if(Environment.GetEnvironmentVariable("PITCHLENS_SETUP_WITNESS") is {Length:>0} folder)
+            {
+                Directory.CreateDirectory(folder);
+                var preview="<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Actual Razor setup preview — static, no SDK</title><link rel=\"stylesheet\" href=\"app.css\"></head><body><div id=\"app\">"+html+"</div></body></html>";
+                await File.WriteAllTextAsync(Path.Combine(folder,$"setup-{state}.html"),preview);
+            }
+        }
+        [Theory]
+        [InlineData("")]
+        [InlineData("  ")]
+        public async Task Actual_Razor_picker_never_renders_empty_error_alerts(string error)
+        {
+            using var services=new ServiceCollection().AddLogging().BuildServiceProvider();
+            await using var renderer=new HtmlRenderer(services,services.GetRequiredService<ILoggerFactory>());
+            var root=await renderer.Dispatcher.InvokeAsync(()=>renderer.RenderComponentAsync<Components.FixturePicker>(
+                ParameterView.FromDictionary(new Dictionary<string,object?>{{"Error",error}})));
+            var html=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
+            Assert.DoesNotContain("role=\"alert\"",html);
+        }
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task Actual_Razor_valid_picker_has_no_literal_or_empty_error_and_real_validation_stays_visible(bool existingMatch)
+        {
+            var source=new FixtureSelectionTests.CaptureSource();
+            using var native=new MatchService(source,source,(_,_)=>throw new InvalidOperationException(),source,
+                readyDemo:existingMatch,mode:SessionMode.Live);
+            if(existingMatch)native.OpenFixturePicker();else await native.StartSessionAsync();
+            var capture=new Capture();
+            using var services=Provider(native,capture);
+            await using var renderer=new HtmlRenderer(services,services.GetRequiredService<ILoggerFactory>());
+            var root=await renderer.Dispatcher.InvokeAsync(()=>renderer.RenderComponentAsync<Page>());
+            var valid=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
+            Assert.DoesNotContain(">fixtureError<",valid);
+            Assert.DoesNotContain("class=\"error\" role=\"alert\"",valid);
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Page!.FixtureChoiceForCleanupTest(new(FixtureChoiceKind.Manual,"chelsea","chelsea")));
+            var invalid=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
+            Assert.Contains("Home and away clubs must be different",invalid);Assert.Contains("role=\"alert\"",invalid);
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Page!.FixtureChoiceForCleanupTest(new(FixtureChoiceKind.Manual,"unknown","chelsea")));
+            invalid=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);Assert.Contains("Choose two supported clubs",invalid);
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Page!.FixtureChoiceForCleanupTest(FixtureChoice.Random));
+            var random=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
+            Assert.DoesNotContain(">fixtureError<",random);Assert.DoesNotContain("class=\"error\" role=\"alert\"",random);
+            Assert.Empty(source.Requests);
+        }
         [Fact]
         public async Task Actual_Razor_cancel_random_failure_retry_and_Newmatch_all_use_the_same_nonspending_picker()
         {
@@ -432,6 +503,7 @@ namespace PitchLens.Core.Tests.Components
 {
     public partial class MatchView
     {
+        public void FixtureChoiceForCleanupTest(FixtureChoice choice){SetFixtureChoice(choice);StateHasChanged();}
         public void AttachViewModuleForTest(IJSObjectReference value){module=value;rendererReady=true;loadedRevision=frame!.Revision;startupRequested=true;}
         public async Task OpenViewForTest(){Open("view-dialog");await OnAfterRenderAsync(false);}
         public Task RefreshViewForTest()=>Refresh(true);

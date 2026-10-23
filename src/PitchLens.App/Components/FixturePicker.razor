@@ -1,5 +1,8 @@
 <section class="fixture-picker" aria-labelledby="fixture-picker-title">
-    <div><span class="eyebrow">Your next matchday</span><h2 id="fixture-picker-title">Choose the teams.</h2><p class="caption">Live AI only · Synthetic actions, not a real starting XI or match result. No SDK request until Create.</p></div>
+    <header>
+        @if(Startup){<h1 id="fixture-picker-title">Choose your teams</h1>}else{<h2 id="fixture-picker-title">Choose your teams</h2>}
+        <p class="setup-description">A five-minute AI match with synthetic action—not a real match.</p>
+    </header>
     <div class="segments" role="group" aria-label="Fixture selection">
         <button id="fixture-manual" class="@(Value.Kind==FixtureChoiceKind.Manual?"selected":"")" aria-pressed="@(Value.Kind==FixtureChoiceKind.Manual?"true":"false")" disabled="@Busy" @onclick="()=>Changed.InvokeAsync(new FixtureChoice())">Choose clubs</button>
         <button id="fixture-random" class="@(Value.Kind==FixtureChoiceKind.Random?"selected":"")" aria-pressed="@(Value.Kind==FixtureChoiceKind.Random?"true":"false")" disabled="@Busy" @onclick="()=>Changed.InvokeAsync(FixtureChoice.Random)">Random matchup</button>
@@ -7,22 +10,20 @@
     @if(Value.Kind==FixtureChoiceKind.Manual)
     {
         <div class="fixture-choices">
-            <label for="fixture-home">Home<select id="fixture-home" value="@Value.HomeId" disabled="@Busy" @onchange="e=>Changed.InvokeAsync(Value with{HomeId=e.Value?.ToString()})">@foreach(var club in FixtureCatalog.Clubs){<option value="@club.Id" disabled="@(club.Id==Value.AwayId)">@club.Name</option>}</select></label>
-            <label for="fixture-away">Away<select id="fixture-away" value="@Value.AwayId" disabled="@Busy" @onchange="e=>Changed.InvokeAsync(Value with{AwayId=e.Value?.ToString()})">@foreach(var club in FixtureCatalog.Clubs){<option value="@club.Id" disabled="@(club.Id==Value.HomeId)">@club.Name</option>}</select></label>
+            <label for="fixture-home"><span>Home</span><span class="club-input"><img src="@FixtureCatalog.Clubs.Single(t=>t.Id==Value.HomeId).Crest" alt="" /><select id="fixture-home" value="@Value.HomeId" disabled="@Busy" @onchange="e=>Changed.InvokeAsync(Value with{HomeId=e.Value?.ToString()})">@foreach(var club in FixtureCatalog.Clubs){<option value="@club.Id" disabled="@(club.Id==Value.AwayId)">@club.Name</option>}</select></span></label>
+            <label for="fixture-away"><span>Away</span><span class="club-input"><img src="@FixtureCatalog.Clubs.Single(t=>t.Id==Value.AwayId).Crest" alt="" /><select id="fixture-away" value="@Value.AwayId" disabled="@Busy" @onchange="e=>Changed.InvokeAsync(Value with{AwayId=e.Value?.ToString()})">@foreach(var club in FixtureCatalog.Clubs){<option value="@club.Id" disabled="@(club.Id==Value.HomeId)">@club.Name</option>}</select></span></label>
         </div>
-        <div class="fixture-preview" aria-live="polite">
-            @foreach(var id in new[]{Value.HomeId,Value.AwayId})
-            {var club=FixtureCatalog.Clubs.Single(t=>t.Id==id);<div><img src="@club.Crest" alt="" /><strong>@club.Name</strong></div>}
-        </div>
-        <p class="caption">Home and away must differ. Selected catalog identities are frozen for this generation.</p>
     }
-    else{<p class="caption">Random chooses from the existing six-club rotation only when you press Create. No history is changed by previewing this option.</p>}
-    @if(Error is not null){<p class="error" role="alert">@Error</p>}
-    <div class="actions"><button id="fixture-create" class="button purple" disabled="@Busy" @onclick="Create">Create match · Uses Copilot usage</button><button id="fixture-cancel" class="button" disabled="@Busy" @onclick="Cancel">Cancel</button></div>
+    else{<p class="setup-description">Your matchup is chosen when you press Create. Nothing starts yet.</p>}
+    @if(!string.IsNullOrWhiteSpace(Error)){<p class="error" role="alert">@Error</p>}
+    <div class="fixture-primary"><button id="fixture-create" class="button purple" disabled="@(Busy||!string.IsNullOrWhiteSpace(Error))" @onclick="Create">Create match</button><small>Uses Copilot usage · Starts only when you create</small></div>
+    <button id="fixture-cancel" class="text-button fixture-back" disabled="@Busy" @onclick="Cancel">Back</button>
+    <details class="setup-details"><summary>How it works</summary><p>Choose two different clubs or use Random. Official selected squad identities; not an actual starting XI. GPT-6.1 Sol authors the paths, events and narration. Normal Copilot access is required after Create. Up to three responses, one shared correction, fifteen minutes overall and 270 seconds per response. No automatic retry.</p></details>
 </section>
 @code{
     [Parameter] public FixtureChoice Value{get;set;}=new();
     [Parameter] public bool Busy{get;set;}
+    [Parameter] public bool Startup{get;set;}
     [Parameter] public string? Error{get;set;}
     [Parameter] public EventCallback<FixtureChoice> Changed{get;set;}
     [Parameter] public EventCallback Create{get;set;}

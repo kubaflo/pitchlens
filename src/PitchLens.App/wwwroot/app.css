@@ -24,11 +24,15 @@ small, .caption { font-size: 14px; line-height: 1.4; color: var(--muted); }
 .eyebrow { display: block; font-size: 16px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .matchday { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.new-session-pitch { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 24px; padding: clamp(28px, 6vw, 90px); background: linear-gradient(90deg, #173b3010 1px, transparent 1px), linear-gradient(#173b3010 1px, transparent 1px), #f5f2f7; background-size: 90px 90px; }
-.new-session-pitch > p { max-width: 740px; font-size: 20px; line-height: 1.45; }
-.new-session-pitch h1 { max-width: 800px; }
-.new-session-pitch .request-activity { width: min(900px, 100%); }
-.new-session-pitch small { max-width: 740px; }
+.new-session-pitch { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; align-items: center; padding: clamp(16px,3vw,40px); background: linear-gradient(90deg,#173b3006 1px,transparent 1px),linear-gradient(#173b3006 1px,transparent 1px),#f5f2f7; background-size: 90px 90px; }
+.setup-card { flex: none; margin-block: auto; width: min(620px,100%); display: grid; gap: 20px; padding: clamp(22px,4vw,34px); border: 1px solid var(--line); border-radius: 16px; background: white; box-shadow: 0 8px 32px #37003c08; }
+.setup-card h1, .fixture-picker h1, .fixture-picker h2 { font-size: 32px; line-height: 1.12; letter-spacing: -.5px; }
+.setup-description { color: var(--muted); font-size: 16px; line-height: 1.5; }
+.setup-mode-actions { display: grid; gap: 12px; }
+.setup-card .button, .setup-mode-actions .text-button { white-space: normal; }
+.setup-card .setup-fixture { font-size: 22px; }
+.setup-card .setup-demo { border-top: 1px solid var(--line); padding-bottom: 0; font-size: 14px; }
+.setup-card .request-activity { width: 100%; }
 .brand-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 6px 24px; color: white; background: var(--purple); flex: none; }
 .wordmark { display: flex; gap: 10px; align-items: baseline; font-size: 22px; font-weight: 700; white-space: nowrap; }
 .wordmark span { font-size: 13px; font-weight: 400; color: #e4dbe8; }
@@ -281,12 +285,17 @@ dialog::backdrop { background: #20002680; backdrop-filter: blur(3px); }
 .fixture-dialog { width: min(580px,calc(100vw - 32px)); }
 .fixture-picker { display: grid; gap: 16px; width: min(580px,100%); }
 .fixture-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.fixture-choices label { margin: 0; }
-.fixture-choices select { display: block; width: 100%; margin-top: 6px; font: inherit; padding: 8px; }
-.fixture-preview { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.fixture-preview > div { display: flex; align-items: center; gap: 10px; }
-.fixture-preview img { width: 36px; height: 40px; object-fit: contain; }
-.fixture-picker .actions { gap: 8px; }
+.fixture-picker .fixture-choices label { margin: 0; min-width: 0; font-size: 14px; font-weight: 600; }
+.club-input { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: #fcfafc; }
+.club-input img { width: 28px; height: 32px; flex: none; object-fit: contain; }
+.fixture-choices select { min-width: 0; width: 100%; font: inherit; font-size: 15px; color: var(--purple); background: transparent; border: 0; padding: 4px 0; }
+.fixture-primary { display: grid; gap: 8px; text-align: center; }
+.fixture-primary .button { width: 100%; }
+.fixture-primary small { font-size: 12px; }
+.fixture-back { justify-self: center; padding: 2px 12px; font-size: 14px; }
+.setup-details { font-size: 13px; color: var(--muted); }
+.setup-details p { margin-top: 10px; line-height: 1.5; }
+.fixture-picker header { display: grid; gap: 10px; }
 .fixture-picker .button { font-size: 16px; }
 .view-styles { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
 .view-styles button { display: grid; justify-items: center; gap: 8px; padding: 10px 4px; color: var(--purple); background: #f8f5fa; border: 1px solid var(--line); border-radius: 7px; font: inherit; }

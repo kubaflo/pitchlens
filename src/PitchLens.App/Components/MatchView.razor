@@ -216,7 +216,7 @@
         </dialog>
         <dialog id="fixture-dialog" class="fixture-dialog" aria-modal="false" aria-labelledby="fixture-picker-title">
             <header class="dialog-head"><span class="caption">Live fixture · Replay continues until Create</span><button class="close" data-close-popup>Close</button></header>
-            <div class="dialog-body"><FixturePicker Value="Session.FixtureChoice" Busy="Session.Generating" Error="fixtureError" Changed="SetFixtureChoice" Create="CreateFixture" Cancel="CancelFixture" /></div>
+            <div class="dialog-body"><FixturePicker Value="Session.FixtureChoice" Busy="Session.Generating" Error="@fixtureError" Changed="SetFixtureChoice" Create="CreateFixture" Cancel="CancelFixture" /></div>
         </dialog>
         <dialog id="settings-dialog" aria-labelledby="settings-title">
             <header class="dialog-head"><div><h2 id="settings-title">Replay settings</h2><span class="caption">Camera, playback and source</span></div><button class="close" data-close-popup>Close</button></header>
@@ -252,20 +252,28 @@ else
     <div class="matchday match-preparing">
         <header class="brand-bar"><div class="wordmark">PitchLens <span>Matchday</span></div><span>@(Session.Mode==SessionMode.Unchosen?"Choose a mode · No AI request yet":"Live · Fresh AI match")</span></header>
         <main class="new-session-pitch">
-            <span class="eyebrow">Choose your matchday</span><h1>@(Session.Mode==SessionMode.Unchosen?"Play instantly. Or create something new.":Session.Generating ? "Your next match is taking shape." : "Ready for a different match.")</h1>
+            <div class="setup-card">
             @if(Session.Mode==SessionMode.Unchosen)
-            {<p>Test mode opens a labelled recorded match immediately with no AI calls. Live lets you choose teams before any request. Your mode choice is remembered.</p><div class="actions"><button class="button mint" @onclick="StartTest">Test mode · Instant · No AI calls</button><button id="first-guided-demo" class="button" @onclick="StartTour">Guided demo · No AI calls · Starts Test mode</button><button id="first-live-choice" class="button" title="Choose teams first. No AI request until Create match." @onclick="StartLive">Fresh AI match · Choose teams</button></div>}
-            else{<p>Choose your clubs before creating a five-minute AI-authored match. No SDK, login check or model request starts until you press Create match. Paths, optional one correction, then narration/story; up to three responses.</p>}
-            @if(Session.Mode==SessionMode.Live&&Session.FixturePickerOpen&&!Session.Generating)
-            {<FixturePicker Value="Session.FixtureChoice" Error="fixtureError" Changed="SetFixtureChoice" Create="CreateFixture" Cancel="CancelFixture" />}
-            @if(Session.Generating&&Session.RequestedFixture is { } pendingFixture){<h2>@pendingFixture.Home.Name <span class="fixture-versus">v</span> @pendingFixture.Away.Name</h2>}
-            <RequestActivityView Activity="Session.GenerationActivity" Title="Sol · Creating a fresh match" Budget="15-minute total budget · Up to 3 responses · 270s per response" Cancel="Session.Cancel" />
-            @if (!Session.Generating&&Session.Mode!=SessionMode.Unchosen)
             {
-                <p role="status">@Session.Status</p>
-                <div class="actions">@if(!Session.FixturePickerOpen){<button id="choose-startup-teams" class="button mint" @onclick="Generate">Choose teams for a new AI match</button>}<button class="button" @onclick="Session.PlayRecordedDemo">Play recorded demo · No AI call</button><button id="startup-test-demo" class="button" @onclick="StartTest">Test mode · Arsenal v Manchester City · No AI</button></div>
+                <h1>Your matchday starts here</h1><p class="setup-description">Play a recorded match, take the guided tour, or choose teams for a new AI match.</p>
+                <div class="setup-mode-actions"><button id="first-live-choice" class="button purple" title="Choose teams first. No AI request until Create match." @onclick="StartLive">Choose teams · AI match</button><button class="button" @onclick="StartTest">Test mode · Instant · No AI calls</button><button id="first-guided-demo" class="text-button" @onclick="StartTour">Guided demo · No AI calls · Starts Test mode</button></div>
             }
-            <small>No recorded match is silently substituted. Replay controls appear only after a valid match or your explicit demo choice.</small>
+            else if(Session.Generating)
+            {
+                <h1>Your match is taking shape</h1>
+                @if(Session.RequestedFixture is { } pendingFixture){<h2 class="setup-fixture">@pendingFixture.Home.Name <span class="fixture-versus">v</span> @pendingFixture.Away.Name</h2>}
+                <RequestActivityView Activity="Session.GenerationActivity" Title="Creating your AI match" Budget="15-minute limit · Up to 3 responses" Cancel="Session.Cancel" />
+            }
+            else
+            {
+                @if(Session.Mode==SessionMode.Live&&Session.FixturePickerOpen)
+                {<FixturePicker Value="Session.FixtureChoice" Startup="true" Error="@fixtureError" Changed="SetFixtureChoice" Create="CreateFixture" Cancel="CancelFixture" />}
+                else{<h1>Choose your teams</h1><p class="setup-description">Choose your clubs before creating a five-minute AI match.</p><button id="choose-startup-teams" class="button purple" @onclick="Generate">Choose teams</button>}
+                @if(Session.RequestState==GenerationState.Failed){<p class="error" role="alert">@Session.Status</p>}
+                else if(Session.RequestState==GenerationState.Cancelled){<p class="caption" role="status">@Session.Status</p>}
+                <button id="startup-test-demo" class="text-button setup-demo" @onclick="StartTest">Try recorded demo · No AI calls</button>
+            }
+            </div>
         </main>
     </div>
 }
