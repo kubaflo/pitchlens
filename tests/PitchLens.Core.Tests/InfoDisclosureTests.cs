@@ -53,7 +53,7 @@ public sealed class InfoDisclosureTests
         foreach (var (name, markup) in screens)
         {
             var visible = VisibleText(markup, name == "replay" ? "settings-dialog" : name == "camera" ? "view-dialog" : name == "reading" ? "reading-dialog" : null);
-            foreach (System.Text.RegularExpressions.Match content in Regex.Matches(markup, @"<span id=""info-[^""]+"" class=""info-content"" hidden>([\s\S]*?)</span>"))
+            foreach (System.Text.RegularExpressions.Match content in Regex.Matches(markup, @"<span id=""info-[^""]+"" class=""info-content""[^>]* hidden>([\s\S]*?)</span>"))
                 Assert.DoesNotContain(WebUtility.HtmlDecode(Regex.Replace(content.Groups[1].Value, "<[^>]+>", "")).Trim(), visible);
             foreach (System.Text.RegularExpressions.Match button in Regex.Matches(markup, @"<button type=""button"" class=""info-button""[^>]+>"))
             {
@@ -61,7 +61,8 @@ public sealed class InfoDisclosureTests
                 Assert.Contains("aria-label=\"About ", button.Value);
                 Assert.DoesNotContain("aria-haspopup", button.Value);
                 var id = Regex.Match(button.Value, @"aria-controls=""([^""]+)""").Groups[1].Value;
-                Assert.Contains($"id=\"{id}\" class=\"info-content\" hidden", markup);
+                Assert.Contains($"id=\"{id}\" class=\"info-content\" popover=\"manual\" role=\"note\"", markup);
+                Assert.Contains("class=\"info-close\" data-info-close", markup);
             }
         }
         Assert.Contains("Synthetic match", VisibleText(screens["startup-manual"]));
@@ -88,23 +89,10 @@ public sealed class InfoDisclosureTests
                         markup = Regex.Replace(markup, @"<style id=""reading-style"">[\s\S]*?</style>", $"<style id=\"reading-style\">{readingCss}</style>");
                         var dialog = screen.Key == "replay" ? "settings-dialog" : screen.Key == "camera" ? "view-dialog" : screen.Key == "reading" ? "reading-dialog" : null;
                         if (dialog is not null) markup = Regex.Replace(markup, $@"<dialog id=""{dialog}""", $"<dialog open id=\"{dialog}\"");
-                        if (expanded)
-                        {
-                            var start = dialog is not null ? markup.IndexOf($"id=\"{dialog}\"", StringComparison.Ordinal) :
-                                screen.Key.StartsWith("startup-", StringComparison.Ordinal) ? markup.IndexOf("<main", StringComparison.Ordinal) : 0;
-                            Assert.True(start >= 0);
-                            var help = Regex.Match(markup[start..], @"aria-controls=""(info-[^""]+)""");
-                            if (help.Success)
-                            {
-                                var id = help.Groups[1].Value;
-                                markup = markup.Replace($"aria-expanded=\"false\" aria-controls=\"{id}\"", $"aria-expanded=\"true\" aria-controls=\"{id}\"")
-                                    .Replace($"id=\"{id}\" class=\"info-content\" hidden", $"id=\"{id}\" class=\"info-content\"");
-                            }
-                        }
                         var document = "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">" +
                             "<title>PitchLens production disclosure preview</title><link rel=\"stylesheet\" href=\"app.css\"><style>" + readingCss +
-                            "</style></head><body><p class=\"caption\">Static production Razor / controlled team fixture. " + percent + "% / help " + (expanded ? "open" : "closed") +
-                            ". Handlers disconnected; not native or pixel certification.</p>" + markup + "</body></html>";
+                            "</style></head><body data-info-preview=\"" + (expanded ? "open" : "closed") + "\"><p class=\"caption\">Production Razor / controlled team fixture. " + percent + "% / popup " + (expanded ? "open" : "closed") +
+                            ". Popup handlers exercised by offscreen harness; native bridge disconnected. Not native or pixel certification.</p>" + markup + "</body></html>";
                         await File.WriteAllTextAsync(Path.Combine(folder, $"{screen.Key}-{percent}-{(expanded ? "open" : "closed")}.html"), document);
                     }
         }

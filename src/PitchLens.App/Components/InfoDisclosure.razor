@@ -1,6 +1,11 @@
 <span class="info-disclosure">
-    <button type="button" class="info-button" data-info-toggle aria-label="@($"About {About}")" aria-expanded="false" aria-controls="@contentId"><span aria-hidden="true">i</span></button>
-    <span id="@contentId" class="info-content" hidden>@ChildContent</span>
+    <button type="button" class="info-button" data-info-toggle aria-label="@($"About {About}")" aria-expanded="false" aria-controls="@contentId">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 7.5v.01" /></svg>
+    </button>
+    <span id="@contentId" class="info-content" popover="manual" role="note" aria-label="@($"About {About}")" hidden>
+        <span class="info-heading"><strong>About @About</strong><button type="button" class="info-close" data-info-close aria-label="@($"Close explanation about {About}")"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button></span>
+        <span class="info-copy">@ChildContent</span>
+    </span>
 </span>
 @code {
     [Parameter, EditorRequired] public string About { get; set; } = "";

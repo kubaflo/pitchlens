@@ -23,15 +23,18 @@ or either club; submission remains deferred.
 
 The main Matchday layout, pitch, controls, answer text and global **100–200%**
 reading size are unchanged. Optional setup, camera, reading, story-focus,
-request-limit and chart explanations now live behind small **i** buttons beside
+request-limit and chart explanations now live behind subtle **SVG info icons** beside
 the relevant section, rather than repeating paragraphs by default. Each has an
 **About [setting]** accessible name, native Enter/Space/click activation and an
 explicit expanded/control relationship. Closed guidance is hidden from both
-layout and the accessibility tree. Help expands inline and scrolls with its
-section; it is not another dialog or a replacement for the current popup.
+layout and the accessibility tree. Help opens in a small **anchored popup** in
+the native top layer, with its own Close button. It never expands the section,
+adds a subview, shifts the pitch or replaces the current dialog. Popups flip
+above/below their icon and remain bounded and scrollable in narrow/short windows.
 Escape closes help first and returns focus to its button; another Escape closes
 the parent normally. Popup/fixture transitions reset help without rebuilding the
-pitch canvas. Reading help stays in the scrollable body, not the sticky header.
+pitch canvas. Clicking outside dismisses the popup; scrolling the parent closes
+it without stealing focus, while scrolling a long explanation keeps it open.
 
 Actual results, evidence actions, errors, current request stage/elapsed/Cancel,
 synthetic and Recorded/Fresh/Cached labels, current editorial camera locks and
@@ -64,20 +67,24 @@ activation semantics, transitions and visible camera lock reasons. These are
 headless interaction tests, not native AX certification.
 Set `PITCHLENS_INFO_MEASURE` to an artifact directory when running that Razor
 test to export counts plus closed/open static production HTML at100/150/200%.
-Copy production `app.css`, `fonts/` and `images/` beside those previews.
+Copy production `app.css`, `fonts/`, `images/` and `js/info-disclosures.mjs`
+beside those previews.
 `swift tests/js/fixtures/measure-info-reflow.swift <artifact-directory>` uses
 offscreen, ephemeral WebKit with **no window or app launch**. The disclosure
 witness covered **126 layouts** (seven samples, open/closed, three scales, and
-1280×800 / 640×480 / 390×500), with no horizontal overflow, offscreen help or
-unreachable dialog Close controls. Static previews have disconnected native
-handlers and are **not native/pixel certification**.
+1280×800 / 640×480 / 390×500). The harness executes the actual production popup
+handlers in offscreen WebKit and checks native top-layer state, no parent layout
+growth, viewport containment, Escape/focus return and reachable dialog Close
+controls. The native bridge remains disconnected: this is **not native app
+AX/pixel certification**.
 
-This host lacks pinned **SDK10.0.402 / workload set10.0.302**. Signed Debug and
-trimmed Release attempts stopped before compilation; no new app bundle or hash
-is claimed. Headless Razor checks used already-installed SDK10.0.100 with its
-workload resolver disabled for the workload-free test project. The pinned
-repository toolchain is unchanged. No app was staged, launched, quit or replaced,
-and no real reading preferences were changed.
+The initial missing-tool blocker was resolved by restoring exact
+**SDK10.0.402 / workload set10.0.302** into a session-owned tool root from official
+sources. Repository pins and shared SDK/workload/Xcode installations stay
+unchanged. Signed Debug and partial-trimmed Release candidates use versioned,
+isolated output directories; a running candidate is never rebuilt in place.
+Build/package checks do not establish native UI acceptance. No real model calls
+or reading-preference changes are needed for this change.
 
 ### Three collaborating explanation agents
 

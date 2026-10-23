@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 
-// Offscreen static HTML only. Never creates a window or uses the user's website data.
+// Offscreen Razor HTML and production popup handlers; no window or user website data.
 NSApplication.shared.setActivationPolicy(.prohibited)
 guard CommandLine.arguments.count == 2 else { fputs("Usage: measure-info-reflow.swift <Razor preview directory>\n", stderr); exit(1) }
 let folder = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
@@ -9,6 +9,8 @@ let files = try FileManager.default.contentsOfDirectory(at: folder, includingPro
     .filter { $0.pathExtension == "html" && ($0.lastPathComponent.contains("-closed") || $0.lastPathComponent.contains("-open")) }
     .sorted { $0.lastPathComponent < $1.lastPathComponent }
 guard files.count == 42 else { fputs("Expected 42 exported Razor previews; found \(files.count). No layout result certified.\n", stderr); exit(1) }
+let popupSource = try String(contentsOf: folder.appendingPathComponent("js/info-disclosures.mjs"), encoding: .utf8)
+    .replacingOccurrences(of: "export function ", with: "function ")
 let sizes = [(width: 1280, height: 800), (width: 640, height: 480), (width: 390, height: 500)]
 let config = WKWebViewConfiguration()
 config.websiteDataStore = .nonPersistent()
@@ -32,23 +34,42 @@ func next() {
     index += 1
     web.frame = NSRect(x: 0, y: 0, width: size.width, height: size.height)
     delegate.loaded = {
-        web.callAsyncJavaScript("""
+        web.callAsyncJavaScript(popupSource + """
+            const cleanup = installInfoDisclosures(document);
             await document.fonts.ready;
             const dialog = document.querySelector('dialog[open]');
-            const scope = dialog ?? document.body;
+            if (dialog) {
+              dialog.close();
+              if (dialog.getAttribute('aria-modal') === 'false') dialog.show(); else dialog.showModal();
+            }
+            const scope = dialog ?? document.querySelector('.setup-card') ?? document.body;
+            const dimensions = () => [scope.scrollWidth, scope.scrollHeight, scope.getBoundingClientRect().width, scope.getBoundingClientRect().height];
+            const before = dimensions();
+            const opener = scope.querySelector('[data-info-toggle]');
+            if (document.body.dataset.infoPreview === 'open') opener.click();
             const close = dialog?.querySelector('[data-close-popup]');
             const closeBox = close?.getBoundingClientRect();
             const help = [...scope.querySelectorAll('.info-content:not([hidden])')];
-            return {
+            const result = {
               rootOverflow: document.documentElement.scrollWidth > innerWidth + 1,
               scopeOverflow: scope.scrollWidth > scope.clientWidth + 1,
               closeReachable: !closeBox || (closeBox.left >= 0 && closeBox.top >= 0 && closeBox.bottom <= innerHeight && closeBox.right <= innerWidth),
-              helpContained: help.every(e => { const r=e.getBoundingClientRect(); return r.left >= -1 && r.right <= innerWidth + 1; }),
+              helpContained: help.every(e => { const r=e.getBoundingClientRect(); return r.left >= -1 && r.right <= innerWidth + 1 && r.top >= 0 && r.bottom <= innerHeight; }),
               visibleHelp: help.filter(e => e.getBoundingClientRect().height > 0).length,
+              helpBounds: help.map(e => { const r=e.getBoundingClientRect(); return {left:r.left,top:r.top,width:r.width,height:r.height,cssLeft:e.style.left,cssTop:e.style.top}; }),
+              nativePopup: help.every(e => e.matches(':popover-open') && getComputedStyle(e).position === 'fixed'),
+              parentLayoutUnchanged: JSON.stringify(before) === JSON.stringify(dimensions()),
               rootFont: getComputedStyle(document.documentElement).fontSize,
               width: innerWidth,
               height: innerHeight
             };
+            if (help.length) {
+              const event = new KeyboardEvent('keydown', {key:'Escape', bubbles:true, cancelable:true});
+              opener.dispatchEvent(event);
+              result.escapeHandled = event.defaultPrevented && !help[0].matches(':popover-open') && help[0].hidden && document.activeElement === opener && (!dialog || dialog.open);
+            } else result.escapeHandled = true;
+            cleanup();
+            return result;
             """, arguments: [:], in: nil, in: .page, completionHandler: { result in
                 switch result {
                 case .success(let value):
@@ -75,7 +96,8 @@ let data = try JSONSerialization.data(withJSONObject: results, options: [.pretty
 try data.write(to: folder.appendingPathComponent("static-reflow.json"))
 let failures = results.filter { ($0["rootOverflow"] as? Bool == true) || ($0["scopeOverflow"] as? Bool == true) ||
     ($0["closeReachable"] as? Bool == false) || ($0["helpContained"] as? Bool == false) ||
-    ($0["scaleCorrect"] as? Bool != true) || ($0["helpStateCorrect"] as? Bool != true) }
-print("Static offscreen WebKit: \(results.count) layouts; \(failures.count) overflow/reachability failures. Not native handler, AX or pixel certification.")
+    ($0["scaleCorrect"] as? Bool != true) || ($0["helpStateCorrect"] as? Bool != true) ||
+    ($0["nativePopup"] as? Bool != true) || ($0["parentLayoutUnchanged"] as? Bool != true) || ($0["escapeHandled"] as? Bool != true) }
+print("Offscreen WebKit popups: \(results.count) layouts; \(failures.count) failures. No native-app AX or pixel certification.")
 for entry in failures { print(entry) }
 exit(failures.isEmpty ? 0 : 1)
