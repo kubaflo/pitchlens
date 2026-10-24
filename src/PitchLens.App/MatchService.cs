@@ -88,7 +88,7 @@ public sealed partial class MatchService : IDisposable
     public MatchFixture? RequestedFixture => generation.RequestedFixture;
     public FixtureChoice FixtureChoice { get; private set; }=new();
     public bool FixturePickerOpen { get; private set; }
-    public bool CanChooseFixture => !disposed && Mode!=SessionMode.Unchosen && !Generating && !CheckingConnection &&
+    public bool CanChooseFixture => !disposed && !Generating && !CheckingConnection &&
         !Explainer.Busy && !Director.Busy && !FilmActive && !GuidedDemoActive;
     private Task? submittedGeneration;
     public void OpenFixturePicker()
@@ -97,7 +97,7 @@ public sealed partial class MatchService : IDisposable
         {
             ObjectDisposedException.ThrowIf(disposed,this);
             if(!CanChooseFixture)
-                throw new InvalidOperationException("Choose a session mode and finish or exit the current request, film or guided demo before choosing teams.");
+                throw new InvalidOperationException("Finish or exit the current request, film or guided demo before choosing teams.");
             FixturePickerOpen=true;
         }
         NotifyChanged();
@@ -123,7 +123,7 @@ public sealed partial class MatchService : IDisposable
                 throw new InvalidOperationException("Finish or exit the current request, film or guided demo before creating a match.");
             if(!FixturePickerOpen)throw new InvalidOperationException("Choose teams before creating a match.");
             var captured=FixtureChoice.Capture();
-            if(Mode==SessionMode.Test)
+            if(Mode!=SessionMode.Live)
             {
                 saveMode?.Invoke(SessionMode.Live);
                 Mode=SessionMode.Live;
@@ -154,7 +154,7 @@ public sealed partial class MatchService : IDisposable
     }
     private void Initialize()
     {
-        if (!HasMatch) { Status = "Choose teams before creating a Live AI match. No request has started."; CurrentModel = null; }
+        if (!HasMatch) { FixturePickerOpen=true;Status = "Choose teams before creating a Live AI match. No request has started."; CurrentModel = null; }
         Explainer.ChangeScene(presentation.Revision);
         Explainer.Changed += NotifyChanged;
         Director.ChangeScene(presentation.Revision);
@@ -180,8 +180,6 @@ public sealed partial class MatchService : IDisposable
             ObjectDisposedException.ThrowIf(disposed, this);
             if (startupAdmitted) return submittedGeneration ?? Task.CompletedTask;
             startupAdmitted = true;
-            if(Mode==SessionMode.Unchosen)return Task.CompletedTask;
-            if(Mode==SessionMode.Test){PlayRecordedDemo();return Task.CompletedTask;}
             if (HasMatch) return Task.CompletedTask;
             FixturePickerOpen=true;Status="Choose teams, then Create match. No AI request has started.";
             return Task.CompletedTask;

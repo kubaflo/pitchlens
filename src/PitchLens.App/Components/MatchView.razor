@@ -258,12 +258,7 @@ else
         <header class="brand-bar"><div class="wordmark">PitchLens <span>Matchday</span></div><button class="button ghost reading-button" data-open-popup="reading-dialog" aria-controls="reading-dialog">Aa · Text size</button></header>
         <main class="new-session-pitch">
             <div class="setup-card">
-            @if(Session.Mode==SessionMode.Unchosen)
-            {
-                <div class="section-with-info"><h1>Your matchday starts here</h1><InfoDisclosure About="starting a match">Play a recorded match, take the guided tour, or choose teams for a new AI match. No request starts until Create match.</InfoDisclosure></div><span class="caption">Synthetic football</span>
-                <div class="setup-mode-actions"><button id="first-live-choice" class="button purple" title="Choose teams first. No AI request until Create match." @onclick="StartLive">Choose teams · AI match</button><button class="button" @onclick="StartTest">Test mode · Instant · No AI calls</button><button id="first-guided-demo" class="text-button" @onclick="StartTour">Guided demo · No AI calls · Starts Test mode</button></div>
-            }
-            else if(Session.Generating)
+            @if(Session.Generating)
             {
                 <h1>Your match is taking shape</h1>
                 @if(Session.RequestedFixture is { } pendingFixture){<h2 class="setup-fixture">@pendingFixture.Home.Name <span class="fixture-versus">v</span> @pendingFixture.Away.Name</h2>}
@@ -271,12 +266,13 @@ else
             }
             else
             {
-                @if(Session.Mode==SessionMode.Live&&Session.FixturePickerOpen)
+                @if(Session.FixturePickerOpen)
                 {<FixturePicker Value="Session.FixtureChoice" Startup="true" Error="@fixtureError" Changed="SetFixtureChoice" Create="CreateFixture" Cancel="CancelFixture" />}
                 else{<h1>Choose your teams</h1><button id="choose-startup-teams" class="button purple" @onclick="Generate">Choose teams</button>}
                 @if(Session.RequestState==GenerationState.Failed){<p class="error" role="alert">@Session.Status</p>}
                 else if(Session.RequestState==GenerationState.Cancelled){<p class="caption" role="status">@Session.Status</p>}
-                <button id="startup-test-demo" class="text-button setup-demo" @onclick="StartTest">Try recorded demo · No AI calls</button>
+                <button id="startup-test-demo" class="text-button setup-demo" @onclick="StartTest">Recorded demo · No AI calls</button>
+                <button id="first-guided-demo" class="text-button" title="Starts Test mode · No AI calls" aria-label="Guided demo · No AI calls · Starts Test mode" @onclick="StartTour">Guided demo</button>
             }
             </div>
         </main>
@@ -565,7 +561,6 @@ else
     }
     private Task RetryMoment() => Session.ExplainCurrentMomentAsync(retry: true);
     private Task StartTest()=>Session.ChooseModeAsync(SessionMode.Test);
-    private Task StartLive()=>Session.ChooseModeAsync(SessionMode.Live);
     private Task UseTest()=>Session.ChooseModeAsync(SessionMode.Test,false);
     private Task UseLive()=>Session.ChooseModeAsync(SessionMode.Live,false);
     private async Task OpenDirector()

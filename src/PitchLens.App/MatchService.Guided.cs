@@ -7,16 +7,16 @@ public sealed partial class MatchService
     public int? GuidedDemoStep { get; private set; }
     public bool GuidedDemoActive=>GuidedDemoStep is not null;
     public bool CanStartGuidedDemo=>!disposed&&!GuidedDemoActive&&!Generating&&!CheckingConnection&&!Explainer.Busy&&!Director.Busy&&!FilmActive&&
-        (Mode==SessionMode.Unchosen&&!HasMatch||Mode==SessionMode.Test&&!Fresh&&
+        (!HasMatch||Mode==SessionMode.Test&&!Fresh&&
             MomentRecording.Available(presentation.Match,presentation.Revision));
     public void StartGuidedDemo()
     {
         lock(gate)
         {
             if(!CanStartGuidedDemo)throw new InvalidOperationException("Guided demo requires Test mode and the matching recording. Your current game and Live preference are kept.");
-            if(Mode==SessionMode.Unchosen)
+            if(!HasMatch)
             {
-                // This explicit first-choice button says it starts Test mode; never replace a remembered Live choice.
+                // Only the explicit startup demo choice changes the remembered mode.
                 saveMode?.Invoke(SessionMode.Test);Mode=SessionMode.Test;
             }
             PlayRecordedDemo();GuidedDemoStep=0;SetGuidedDemoStep(0);

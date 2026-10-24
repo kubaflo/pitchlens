@@ -243,7 +243,7 @@ namespace PitchLens.Core.Tests
             Assert.Equal(1,html.Split("<h1",StringSplitOptions.None).Length-1);
             Assert.DoesNotContain(">fixtureError<",html);Assert.DoesNotContain("Ready for a different match",html);
             Assert.DoesNotContain("Your next matchday",html);Assert.Contains("class=\"setup-card\"",html);
-            if(state!="unchosen"){Assert.Equal(1,html.Split("Try recorded demo",StringSplitOptions.None).Length-1);Assert.Contains("Choose your teams",html);}
+            Assert.Equal(1,html.Split("Recorded demo · No AI calls",StringSplitOptions.None).Length-1);Assert.Contains("Choose your teams",html);
             if(state=="blocked"){Assert.Contains("Selected fixture could not be saved",html);Assert.Contains("role=\"alert\"",html);}
             else Assert.DoesNotContain("class=\"error\" role=\"alert\"",html);
             Assert.Empty(source.Requests);
@@ -420,6 +420,7 @@ namespace PitchLens.Core.Tests
         [Theory]
         [InlineData("liverpool","chelsea",SessionMode.Unchosen)]
         [InlineData("manchester-united","tottenham-hotspur",SessionMode.Live)]
+        [InlineData("chelsea","liverpool",SessionMode.Test)]
         public async Task Actual_Razor_startup_fixture_choices_wait_for_Create_and_send_exact_22_catalog_players(string home,string away,SessionMode initialMode)
         {
             var source=new FixtureSelectionTests.CaptureSource();var historyWrites=0;
@@ -429,7 +430,7 @@ namespace PitchLens.Core.Tests
             using var services=Provider(native,capture,new ModuleRuntime(module));
             await using var renderer=new CameraEventRenderer(services,capture);
             await renderer.Dispatcher.InvokeAsync(renderer.StartAsync);
-            if(initialMode==SessionMode.Unchosen)await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("first-live-choice"));
+            Assert.False(native.HasMatch);Assert.Equal(initialMode,native.Mode);
             Assert.True(native.FixturePickerOpen);Assert.Empty(source.Requests);Assert.Equal(0,historyWrites);
             await renderer.Dispatcher.InvokeAsync(()=>renderer.ChangeAsync("fixture-home",home));
             await renderer.Dispatcher.InvokeAsync(()=>renderer.ChangeAsync("fixture-away",away));
@@ -450,6 +451,7 @@ namespace PitchLens.Core.Tests
             Assert.Equal(home,requested.Home.Id);Assert.Equal(away,requested.Away.Id);
             Assert.Equal(FixtureCatalog.Create(home,away).Players,requested.Players);
             Assert.Equal(GenerationState.Succeeded,native.RequestState);Assert.Equal(1,historyWrites);
+            Assert.Equal(SessionMode.Live,native.Mode);
             Assert.Equal(new[]{home,away},native.Match.Teams.Select(t=>t.Id));
             await native.StartSessionAsync();Assert.Single(source.Requests);
             if(Environment.GetEnvironmentVariable("PITCHLENS_FIXTURE_WITNESS") is {Length:>0} output)
@@ -530,12 +532,15 @@ namespace PitchLens.Core.Tests
                 }
             }
         }
-        [Fact]
-        public async Task Actual_Razor_guided_choice_steps_back_and_exit_never_call_SDK_or_start_Live()
+        [Theory]
+        [InlineData(SessionMode.Unchosen)]
+        [InlineData(SessionMode.Test)]
+        [InlineData(SessionMode.Live)]
+        public async Task Actual_Razor_guided_choice_steps_back_and_exit_never_call_SDK_or_start_Live(SessionMode mode)
         {
             var source=new MatchLensTests.Forbidden();SessionMode? saved=null;
             using var native=new MatchService(source,source,(_,_)=>throw new InvalidOperationException("No SDK"),source,
-                readyDemo:false,mode:SessionMode.Unchosen,saveMode:m=>saved=m,replayClock:new Clock(),filmClock:new Clock());
+                readyDemo:false,mode:mode,saveMode:m=>saved=m,replayClock:new Clock(),filmClock:new Clock());
             var capture=new Capture(true);var module=new Module();
             using var services=Provider(native,capture,new ModuleRuntime(module));
             await using var renderer=new CameraEventRenderer(services,capture);

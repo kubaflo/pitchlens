@@ -92,6 +92,7 @@ public sealed class FixtureSelectionTests
         using var native=new MatchService(source,source,(_,_)=>throw new InvalidOperationException(),source,
             readyDemo:false,mode:SessionMode.Test);
         await native.StartSessionAsync();
+        native.CancelFixturePicker();
         Assert.Throws<InvalidOperationException>(()=>{_ = native.SubmitFixtureAsync();});
         Assert.Throws<InvalidOperationException>(()=>native.SetFixtureChoice(new(FixtureChoiceKind.Manual,"liverpool","chelsea")));
         native.OpenFixturePicker();

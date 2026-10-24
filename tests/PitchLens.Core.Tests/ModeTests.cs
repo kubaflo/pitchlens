@@ -11,12 +11,15 @@ namespace PitchLens.Core.Tests
 {
     public sealed class ModeTests
     {
-        [Fact]
-        public async Task Actual_Razor_first_choice_Test_opens_instantly_and_all_paid_sources_remain_unreachable()
+        [Theory]
+        [InlineData(SessionMode.Unchosen)]
+        [InlineData(SessionMode.Test)]
+        [InlineData(SessionMode.Live)]
+        public async Task Actual_Razor_explicit_recorded_demo_opens_instantly_and_all_paid_sources_remain_unreachable(SessionMode mode)
         {
             var sdk=new Forbidden();SessionMode? saved=null;
             using var native=new MatchService(sdk,sdk,(_,_)=>throw new InvalidOperationException("No connection calls"),sdk,
-                readyDemo:false,mode:SessionMode.Unchosen,saveMode:m=>saved=m);
+                readyDemo:false,mode:mode,saveMode:m=>saved=m);
             var capture=new Capture();
             using var services=new ServiceCollection().AddLogging().AddSingleton(native).AddSingleton<IJSRuntime>(new NoJs())
                 .AddSingleton<IComponentActivator>(capture).BuildServiceProvider();
@@ -42,7 +45,8 @@ namespace PitchLens.Core.Tests
         {
             var sdk=new Forbidden();
             using var native=new MatchService(sdk,sdk,(_,_)=>throw new InvalidOperationException(),sdk,readyDemo:false,mode:SessionMode.Test);
-            await native.StartSessionAsync();var match=native.Match;native.Command("seek",120);
+            await native.StartSessionAsync();Assert.False(native.HasMatch);Assert.True(native.FixturePickerOpen);
+            await native.ChooseModeAsync(SessionMode.Test,false);var match=native.Match;native.Command("seek",120);
             await native.ChooseModeAsync(SessionMode.Live,false);Assert.Same(match,native.Match);
             Assert.Equal(120,native.Sample(true)!.Frame.Snapshot.Time);
             await native.ChooseModeAsync(SessionMode.Test,false);await native.StartSessionAsync();

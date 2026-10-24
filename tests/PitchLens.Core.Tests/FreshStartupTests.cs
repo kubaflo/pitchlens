@@ -13,6 +13,45 @@ namespace PitchLens.Core.Tests
     public sealed class FreshStartupTests
     {
         [Theory]
+        [InlineData(SessionMode.Unchosen)]
+        [InlineData(SessionMode.Test)]
+        [InlineData(SessionMode.Live)]
+        public async Task Every_launch_first_Razor_frame_is_match_creation_regardless_of_saved_mode(SessionMode mode)
+        {
+            var source=new Delayed();var saved=new List<SessionMode>();
+            using var native=new MatchService(source,new DirectorTests.NoMoment(),
+                (_,_)=>throw new InvalidOperationException("Startup must not authenticate"),readyDemo:false,mode:mode,
+                saveMode:value=>saved.Add(value));
+            var capture=new Capture();
+            using var services=new ServiceCollection().AddLogging().AddSingleton(native).AddSingleton<IJSRuntime>(new NoJs())
+                .AddSingleton<IComponentActivator>(capture).BuildServiceProvider();
+            await using var renderer=new HtmlRenderer(services,services.GetRequiredService<ILoggerFactory>());
+            var root=await renderer.Dispatcher.InvokeAsync(()=>renderer.RenderComponentAsync<Page>());
+            async Task AssertCreationScreen()
+            {
+                var html=await renderer.Dispatcher.InvokeAsync(root.ToHtmlString);
+                Assert.Contains("id=\"fixture-home\"",html);Assert.Contains("id=\"fixture-away\"",html);
+                Assert.Contains("id=\"fixture-create\"",html);Assert.Contains(">Create match</button>",html);
+                Assert.Contains("id=\"startup-test-demo\"",html);Assert.Contains("id=\"first-guided-demo\"",html);
+                Assert.DoesNotContain("id=\"pitch\"",html);Assert.DoesNotContain("id=\"first-live-choice\"",html);
+                Assert.False(native.HasMatch);Assert.True(native.FixturePickerOpen);
+                Assert.False(native.GenerationActivity.Snapshot.Active);Assert.Equal(0,source.Calls);
+                Assert.Equal(mode,native.Mode);Assert.Empty(saved);
+            }
+            await AssertCreationScreen();
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Page!.FirstPaintForFreshTest());
+            await native.StartSessionAsync();native.Suspend();native.Activate();
+            await renderer.Dispatcher.InvokeAsync(()=>capture.Page!.RefreshFreshTest());
+            await AssertCreationScreen();
+            Task? request=null;
+            await renderer.Dispatcher.InvokeAsync(()=>{request=capture.Page!.CreateFixtureForFreshTest();});
+            Assert.Equal(1,source.Calls);Assert.Equal(SessionMode.Live,native.Mode);
+            Assert.Equal(mode==SessionMode.Live?Array.Empty<SessionMode>():new[]{SessionMode.Live},saved);
+            source.Reply.SetResult(VarietyTests.OneSided());await request!;
+            Assert.Equal(GenerationState.Succeeded,native.RequestState);Assert.True(native.Fresh);
+            await native.StartSessionAsync();Assert.Equal(1,source.Calls);
+        }
+        [Theory]
         [InlineData(false)]
         [InlineData(true)]
         public async Task Actual_afterrender_transition_initializes_pitch_once_only_after_new_canvas_exists(bool chooseDemo)

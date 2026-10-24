@@ -184,14 +184,16 @@ raw logs or a claim that every interpretation is true. Old recorded answers
 remain default/not tailored; their missing individual tool-read metadata is
 stated explicitly rather than invented.
 
-Choose **Guided demo · No AI calls · Starts Test mode** on the first chooser,
+Choose the secondary **Guided demo** on the match-creation screen (starts Test
+mode, no AI calls),
 or start it from **More/Replay settings** in the matching recorded Test game.
 Back/Next/Exit take you through pitch/captions, the recorded goal explanation,
 canonical goal evidence and the recorded **58-second Director film**. Steps
 explicitly seek to76/86/300s; rendering and ticks never advance the tour.
-The first choice remembers Test mode like the ordinary Test button. A remembered
-Live choice/current Live game is not replaced: the tour stays unavailable with
-a clear matching-Test-recording requirement. Exit leaves the recording paused.
+The explicit startup choice remembers Test mode like the recorded-demo button,
+even when the previous app launch used Live. An already active Live game is
+never replaced: its tour stays unavailable with a clear matching-Test-recording
+requirement. Exit leaves the recording paused.
 A sub-two-minute walkthrough is a rehearsal target, **not measured native/video
 acceptance**. The guided path never authenticates or sends an SDK/model request.
 
@@ -203,12 +205,13 @@ generation, Director call or retry; differing wording is not a user-benefit stud
 
 ## Startup mode and dense subtitles
 
-On a fresh installation, the first visible screen offers **Test mode / Instant /
-No AI calls** and **Fresh AI match / Uses Copilot usage** before any SDK request.
-The selected mode is remembered in native app preferences. Test launches open
-the verified recorded match immediately, with a compact **TEST / No AI calls**
-badge and Recorded/NotFresh provenance. **Live launches now wait for team choice
-and an explicit Create match**, including a remembered Live preference. Render,
+Every app launch opens **Choose your teams**, with Home, Away and **Create match**
+already visible, including fresh installations and remembered Test or Live preferences.
+The saved mode does not skip match creation or automatically open a recording.
+**Recorded demo · No AI calls** and the guided demo are secondary explicit
+choices; the recorded match retains its **TEST / No AI calls** badge and
+Recorded/NotFresh provenance. Only **Create match** saves Live mode and starts
+a new request. Render,
 activation, replay, picker edits/cancel and mode changes never create requests. Voice-over, Listen controls and speech-driven clock holds
 have been removed. No text-to-speech engine or audio queue is started.
 
