@@ -325,6 +325,99 @@ namespace PitchLens.Core.Tests
             Assert.True(native.Sample(true)!.Frame.Playing);Assert.Equal(2,source.Requests.Count);
         }
         [Theory]
+        [InlineData(SessionMode.Test,false)]
+        [InlineData(SessionMode.Live,false)]
+        [InlineData(SessionMode.Test,true)]
+        [InlineData(SessionMode.Live,true)]
+        public async Task Actual_Newmatch_from_recorded_or_fresh_game_waits_for_explicit_Create(SessionMode mode,bool fresh)
+        {
+            var source=new FixtureSelectionTests.CaptureSource();var historyWrites=0;var modes=new List<SessionMode>();
+            using var native=new MatchService(source,source,(_,_)=>throw new InvalidOperationException("No connection check"),source,
+                variety:new MatchVariety(saveSelection:_=>historyWrites++),saveMode:m=>modes.Add(m));
+            if(fresh)await native.GenerateAsync();
+            await native.ChooseModeAsync(mode,false);modes.Clear();source.Requests.Clear();historyWrites=0;
+            native.Command("seek",120);native.Command("play");
+            var previous=native.Match;var before=native.Sample(true)!.Frame;
+            var capture=new Capture();var module=new Module();
+            using var services=Provider(native,capture,new ModuleRuntime(module));
+            await using var renderer=new CameraEventRenderer(services,capture);
+            await renderer.Dispatcher.InvokeAsync(renderer.StartAsync);
+            Assert.False(renderer.ButtonDisabled("generate-match"));
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("generate-match"));
+            Assert.True(native.FixturePickerOpen);Assert.Equal(mode,native.Mode);Assert.Empty(modes);
+            Assert.Contains("openPopup:fixture-dialog",module.Calls);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ChangeAsync("fixture-home","liverpool"));
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ChangeAsync("fixture-away","chelsea"));
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("fixture-cancel"));
+            Assert.False(native.FixturePickerOpen);Assert.Same(previous,native.Match);
+            Assert.Equal(mode,native.Mode);Assert.Empty(modes);Assert.Empty(source.Requests);Assert.Equal(0,historyWrites);
+            var after=native.Sample(true)!.Frame;
+            Assert.Equal(before.SelectedId,after.SelectedId);Assert.Equal(before.Revision,after.Revision);
+            Assert.True(after.Playing);Assert.True(after.Snapshot.Time>=before.Snapshot.Time);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("generate-match"));
+            Assert.False(native.GenerationActivity.Snapshot.Active);Assert.Equal(fresh,native.Fresh);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("fixture-create"));
+            var request=Assert.Single(source.Requests).Fixture!;
+            Assert.Equal(FixtureCatalog.Create("liverpool","chelsea").Players,request.Players);
+            Assert.Equal(1,historyWrites);Assert.Equal(SessionMode.Live,native.Mode);
+            Assert.Equal(mode==SessionMode.Test?new[]{SessionMode.Live}:Array.Empty<SessionMode>(),modes);
+            Assert.True(native.Fresh);
+            if(fresh)
+            {
+                Assert.Equal(GenerationState.Failed,native.RequestState);
+                Assert.Contains("near-identical",native.Status);
+                Assert.Same(previous,native.Match);
+            }
+            else
+            {
+                Assert.Equal(GenerationState.Succeeded,native.RequestState);
+                Assert.NotSame(previous,native.Match);
+                Assert.Equal(new[]{"liverpool","chelsea"},native.Match.Teams.Select(t=>t.Id));
+            }
+        }
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task Actual_Newmatch_is_available_after_explicit_guided_demo_exit_including_film(bool film)
+        {
+            var source=new FixtureSelectionTests.CaptureSource();
+            using var native=new MatchService(source,source,(_,_)=>throw new InvalidOperationException("No connection"),source,
+                mode:SessionMode.Test);
+            native.StartGuidedDemo();if(film)native.SetGuidedDemoStep(3);
+            var previous=native.Match;
+            var capture=new Capture();var module=new Module();
+            using var services=Provider(native,capture,new ModuleRuntime(module));
+            await using var renderer=new CameraEventRenderer(services,capture);
+            await renderer.Dispatcher.InvokeAsync(renderer.StartAsync);
+            Assert.True(renderer.ButtonDisabled("generate-match"));Assert.False(native.CanChooseFixture);
+            Assert.Throws<InvalidOperationException>(native.OpenFixturePicker);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("main-tour-exit"));
+            Assert.False(native.GuidedDemoActive);Assert.False(native.FilmActive);
+            Assert.False(renderer.ButtonDisabled("generate-match"));
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("generate-match"));
+            Assert.True(native.FixturePickerOpen);Assert.Same(previous,native.Match);
+            Assert.Equal(SessionMode.Test,native.Mode);Assert.Empty(source.Requests);
+        }
+        [Fact]
+        public async Task Actual_Create_reports_mode_save_failure_without_SDK_or_loss_of_Test_game()
+        {
+            var source=new FixtureSelectionTests.CaptureSource();
+            using var native=new MatchService(source,source,(_,_)=>throw new InvalidOperationException("No connection"),source,
+                mode:SessionMode.Test,saveMode:_=>throw new IOException("Controlled preference failure"));
+            var previous=native.Match;
+            var capture=new Capture();var module=new Module();
+            using var services=Provider(native,capture,new ModuleRuntime(module));
+            await using var renderer=new CameraEventRenderer(services,capture);
+            await renderer.Dispatcher.InvokeAsync(renderer.StartAsync);
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("generate-match"));
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("fixture-create"));
+            Assert.Equal(SessionMode.Test,native.Mode);Assert.True(native.FixturePickerOpen);
+            Assert.Empty(source.Requests);Assert.Same(previous,native.Match);
+            Assert.Equal("Controlled preference failure",capture.Page!.FixtureErrorForMatchTest());
+            await renderer.Dispatcher.InvokeAsync(()=>renderer.ClickAsync("fixture-cancel"));
+            Assert.False(native.FixturePickerOpen);Assert.Equal(SessionMode.Test,native.Mode);
+        }
+        [Theory]
         [InlineData("liverpool","chelsea",SessionMode.Unchosen)]
         [InlineData("manchester-united","tottenham-hotspur",SessionMode.Live)]
         public async Task Actual_Razor_startup_fixture_choices_wait_for_Create_and_send_exact_22_catalog_players(string home,string away,SessionMode initialMode)
@@ -697,6 +790,26 @@ namespace PitchLens.Core.Tests
                 return 0;
             }
             public bool HasButton(string id)=>FindButton(root,id)!=0;
+            public bool ButtonDisabled(string id)=>Disabled(root,id)??throw new InvalidOperationException("Missing button "+id);
+            private bool? Disabled(int component,string id)
+            {
+                var frames=GetCurrentRenderTreeFrames(component);
+                for(var i=0;i<frames.Count;i++)
+                {
+                    var frame=frames.Array[i];
+                    if(frame.FrameType==RenderTreeFrameType.Component&&Disabled(frame.ComponentId,id) is { } child)return child;
+                    if(frame.FrameType!=RenderTreeFrameType.Element)continue;
+                    var matches=false;var disabled=false;
+                    for(var j=i+1;j<frames.Count&&frames.Array[j].FrameType==RenderTreeFrameType.Attribute;j++)
+                    {
+                        var a=frames.Array[j];
+                        if(a.AttributeName=="id"&&Equals(a.AttributeValue,id))matches=true;
+                        if(a.AttributeName=="disabled"&&Equals(a.AttributeValue,true))disabled=true;
+                    }
+                    if(matches)return disabled;
+                }
+                return null;
+            }
             public Task ClickAsync(string id)
             {var handler=FindButton(root,id);Assert.NotEqual(0UL,handler);return DispatchEventAsync(handler,null,new MouseEventArgs(),true);}
             public Task ChangeAsync(string id,object value)
@@ -711,6 +824,7 @@ namespace PitchLens.Core.Tests.Components
     {
         public void ReadingForTest(ReadingSettings settings)=>ApplyReading(settings);
         public void FixtureChoiceForCleanupTest(FixtureChoice choice){SetFixtureChoice(choice);StateHasChanged();}
+        public string? FixtureErrorForMatchTest()=>fixtureError;
         public void AttachViewModuleForTest(IJSObjectReference value){module=value;rendererReady=true;loadedRevision=frame!.Revision;startupRequested=true;}
         public async Task OpenViewForTest(){Open("view-dialog");await OnAfterRenderAsync(false);}
         public Task RefreshViewForTest()=>Refresh(true);

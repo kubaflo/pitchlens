@@ -17,7 +17,7 @@
             <div class="actions">
                 <button class="button ghost reading-button" data-open-popup="reading-dialog" aria-controls="reading-dialog">Aa · Text size</button>
                 @if (Session.Generating) { <button class="button ghost" id="cancel-generation" @onclick="Session.Cancel">Cancel creation</button> }
-                <button id="generate-match" class="button ghost new-match" disabled="@(Session.Mode!=SessionMode.Live || Session.Generating || Session.CheckingConnection || Session.Explainer.Busy || Session.FilmActive || Session.Director.Busy)" title="Choose teams first. No AI request until Create match." aria-label="Choose teams for a new AI match" @onclick="Generate">@(Session.Generating ? "Creating…" : "New match")</button>
+                <button id="generate-match" class="button ghost new-match" disabled="@(!Session.CanChooseFixture)" title="Choose teams first. No AI request until Create match. Finish active requests or exit the film / guided demo first." aria-label="Choose teams for a new AI match" @onclick="Generate">@(Session.Generating ? "Creating…" : "New match")</button>
             </div>
         </header>
         <div class="persistent-activities">
@@ -213,7 +213,7 @@
                 <RequestActivityView Activity="Session.GenerationActivity" Title="Sol · Creating your match" Budget="15-minute total budget · Paths, optional correction, commentary" Cancel="Session.Cancel" />
                 <p>@(Session.RequestedFixture is { } fixture?$"{fixture.Home.Name} v {fixture.Away.Name}":"Selected Premier League clubs") · Five minutes (300 seconds) · Synthetic 11v11. All 22 player paths and events authored by AI.</p>
                 <InfoDisclosure About="match generation">Only GPT-6.1 Sol (@CopilotScenarioSource.Model), using normal local Copilot login. Paths/events, at most one shared AI correction for measured shape/speed/velocity defects OR unsupported phase labels, then grounded subtitles: at most three model responses, bounded to fifteen minutes. Path correction keeps events and phases immutable; phase correction cannot change events or paths. No model fallback. Closing this popup does not cancel creation; use Cancel. Invalid output or cancellation keeps the last valid match.</InfoDisclosure>
-                <div class="actions"><button class="button purple" @onclick="Generate" disabled="@(Session.Mode!=SessionMode.Live||Session.Generating || Session.CheckingConnection || Session.Explainer.Busy)">Choose teams for a new match</button>@if (Session.Generating) { <button class="button" @onclick="Session.Cancel">Cancel creation</button> }</div>
+                <div class="actions"><button class="button purple" @onclick="Generate" disabled="@(!Session.CanChooseFixture)">Choose teams for a new match</button>@if (Session.Generating) { <button class="button" @onclick="Session.Cancel">Cancel creation</button> }</div>
                 <p id="generation-status" role="@(Session.RequestState == GenerationState.Failed && !Session.RecordedDemoAfterGenerationIssue ? "alert" : "status")">@Session.Status</p>
                 @if(Session.PriorGenerationIssue is { } priorIssue)
                 {
@@ -222,8 +222,8 @@
             </div>
         </dialog>
         <dialog id="fixture-dialog" class="fixture-dialog" aria-modal="false" aria-labelledby="fixture-picker-title">
-            <header class="dialog-head"><span class="caption">Live fixture · Replay continues until Create</span><button class="close" data-close-popup>Close</button></header>
-            <div class="dialog-body"><FixturePicker Value="Session.FixtureChoice" Busy="Session.Generating" Error="@fixtureError" Changed="SetFixtureChoice" Create="CreateFixture" Cancel="CancelFixture" /></div>
+            <header class="dialog-head"><span class="caption">@(Session.Mode==SessionMode.Test?"Create switches to Live · Uses Copilot usage":"Live fixture · Replay continues until Create")</span><button class="close" @onclick="CancelFixture">Close</button></header>
+            <div class="dialog-body"><FixturePicker Value="Session.FixtureChoice" Busy="@(!Session.CanChooseFixture)" Error="@fixtureError" Changed="SetFixtureChoice" Create="CreateFixture" Cancel="CancelFixture" /></div>
         </dialog>
         <dialog id="settings-dialog" aria-labelledby="settings-title">
             <header class="dialog-head"><h2 id="settings-title">Replay settings</h2><button class="close" data-close-popup>Close</button></header>
@@ -664,7 +664,7 @@ else
     {
         Task request;
         try{request=Session.SubmitFixtureAsync();fixtureError=null;}
-        catch(Exception exception) when(exception is ArgumentException or InvalidOperationException){fixtureError=exception.Message;StateHasChanged();return;}
+        catch(Exception exception) when(exception is ArgumentException or InvalidOperationException or IOException or UnauthorizedAccessException){fixtureError=exception.Message;StateHasChanged();return;}
         if(Session.HasMatch&&module is not null)
         {await module.InvokeVoidAsync("closePopup","fixture-dialog");Open("generation-dialog");}
         await request;

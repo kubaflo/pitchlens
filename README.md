@@ -213,14 +213,20 @@ activation, replay, picker edits/cancel and mode changes never create requests. 
 have been removed. No text-to-speech engine or audio queue is started.
 
 Test mode is a native service boundary, not just a disabled button: startup,
-New match, Explain, Director generation and connection checking cannot reach
-their SDK sources. Matching recorded goal analysis is available after86s, labelled
+New match team selection, Explain, Director generation and connection checking cannot reach
+their SDK sources. **New match** opens the same team picker in Test and Live.
+Opening, editing, closing or going Back keeps the current game, playback and mode.
+In Test, the picker explicitly says **Create switches to Live · Uses Copilot usage**.
+Only **Create match** saves Live mode and submits the selected fixture; no SDK,
+authentication or random-match selection happens before that action.
+Finish/cancel active requests or exit a film/guided demo before choosing teams.
+Matching recorded goal analysis is available after86s, labelled
 **Recorded analysis / No AI**. Settings' matching recorded Director preview is
 available at300s. Neither is presented as a new AI response. If the user switches
 a fresh game into Test, the game/position is retained rather than discarded;
 recorded previews remain unavailable unless the exact historical facts match.
-Settings can switch to Live while keeping the current game; **New match** is
-the separate explicit usage-consuming action. Switching to Test never starts AI.
+Settings can also switch to Live while keeping the current game; **Create match**
+is the separate explicit usage-consuming action. Switching to Test never starts AI.
 
 CC is on by default. Compact high-contrast captions react to completed actions
 and observed connections; they never pause or slow the clock. Selected1/2/3/5x

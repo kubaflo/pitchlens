@@ -88,15 +88,16 @@ public sealed partial class MatchService : IDisposable
     public MatchFixture? RequestedFixture => generation.RequestedFixture;
     public FixtureChoice FixtureChoice { get; private set; }=new();
     public bool FixturePickerOpen { get; private set; }
+    public bool CanChooseFixture => !disposed && Mode!=SessionMode.Unchosen && !Generating && !CheckingConnection &&
+        !Explainer.Busy && !Director.Busy && !FilmActive && !GuidedDemoActive;
     private Task? submittedGeneration;
     public void OpenFixturePicker()
     {
         lock(gate)
         {
             ObjectDisposedException.ThrowIf(disposed,this);
-            if(Mode!=SessionMode.Live)throw new InvalidOperationException("Team selection is for Live AI matches. Test keeps its recorded Arsenal v Manchester City fixture.");
-            if(Generating||CheckingConnection||Explainer.Busy||Director.Busy||FilmActive)
-                throw new InvalidOperationException("Finish or cancel the current request or film before choosing teams.");
+            if(!CanChooseFixture)
+                throw new InvalidOperationException("Choose a session mode and finish or exit the current request, film or guided demo before choosing teams.");
             FixturePickerOpen=true;
         }
         NotifyChanged();
@@ -105,7 +106,8 @@ public sealed partial class MatchService : IDisposable
     {
         lock(gate)
         {
-            if(Mode!=SessionMode.Live||!FixturePickerOpen||Generating)throw new InvalidOperationException("Open the idle Live fixture picker before changing teams.");
+            ObjectDisposedException.ThrowIf(disposed,this);
+            if(!CanChooseFixture||!FixturePickerOpen)throw new InvalidOperationException("Open the idle fixture picker before changing teams.");
             _=value.Capture();FixtureChoice=value;
         }
         NotifyChanged();
@@ -116,12 +118,16 @@ public sealed partial class MatchService : IDisposable
         lock(gate)
         {
             ObjectDisposedException.ThrowIf(disposed,this);
-            if(Mode!=SessionMode.Live)throw new InvalidOperationException("Test mode cannot submit an AI fixture.");
             if(Generating)return submittedGeneration??Task.CompletedTask;
-            if(CheckingConnection||Explainer.Busy||Director.Busy||FilmActive)
-                throw new InvalidOperationException("Finish or cancel the current request or film before creating a match.");
+            if(!CanChooseFixture)
+                throw new InvalidOperationException("Finish or exit the current request, film or guided demo before creating a match.");
             if(!FixturePickerOpen)throw new InvalidOperationException("Choose teams before creating a match.");
             var captured=FixtureChoice.Capture();
+            if(Mode==SessionMode.Test)
+            {
+                saveMode?.Invoke(SessionMode.Live);
+                Mode=SessionMode.Live;
+            }
             FixturePickerOpen=false;
             return submittedGeneration=GenerateAsync(captured);
         }

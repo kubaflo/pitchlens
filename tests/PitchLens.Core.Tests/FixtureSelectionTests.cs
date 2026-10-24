@@ -86,17 +86,70 @@ public sealed class FixtureSelectionTests
         Assert.Contains("near-identical",native.Status);
     }
     [Fact]
-    public async Task Test_handlers_cannot_open_or_submit_AI_and_recording_identity_is_not_relabelled()
+    public async Task Test_picker_is_nonspending_and_cannot_submit_without_explicit_selection()
     {
         var source=new CaptureSource();
         using var native=new MatchService(source,source,(_,_)=>throw new InvalidOperationException(),source,
             readyDemo:false,mode:SessionMode.Test);
         await native.StartSessionAsync();
-        Assert.Throws<InvalidOperationException>(native.OpenFixturePicker);
         Assert.Throws<InvalidOperationException>(()=>{_ = native.SubmitFixtureAsync();});
         Assert.Throws<InvalidOperationException>(()=>native.SetFixtureChoice(new(FixtureChoiceKind.Manual,"liverpool","chelsea")));
+        native.OpenFixturePicker();
+        native.SetFixtureChoice(new(FixtureChoiceKind.Manual,"liverpool","chelsea"));
+        Assert.Equal(SessionMode.Test,native.Mode);Assert.False(native.Fresh);Assert.Empty(source.Requests);
+        native.CancelFixturePicker();
         Assert.Equal(new[]{"arsenal","manchester-city"},native.Match.Teams.Select(t=>t.Id));
         native.StartGuidedDemo();native.ExitGuidedDemo();Assert.Empty(source.Requests);
+    }
+    [Fact]
+    public async Task Picker_and_submit_guards_reject_busy_connection_film_and_tour_without_mode_changes()
+    {
+        var source=new CaptureSource();
+        var connection=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var native=new MatchService(source,source,(_,token)=>connection.Task.WaitAsync(token),source);
+        native.OpenFixturePicker();
+        var check=native.CheckConnectionAsync();
+        Assert.False(native.CanChooseFixture);
+        Assert.Throws<InvalidOperationException>(native.OpenFixturePicker);
+        Assert.Throws<InvalidOperationException>(()=>{_ = native.SubmitFixtureAsync();});
+        native.CancelConnection();await check;
+        native.CancelFixturePicker();
+        await native.ChooseModeAsync(SessionMode.Test,false);
+        native.Command("seek",300);native.PreviewRecordedDirector();
+        Assert.False(native.CanChooseFixture);
+        Assert.Throws<InvalidOperationException>(native.OpenFixturePicker);
+        native.FilmCommand("exit");native.StartGuidedDemo();
+        Assert.False(native.CanChooseFixture);
+        Assert.Throws<InvalidOperationException>(native.OpenFixturePicker);
+        native.ExitGuidedDemo();Assert.True(native.CanChooseFixture);
+        native.OpenFixturePicker();source.Wait=new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var request=native.SubmitFixtureAsync();
+        Assert.False(native.CanChooseFixture);Assert.Equal(SessionMode.Live,native.Mode);
+        Assert.Throws<InvalidOperationException>(native.OpenFixturePicker);
+        Assert.Throws<InvalidOperationException>(()=>native.SetFixtureChoice(FixtureChoice.Random));
+        var repeated=native.SubmitFixtureAsync();Assert.Single(source.Requests);
+        native.Cancel();await request;await repeated;
+        Assert.Equal(GenerationState.Cancelled,native.RequestState);Assert.False(native.Fresh);
+        Assert.True(native.CanChooseFixture);Assert.False(native.GuidedDemoActive);
+    }
+    [Fact]
+    public async Task Picker_cannot_replace_busy_explanation_or_director_requests()
+    {
+        var source=new CaptureSource();var actions=new WaitingActions();
+        using var native=new MatchService(source,actions,(_,_)=>Task.CompletedTask,actions);
+        native.Command("seek",120);native.OpenFixturePicker();
+        var explain=native.ExplainCurrentMomentAsync();
+        Assert.True(native.Explainer.Busy);Assert.False(native.CanChooseFixture);
+        Assert.Throws<InvalidOperationException>(native.OpenFixturePicker);
+        Assert.Throws<InvalidOperationException>(()=>{_ = native.SubmitFixtureAsync();});
+        native.Explainer.Cancel();await explain;
+        Assert.True(native.CanChooseFixture);
+        var director=native.DirectCurrentAsync();
+        Assert.True(native.Director.Busy);Assert.False(native.CanChooseFixture);
+        Assert.Throws<InvalidOperationException>(native.OpenFixturePicker);
+        Assert.Throws<InvalidOperationException>(()=>{_ = native.SubmitFixtureAsync();});
+        native.Director.Cancel();await director;
+        Assert.True(native.CanChooseFixture);Assert.Empty(source.Requests);
     }
     [Fact]
     public async Task Invalid_manual_fixture_is_rejected_before_core_activity_or_history_and_capture_does_not_alias_input()
@@ -113,6 +166,12 @@ public sealed class FixtureSelectionTests
         Assert.NotEqual("Mutated caller object",source.Requests.Single().Fixture!.Players[0].Name);
         Assert.Equal(FixtureCatalog.Create("liverpool","chelsea").Players,core.RequestedFixture!.Players);
         cancel.Cancel();await job;
+    }
+    private sealed class WaitingActions:IMomentSource,IDirectorSource
+    {
+        private readonly TaskCompletionSource<string> pending=new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public Task<string> ExplainAsync(MomentEvidence evidence,CancellationToken token)=>pending.Task.WaitAsync(token);
+        public Task<string> CreateAsync(DirectorEvidence evidence,IProgress<string>? progress,CancellationToken token)=>pending.Task.WaitAsync(token);
     }
     internal sealed class CaptureSource:IScenarioSource,IMomentSource,IDirectorSource
     {
