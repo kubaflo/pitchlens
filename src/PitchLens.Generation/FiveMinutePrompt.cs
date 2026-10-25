@@ -49,7 +49,7 @@ public static class FiveMinutePrompt
         get
         {
             var root = JsonNode.Parse(PlanSchema)!;
-            root["required"]!.AsArray().Add("commentary");
+            root["required"]!.AsArray().Add((JsonNode?)JsonValue.Create("commentary"));
             root["properties"]!["commentary"] = JsonNode.Parse("""{"type":"array","minItems":24,"maxItems":64,"items":{"$ref":"#/$defs/cue"}}""");
             root["$defs"]!["cue"] = JsonNode.Parse(CommentaryPrompt.CueSchema);
             return root.ToJsonString();

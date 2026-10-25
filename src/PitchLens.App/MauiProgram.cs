@@ -1,3 +1,8 @@
+#if PITCHLENS_DEVFLOW
+using Microsoft.Maui.DevFlow.Agent;
+using Microsoft.Maui.DevFlow.Blazor;
+#endif
+
 namespace PitchLens.App;
 
 public static class MauiProgram
@@ -9,6 +14,10 @@ public static class MauiProgram
         builder.Services.AddSingleton<MatchService>();
 #if DEBUG
         builder.Services.AddBlazorWebViewDeveloperTools();
+#endif
+#if PITCHLENS_DEVFLOW
+        builder.AddMauiDevFlowAgent();
+        builder.AddMauiBlazorDevFlowTools();
 #endif
         return builder.Build();
     }

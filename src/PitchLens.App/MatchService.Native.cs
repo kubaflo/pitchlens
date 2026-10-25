@@ -4,22 +4,48 @@ namespace PitchLens.App;
 
 public sealed partial class MatchService
 {
+#if !IOS
     private string? varietyMetadataError;
+#endif
     public MatchService()
     {
+#if IOS
+        LiveGenerationAvailable=false;
+        Mode=SessionMode.Test;
+#else
         Mode=Enum.TryParse<SessionMode>(Preferences.Default.Get("session-mode",""),out var stored)&&Enum.IsDefined(stored)&&stored!=SessionMode.Unchosen?stored:SessionMode.Unchosen;
+#endif
         saveMode=mode=>Preferences.Default.Set("session-mode",mode.ToString());
         ViewSettings=PitchViewSettings.Load(Preferences.Default.Get("pitch-view-settings",""),out var viewNotice);
         ViewSettingsNotice=viewNotice;
         saveViewSettings=value=>Preferences.Default.Set("pitch-view-settings",PitchViewSettings.Serialize(value));
         Reading=ReadingSettings.Load(Preferences.Default.Get("reading-settings",""),out var readingNotice);
         ReadingNotice=readingNotice;saveReading=value=>Preferences.Default.Set("reading-settings",ReadingSettings.Serialize(value));
+#if IOS
+        var unavailable = new UnavailableMobileSource();
+        generation = new(unavailable, presentation.Match, ScenarioOrigin.RecordedSdkExample, AuthoredMatchRecording.Model);
+        Explainer = new(unavailable);
+        Director = new(unavailable);
+        checkConnection = (_, _) => throw new InvalidOperationException(MobileBackendRequirement);
+#else
         generation = new(new NativeSource(this), presentation.Match, ScenarioOrigin.RecordedSdkExample, AuthoredMatchRecording.Model, LoadVariety());
         Explainer = new(new NativeMomentSource(this));
         Director = new(new NativeDirectorSource(this));
         checkConnection = (progress, token) => new NativeSource(this).CheckAsync(progress, token);
+#endif
         Initialize();
     }
+#if IOS
+    private sealed class UnavailableMobileSource : IScenarioSource, IMomentSource, IDirectorSource
+    {
+        public Task<string> GenerateAsync(IProgress<string>? progress, CancellationToken token) =>
+            throw new InvalidOperationException(MobileBackendRequirement);
+        public Task<string> ExplainAsync(MomentEvidence evidence, CancellationToken token) =>
+            throw new InvalidOperationException(MobileBackendRequirement);
+        public Task<string> CreateAsync(DirectorEvidence evidence, IProgress<string>? progress, CancellationToken token) =>
+            throw new InvalidOperationException(MobileBackendRequirement);
+    }
+#else
     private MatchVariety LoadVariety()
     {
         var path = Path.Combine(FileSystem.AppDataDirectory, "recent-gameplay.json");
@@ -95,4 +121,5 @@ public sealed partial class MatchService
         public Task CheckAsync(IProgress<string>? progress, CancellationToken token) =>
             Task.Run(() => Source().VerifyConnectionAsync(progress, token, includeSession: true), token);
     }
+#endif
 }

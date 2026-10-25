@@ -59,7 +59,7 @@ public static class DenseNarrationPrompt
         get
         {
             var schema=JsonNode.Parse(NarrationPrompt.Schema)!.AsObject();
-            schema["required"]!.AsArray().Add("captionContract");
+            schema["required"]!.AsArray().Add((JsonNode?)JsonValue.Create("captionContract"));
             schema["properties"]!["captionContract"]=new JsonObject{["type"]="integer",["const"]=2};
             var cues=schema["properties"]!["cues"]!;
             cues["minItems"]=1;cues["maxItems"]=90;

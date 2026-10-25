@@ -1,4 +1,15 @@
 <section class="fixture-picker" aria-labelledby="fixture-picker-title">
+    @if(!LiveAvailable)
+    {
+        <span class="eyebrow">PitchLens for iOS · Offline replay</span>
+        <h1 id="fixture-picker-title">Your pocket Matchday</h1>
+        <p>Watch the recorded Arsenal–Manchester City synthetic match, explore its players and follow the evidence.</p>
+        <p id="ios-backend-requirement" class="caption">@MatchService.MobileBackendRequirement</p>
+        <button id="fixture-create" class="button" disabled aria-describedby="ios-backend-requirement">Create match · Backend required</button>
+        @if(!Startup){<button id="fixture-cancel" class="button purple" @onclick="Cancel">Return to recorded match</button>}
+    }
+    else
+    {
     <header>
         <div class="section-with-info">
             @if(Startup){<h1 id="fixture-picker-title">Choose your teams</h1>}else{<h2 id="fixture-picker-title">Choose your teams</h2>}
@@ -20,8 +31,10 @@
     @if(!string.IsNullOrWhiteSpace(Error)){<p class="error" role="alert">@Error</p>}
     <div class="fixture-primary"><button id="fixture-create" class="button purple" disabled="@(Busy||!string.IsNullOrWhiteSpace(Error))" @onclick="Create">Create match</button><small>Uses Copilot usage · Up to 3 responses</small></div>
     <button id="fixture-cancel" class="text-button fixture-back" disabled="@Busy" @onclick="Cancel">Back</button>
+    }
 </section>
 @code{
+    [Parameter] public bool LiveAvailable{get;set;}=true;
     [Parameter] public FixtureChoice Value{get;set;}=new();
     [Parameter] public bool Busy{get;set;}
     [Parameter] public bool Startup{get;set;}

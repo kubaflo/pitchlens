@@ -1,7 +1,8 @@
 # PitchLens
 
-A macOS football-pitch prototype using **C#/.NET MAUI 10 Blazor Hybrid (Mac Catalyst)** and the
-**GitHub Copilot SDK**. The pitch is the initial, primary view, with clickable
+A football-pitch prototype using **C#/.NET MAUI 10 Blazor Hybrid** on
+**Mac Catalyst and iOS**. The Mac app uses the **GitHub Copilot SDK**; iOS currently
+provides an explicitly recorded, offline experience. The replay has clickable
 players, an accessible roster, pinned playback controls and a selected-player
 popup. The approved **01 Matchday** review design is implemented: purple brand
 bar, one compact fixture/score header, readable local Barlow typography and sparse,
@@ -16,6 +17,86 @@ starting XIs, match results, athlete performance or a season dataset. We chose
 2026/27 as the current season when the requested “Premier League 2026” season
 could not be clarified. PitchLens is independent and unaffiliated with the league
 or either club; submission remains deferred.
+
+## iPhone and iPad
+
+The iOS foundation reuses the five-minute synthetic Arsenal–Manchester City
+recording, replay, player facts/photos, captions, Fan/Analyst story and explanation,
+canonical event evidence, analysis lenses and recorded Director film. On launch,
+choose **Recorded demo** or **Guided demo**. No account, network connection or model
+request is needed. The historical fixture is never renamed to a selected club pair.
+The guided path explicitly seeks to 76/86/300 seconds; **More → Recorded Director's
+Cut** explicitly seeks to the end before playing the recorded 58-second edit.
+
+**Fresh AI is not available on iOS.** New matches, tailored explanations,
+three-agent review and new Director edits require a separately configured,
+authenticated backend. None is connected or deployed. New match and explanation/
+settings surfaces state this limitation and retain the recorded path. The iOS
+package excludes both the Copilot SDK dependency and the desktop executable,
+including through `PitchLens.Generation`; it does not attempt desktop CLI startup,
+local Mac login or a silent recorded fallback. Mac runtime/auth behavior is unchanged.
+The next product decision is whether to connect a user-controlled Mac host or an
+authenticated hosted service, and how transport, authentication, consent and usage
+will work. This port does not make that decision or claim feature parity.
+
+Native safe areas protect the notch and home indicator. Narrow screens retain the
+entire pitch at its original aspect ratio and move subtitles, goal cards and film
+copy below it; transport and dialogs scroll rather than compressing the field.
+Controls reflow in portrait/landscape and text size remains adjustable to 200%.
+Twenty-two players are necessarily small on a portrait iPhone: use
+**More → Players** for a readable selection list or the existing detail camera.
+No minimum 44-point per-player target or full device/accessibility certification is
+claimed; the compact tactical geometry is unchanged.
+
+With the pinned SDK, workload set and Xcode available:
+
+```sh
+dotnet workload install maui-ios maui-maccatalyst
+dotnet build src/PitchLens.App -f net10.0-ios -c Debug \
+  -p:RuntimeIdentifier=iossimulator-arm64
+xcrun simctl list devices available
+# Set SIMULATOR_ID to the exact intended simulator UUID; boot it if needed.
+xcrun simctl install "$SIMULATOR_ID" \
+  src/PitchLens.App/bin/Debug/net10.0-ios/iossimulator-arm64/PitchLens.App.app
+xcrun simctl launch "$SIMULATOR_ID" io.github.kubaflo.pitchlens
+```
+
+iOS 17+ on iPhone/iPad is the deployment target, not a claim of testing every OS.
+Apple Silicon simulator builds need no provisioning profile. Physical-device/
+distribution signing remains the developer's explicit setup; no account,
+provisioning, signing identity, bundle ID or Xcode selection is changed by this port.
+Keep Mac builds separate with `-f net10.0-maccatalyst`; do not replace a running
+Mac app bundle. Repository visibility and licensing are unchanged.
+
+For simulator-only inspection without XCTest, optionally add
+`-p:PitchLensDevFlow=true -p:MauiDevFlowPort=9237` to the Debug iOS build.
+This opts into experimental DevFlow Agent/Blazor tools for the ARM64 simulator
+only; normal builds, physical-device builds, Release and Mac do not include them.
+The opt-in uses a separate inspection host that permits Chobitsu evaluation;
+normal builds exclude that host and retain the production content security policy.
+Inspection bundles use `bin/Inspector/Debug/net10.0-ios/iossimulator-arm64/`
+and separate intermediate output, so toggling inspection cannot leave inspector
+assets in the ordinary app bundle.
+Use a matching DevFlow CLI version. Discover the actual app port with
+`maui devflow list` (a broker may assign a port instead of the requested one).
+Inspect the specific app using `maui devflow webview webviews --agent-port PORT`,
+`webview source`, `webview Runtime evaluate` and `logs`. CDP screenshot support
+depends on the bridge; use simulator screenshots if unsupported.
+Do not expose the inspector port or use this opt-in for distribution.
+
+Port validation used isolated **iPhone 11 Pro / iOS 26.5**
+(`101CA6D2-E130-4C1E-9C18-F94C6707DE18`) and **iPad mini (A17 Pro) / iOS 26.5**
+(`B6BAB20A-E385-48F4-9E11-70999E87A3F3`) simulators. The Debug inspector witness
+drove the real packaged WebView through the guided recording, Fan/Analyst switch,
+canonical evidence, recorded film, play/pause, player lens, match story, backend
+boundary and 200% reading/reset. DOM measurements checked all opened dialogs
+inside the viewport, no root horizontal overflow, 22 player controls and isotropic
+pitch mapping; native simulator screenshots supplied visual evidence. These were
+DOM-driven interactions, **not physical-touch or accessibility certification**.
+Mobile-canvas screenshot/boot worked, but its tap/AX calls failed and the provider
+reported rotation unsupported, so native landscape interaction remains unverified.
+Headless coverage passes **470 .NET tests / 60 Node tests**. No XCTest, real AI
+request or Mac app launch was used.
 
 ## Task-conditioned insights and recorded guided demo
 
@@ -1553,9 +1634,9 @@ runtime smoothness certification; manual visual acceptance remains required.
 
 | Project | Target | Purpose |
 |---|---|---|
-| `src/PitchLens.App` | `net10.0-maccatalyst` | Native services + Razor/HTML/CSS UI + JS canvas motion |
+| `src/PitchLens.App` | `net10.0-maccatalyst;net10.0-ios` | Native services + Razor/HTML/CSS UI + JS canvas motion |
 | `src/PitchLens.Core` | `net10.0` | Deterministic replay, statistics, explanations and transforms |
-| `src/PitchLens.Generation` | `net10.0` | Verified roster, typed SDK adapter, parser, causal validation and request state |
+| `src/PitchLens.Generation` | `net10.0;net10.0-ios` | Shared recordings/validation; desktop target also includes the SDK adapter |
 | `tests/PitchLens.Core.Tests` | `net10.0` | Headless replay and injectable-fake generation tests |
 | `tools/PitchLens.Generate` | `net10.0` | Explicit bounded live SDK verification |
 | `tools/PitchLens.Performance` | `net10.0` | Reproducible headless legacy/bounded computation comparison |
@@ -1590,9 +1671,9 @@ restore packages and acquire the checksum-verified runtime at build time.
 dotnet workload install maui-maccatalyst
 dotnet test tests/PitchLens.Core.Tests -c Release
 node --test tests/js/*.test.mjs
-dotnet build src/PitchLens.App -c Debug \
+dotnet build src/PitchLens.App -f net10.0-maccatalyst -c Debug \
   -p:EnableCodeSigning=true -p:CodesignKey=- -p:CreatePackage=false
-dotnet build src/PitchLens.App -c Release \
+dotnet build src/PitchLens.App -f net10.0-maccatalyst -c Release \
   -p:EnableCodeSigning=true -p:CodesignKey=- -p:CreatePackage=false
 ```
 
@@ -1600,7 +1681,8 @@ The build creates an ad-hoc signed development bundle at
 `src/PitchLens.App/bin/Debug/net10.0-maccatalyst/maccatalyst-arm64/PitchLens.app`;
 it does **not** launch it. Apple Silicon/macOS with configured Xcode is required;
 Intel/distribution/App Store packaging is not verified. Core/generation tests
-can run headlessly without a MAUI workload.
+run headlessly; to restore only the desktop-neutral generation target without
+Apple workloads, pass `-p:TargetFrameworks=net10.0` to the test command.
 The test project also renders the actual studio/activity Razor components using
 ASP.NET Core's in-process `HtmlRenderer` (included with the .NET SDK), and tests
 the platform-neutral native service bridge with delayed sources. No browser,
@@ -1615,7 +1697,7 @@ and the live headless request do not certify native interaction. Only when you
 choose to launch the app yourself:
 
 ```sh
-dotnet build src/PitchLens.App -c Debug -t:Run \
+dotnet build src/PitchLens.App -f net10.0-maccatalyst -c Debug -t:Run \
   -p:EnableCodeSigning=true -p:CodesignKey=- -p:CreatePackage=false
 ```
 

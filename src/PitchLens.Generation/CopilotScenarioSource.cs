@@ -8,13 +8,12 @@ namespace PitchLens.Generation;
 
 // SDK 1.0.22 marks permission decisions and response schemas experimental.
 #pragma warning disable GHCP001
-public sealed class CopilotScenarioSource(string cliPath, string workingDirectory, string? responseArchiveDirectory = null) : IScenarioSource
+public sealed partial class CopilotScenarioSource(string cliPath, string workingDirectory, string? responseArchiveDirectory = null) : IScenarioSource
 {
     private readonly GenerationResponseArchive? archive = responseArchiveDirectory is null ? null : new(responseArchiveDirectory);
     private int sendCalls,responses;
     public int SendCalls=>Volatile.Read(ref sendCalls);
     public int Responses=>Volatile.Read(ref responses);
-    public const string Model = "gpt-6.1-sol";
     public static string Prompt => AuthoredMatchPrompt.Text;
     public Task<string> GeneratePlanAsync(IProgress<string>? progress, CancellationToken cancellationToken) =>
         RequestAsync(Prompt, AuthoredMatchPrompt.Schema, "paths", progress, cancellationToken);

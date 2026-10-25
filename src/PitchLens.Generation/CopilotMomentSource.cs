@@ -14,7 +14,7 @@ public sealed record MomentRequestCounts(int SdkSendInvocations,int Responses,in
 public partial class MomentWitnessJsonContext:JsonSerializerContext;
 
 #pragma warning disable GHCP001
-public sealed class CopilotMomentSource(string cliPath, string workingDirectory,
+public sealed partial class CopilotMomentSource(string cliPath, string workingDirectory,
     string? witnessDirectory = null) : IMomentSource
 {
     public int ToolCalls { get; private set; }
@@ -39,18 +39,6 @@ public sealed class CopilotMomentSource(string cliPath, string workingDirectory,
         Context retains both teams and the full observed score. Do not suppress opposition goals for a favorite.
         Separate observed actions from tentative interpretation; no predictions, counterfactuals or invented intent.
         """;
-    private const string ClaimSchema = """
-        {"type":"object","additionalProperties":false,"required":["text","evidenceIds"],"properties":{
-        "text":{"type":"string","minLength":1,"maxLength":280},
-        "evidenceIds":{"type":"array","minItems":1,"maxItems":4,"items":{"type":"string"}}}}
-        """;
-    public static string Schema => """
-        {"type":"object","additionalProperties":false,"required":["snapshotHash","fan","analyst"],"properties":{
-        "snapshotHash":{"type":"string"},"fan":{"type":"array","minItems":1,"maxItems":4,"items":
-        """ + ClaimSchema + """ 
-        },"analyst":{"type":"array","minItems":1,"maxItems":4,"items":
-        """ + ClaimSchema + "}}}";
-
     public Task<string> ExplainAsync(MomentEvidence evidence, CancellationToken token) => ExplainAsync(evidence, token, null);
     public async Task<string> ExplainAsync(MomentEvidence evidence, CancellationToken token, IProgress<RequestProgress>? progress)
     {

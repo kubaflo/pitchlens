@@ -6,7 +6,18 @@ public sealed class MainPage : ContentPage
 {
     public MainPage()
     {
-        var web = new BlazorWebView { HostPage = "wwwroot/index.html" };
+#if IOS
+        SafeAreaEdges = SafeAreaEdges.All;
+        BackgroundColor = Color.FromArgb("#37003C");
+#endif
+        var web = new BlazorWebView
+        {
+#if PITCHLENS_DEVFLOW
+            HostPage = "wwwroot/devflow.html"
+#else
+            HostPage = "wwwroot/index.html"
+#endif
+        };
         web.RootComponents.Add(new RootComponent { Selector = "#app", ComponentType = typeof(Components.Routes) });
         Content = web;
     }

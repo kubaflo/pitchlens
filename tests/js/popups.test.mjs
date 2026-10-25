@@ -101,6 +101,23 @@ test("story remains modal with native backdrop close and focus return", () => {
     assert.throws(() => host.open("missing"), /missing/);
 });
 
+test("phone player sheet uses CSS viewport bounds and drops desktop tracking when resized", () => {
+    const h = harness(), host = new PopupHost(h.doc, h.win);
+    host.open("player-dialog");
+    const bounds = { left: 16, top: 200, right: 1240, bottom: 720, height: 520 };
+    host.follow({ x: 200, y: 400 }, bounds, 40);
+    assert.match(h.player.style.transform, /^translate/);
+    h.win.innerWidth = 375;
+    h.windowHandlers.get("resize")();
+    assert.equal(h.player.style.transform, "");
+    host.follow({ x: 80, y: 320 }, { left: 12, top: 200, right: 363, bottom: 430, height: 230 }, 24);
+    assert.equal(h.player.style.transform, "");
+    h.win.innerWidth = 1280;
+    h.windowHandlers.get("resize")();
+    assert.match(h.player.style.transform, /^translate/);
+    host.dispose();
+});
+
 test("roster and player are nonmodal; follow, switching, Escape/outside and asynchronous focus restoration are safe", () => {
     const h = harness(), host = new PopupHost(h.doc, h.win);
     host.open("roster-dialog");
