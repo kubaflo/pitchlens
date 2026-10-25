@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>Native macOS · Synthetic football · Three collaborating AI agents</strong>
+  <strong>macOS + iOS preview · Synthetic football · Evidence you can explore</strong>
 </p>
 
 <p align="center">
@@ -32,6 +32,42 @@ analysis.
 
 ## Demo
 
+### On iPad · Understand the moment
+
+[![Watch the iPad-framed promo: PitchLens replaying Arsenal's synthetic goal](docs/media/ipad-framed-preview.png)](https://github.com/kubaflo/pitchlens/releases/download/demo-media-2026-10-25/pitchlens-ipad-framed-promo.mp4)
+
+<p align="center">
+  <strong><a href="https://github.com/kubaflo/pitchlens/releases/download/demo-media-2026-10-25/pitchlens-ipad-framed-promo.mp4">Watch the iPad promo · 60 seconds</a></strong><br />
+  <a href="https://github.com/kubaflo/pitchlens/releases/download/demo-media-2026-10-25/pitchlens-ipad-framed.en.srt">English subtitles</a>
+  &nbsp; / &nbsp;
+  <a href="https://github.com/kubaflo/pitchlens/pull/4">iOS source &amp; integration PR</a>
+</p>
+
+A recorded match, Fan and Analyst views, player lenses and Match Story.
+**Watch this evidence** pins Saka's carry at 82s, before his pass at 84s and
+Gyokeres' goal at 86s. This iOS demo makes **no fresh AI requests**; fresh iOS AI
+requires an authenticated backend that is not implemented yet. The separate Mac
+film below demonstrates the fresh three-agent workflow.
+
+<details>
+<summary><strong>iPad film: simulator capture &amp; editorial frame</strong></summary>
+
+Actual production UI captured on a landscape **iPad mini (A17 Pro), iOS 26.5
+simulator**, using Debug-only opt-in loopback inspection. This is not a physical
+iPad recording. The original illustrated bezel, camera, buttons and shadow are
+editorial framing, not an Apple device photograph.
+
+The 60-second H.264 film is 2560 × 1760 at 30 fps. Its 2266 × 1488 app screen is
+positioned at 1:1 with no screen scaling or cropping. It shows the historical
+synthetic Arsenal–City recording: Saka's carry (`e25`) ends at 82s and Gyokeres'
+goal (`e28`) occurs at 86s. Recorded explanations are not fresh three-agent
+inference. ElevenLabs George narration and caption timing are unchanged;
+narration has not been listening-reviewed.
+
+</details>
+
+### On Mac · Follow the three-agent workflow
+
 [![Watch the 82-second PitchLens demo: Arsenal and Manchester City with passing connections on the pitch](docs/media/matchday.png)](https://github.com/kubaflo/pitchlens/releases/download/demo-media-2026-10-25/pitchlens-demo-elevenlabs.mp4)
 
 <p align="center">
@@ -55,7 +91,7 @@ not a Fan-to-Analyst toggle. Waiting time is shortened in the edit.
 
 The English voiceover is synthetic ElevenLabs George narration added to the
 video, **not in-app speech**. Pronunciation has not been listening-reviewed.
-Both app screenshots on this page are unscaled frames from that same video.
+The two Mac screenshots on this page are unscaled frames from that same video.
 The hero is original illustrative artwork, not an app screenshot.
 
 The exact demo is hosted as a GitHub release asset, not a large binary in source
@@ -85,7 +121,7 @@ requires repository access; the release page provides an authenticated download.
 
 ## Three agents, one captured moment
 
-Fresh **Explain this moment** uses three separate Copilot SDK sessions on
+On Mac, fresh **Explain this moment** uses three separate Copilot SDK sessions on
 `gpt-6.1-sol`, connected by validated, typed handoffs:
 
 ```mermaid
@@ -133,8 +169,14 @@ specialists work against the same moment.
 
 ### Supported setup
 
-The app targets **Apple Silicon macOS via Mac Catalyst** only. Windows, Linux,
-iOS, Android and Intel Mac app builds are not verified.
+**This publication branch targets Apple Silicon macOS via Mac Catalyst.**
+The separately pushed [iOS implementation (PR #4)](https://github.com/kubaflo/pitchlens/pull/4)
+is on [`kubaflo-pitchlens-for-ios`](https://github.com/kubaflo/pitchlens/tree/kubaflo-pitchlens-for-ios),
+not yet integrated here or into `main`. Its recorded/offline flow has been checked
+on iPhone 11 Pro and iPad mini simulators; physical-device provisioning and App
+Store distribution are not verified. Fresh iOS AI remains unavailable pending an
+authenticated backend. Windows, Linux, Android and Intel Mac app builds are not
+verified. The build instructions below are for **this Mac branch**.
 
 | Component | Repository pin / build baseline |
 |---|---|
@@ -191,6 +233,9 @@ dotnet build src/PitchLens.App -c Debug -t:Run \
 
 ### No-account exploration vs fresh AI
 
+The following fresh-request behavior applies to **Mac**. The separate iOS branch
+supports recorded/offline exploration, not fresh generation or explanation.
+
 | Mode | What you get | Account / usage |
 |---|---|---|
 | **Recorded demo / Test** | Bundled AI-authored match, matching recorded goal explanation and guided demo. | No Copilot login or model calls at runtime. Building still requires downloads. |
@@ -200,7 +245,8 @@ dotnet build src/PitchLens.App -c Debug -t:Run \
 At startup, choose **Recorded demo · No AI calls** or **Guided demo** for the
 account-free path. Test mode blocks SDK requests; its recorded explanation is
 historical **single-agent output**, not a simulated three-agent review. The
-bundled recording is not the fresh match shown in the video.
+bundled recording is not the fresh match shown in the Mac video; it is the
+historical match used by the iPad promo.
 
 For fresh operations, install the
 [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/install-copilot-cli)
