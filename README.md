@@ -98,6 +98,104 @@ reported rotation unsupported, so native landscape interaction remains unverifie
 Headless coverage passes **470 .NET tests / 60 Node tests**. No XCTest, real AI
 request or Mac app launch was used.
 
+### Opt-in iPhone Duo experiment
+
+**Real Duo cover-display validation; fold transitions remain unverified.** This
+experiment uses a genuine **iPhone Duo / iOS 27.1 (24A94232)** simulator, not an
+iPad or a resized window. Its app ID is `io.github.kubaflo.pitchlens.duo`.
+Normal iOS/Mac targets, root SDK/workload pins and backend limitations above
+are unchanged.
+
+The host uses upstream `UseFoldable()` and `TwoPaneView`. An **active native
+division reserved region** puts the entire existing Blazor replay, controls and
+dialogs in pane 1, with recorded/fold guidance in pane 2. Without a division,
+the replay uses the full safe-area canvas; width alone does not force a split.
+This is **not two independently interactive, synchronized Blazor panes**.
+Hinge angle never determines layout. The opt-in also adopts MAUI's native
+UIScene lifecycle, required by the iOS 27.1 SDK; the original iOS manifest is
+not changed.
+
+Use a **side-by-side Xcode 27.1 (27A9275)** and an **isolated .NET SDK 10.0.402 /
+workload set 10.0.402.1**, including `Microsoft.iOS.Sdk.net10.0_27.1`
+**27.1.10018**. Review Apple's agreements yourself. Do not switch global
+`xcode-select` or update the working iPhone/iPad SDK installation.
+
+The framework source is from MAUI's **`net11.0` branch**, pinned at
+`a561eaec4aacbe962416c64491aa5ffbc6bde9ae`. It includes
+[dotnet/maui#38915](https://github.com/dotnet/maui/pull/38915) and the ancestor
+scene-display fix [dotnet/maui#38911](https://github.com/dotnet/maui/pull/38911).
+The build intentionally compiles that source for **`net10.0-ios27.1`** using
+the branch's .NET 10 compatibility dependencies; it does not migrate every
+project to .NET 11. The checked published MAUI 11 RC package targeted iOS
+27.0 and therefore did **not** contain the compiled native Duo path.
+Do not force `IosDuoBindingsAvailable`: the real 27.1 bindings enable it.
+
+Obtain that exact upstream checkout/archive separately, then:
+
+```sh
+export DEVELOPER_DIR=/Applications/Xcode-27.1.0.app/Contents/Developer
+export DOTNET_ROOT=/absolute/path/to/isolated-duo-dotnet
+export MauiSourceRoot=/absolute/path/to/maui-at-a561eaec
+# The SDK must already be installed in this separate root.
+(cd eng/duo && "$DOTNET_ROOT/dotnet" workload install maui-ios)
+bash eng/duo/build.sh -c Debug
+
+xcrun simctl create "PitchLens Duo" \
+  com.apple.CoreSimulator.SimDeviceType.iPhone-Duo \
+  com.apple.CoreSimulator.SimRuntime.iOS-27-1
+# Set SIMULATOR_ID to that newly created UUID; leave other devices alone.
+xcrun simctl boot "$SIMULATOR_ID"
+xcrun simctl bootstatus "$SIMULATOR_ID" -b
+xcrun simctl install "$SIMULATOR_ID" \
+  src/PitchLens.App/bin/Duo/Debug/net10.0-ios27.1/iossimulator-arm64/PitchLens.App.app
+xcrun simctl launch "$SIMULATOR_ID" io.github.kubaflo.pitchlens.duo
+```
+
+The dedicated solution/global.json select the newer workload only for this
+experiment. MAUI framework projects are source references, including Core,
+Controls, XAML support, Essentials, Graphics, Foldable and BlazorWebView. Source-only builds
+do not bring NuGet build imports transitively, so the app explicitly supplies
+the matching Blazor packaging targets and .NET 10 build-time asset tools.
+The otherwise empty `App.xaml` is omitted only in this source-reference build.
+`build.sh` disables upstream analyzers/warnings-as-errors for the experimental
+framework graph, not the normal app builds.
+
+Optional `-p:PitchLensDevFlow=true` uses separate `bin/DuoInspector/` and
+`obj/DuoInspector/` outputs; normal Duo uses `bin/Duo/` and `obj/Duo/`.
+Use the matching DevFlow version described above and discover its actual port.
+The focused native-host check requires the genuine simulator and running
+inspection app:
+
+```sh
+MAUI_DEVFLOW=/absolute/path/to/maui DEVFLOW_PORT=ACTUAL_PORT \
+SIMULATOR_ID=ACTUAL_DUO_UUID DUO_EXPECTED_MODE=SinglePane \
+node tests/duo/verify-host.mjs
+```
+
+This checks actual native mode, pane/WebView bounds and simulator identity.
+`Wide`/`Tall` can check a real separating posture once its platform control is
+available; the test never creates a posture or changes viewport geometry.
+`SinglePane` alone is **not evidence of a closed or open hinge angle**.
+
+The initial witness used simulator `23DC1F70-BEE7-4CAC-AF81-F22103E1108A`:
+cover framebuffer **1398x2034**, density **3**, native safe-area WebView
+**382x644**, `SinglePane`. Recorded/guided replay, Fan-to-Analyst, canonical
+evidence, Player Lens, match story, recorded film, backend boundary and 200%
+text passed with contained dialogs, no horizontal overflow and 22 player
+controls. Native moving cover footage includes Saka's e25 carry (79-82s),
+e26 pass (84s), Gyokeres's e28 goal (86s), and Watch this evidence pinned
+at 82s. These are app-owned DevFlow interactions, not touch/AX certification.
+Product regression coverage passed **470 .NET / 60 Node tests**; the pinned
+upstream Foldable suite passed **39 tests**. Normal iOS/Mac and Duo Debug
+builds passed. No XCTest or fresh AI/backend request was used.
+
+**Remaining gate:** the approved desktop automation could not access Simulator
+posture controls. Open/partially-open geometry, hinge angles, pane 2 appearance
+and live transitions are **unverified**, not failed measurements. No folded
+footage or complete foldable-device certification is claimed. Raw cover source,
+event guide, native bounds and media verification are session artifacts, not
+embedded application assets or an edited promo.
+
 ## Task-conditioned insights and recorded guided demo
 
 ### Less text, same Matchday

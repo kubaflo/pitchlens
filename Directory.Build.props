@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup Condition="'$(PitchLensDuo)' == 'true' and '$(MSBuildProjectName)' == 'PitchLens.App'">
+    <BaseIntermediateOutputPath>obj/Duo/</BaseIntermediateOutputPath>
+    <BaseIntermediateOutputPath Condition="'$(PitchLensDevFlow)' == 'true'">obj/DuoInspector/</BaseIntermediateOutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj/**;bin/**</DefaultItemExcludes>
+  </PropertyGroup>
+</Project>

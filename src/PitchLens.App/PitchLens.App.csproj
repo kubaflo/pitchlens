@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
   <PropertyGroup>
     <TargetFrameworks>net10.0-maccatalyst;net10.0-ios</TargetFrameworks>
+    <TargetFrameworks Condition="'$(PitchLensDuo)' == 'true'">net10.0-ios27.1</TargetFrameworks>
     <OutputType>Exe</OutputType>
     <RootNamespace>PitchLens.App</RootNamespace>
     <UseMaui>true</UseMaui>
@@ -17,13 +18,21 @@
     <CopilotSkipCliDownload Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) != 'maccatalyst'">true</CopilotSkipCliDownload>
     <EnableDefaultCssItems>false</EnableDefaultCssItems>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(PitchLensDevFlow)' == 'true' and '$(Configuration)' == 'Debug' and '$(TargetFramework)' == 'net10.0-ios' and '$(RuntimeIdentifier)' == 'iossimulator-arm64'">
+  <PropertyGroup Condition="'$(PitchLensDuo)' == 'true'">
+    <RuntimeIdentifier>iossimulator-arm64</RuntimeIdentifier>
+    <DefineConstants>$(DefineConstants);PITCHLENS_DUO</DefineConstants>
+    <DisableMauiImplicitPackageReferences>true</DisableMauiImplicitPackageReferences>
+    <ApplicationId>io.github.kubaflo.pitchlens.duo</ApplicationId>
+    <OutputPath>bin/Duo/$(Configuration)/</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(PitchLensDevFlow)' == 'true' and '$(Configuration)' == 'Debug' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' and '$(RuntimeIdentifier)' == 'iossimulator-arm64'">
     <PitchLensDevFlowEnabled>true</PitchLensDevFlowEnabled>
     <DefineConstants>$(DefineConstants);PITCHLENS_DEVFLOW</DefineConstants>
-    <OutputPath>bin/Inspector/$(Configuration)/</OutputPath>
-    <IntermediateOutputPath>obj/Inspector/$(Configuration)/</IntermediateOutputPath>
+    <OutputPath Condition="'$(PitchLensDuo)' != 'true'">bin/Inspector/$(Configuration)/</OutputPath>
+    <OutputPath Condition="'$(PitchLensDuo)' == 'true'">bin/DuoInspector/$(Configuration)/</OutputPath>
+    <IntermediateOutputPath Condition="'$(PitchLensDuo)' != 'true'">obj/Inspector/$(Configuration)/</IntermediateOutputPath>
   </PropertyGroup>
-  <ItemGroup Condition="'$(PitchLensDevFlow)' == 'true' and '$(Configuration)' == 'Debug' and '$(TargetFramework)' == 'net10.0-ios' and '$(RuntimeIdentifier)' == 'iossimulator-arm64'">
+  <ItemGroup Condition="'$(PitchLensDevFlow)' == 'true' and '$(Configuration)' == 'Debug' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' and '$(RuntimeIdentifier)' == 'iossimulator-arm64'">
     <PackageReference Include="Microsoft.Maui.DevFlow.Agent" Version="0.1.0-preview.12.26421.1" />
     <PackageReference Include="Microsoft.Maui.DevFlow.Blazor" Version="0.1.0-preview.12.26421.1" />
   </ItemGroup>
@@ -33,11 +42,32 @@
   <ItemGroup>
     <MauiIcon Include="Resources/AppIcon/appicon.svg" Color="#37003C" />
     <MauiSplashScreen Include="Resources/Splash/splash.svg" Color="#37003C" BaseSize="128,128" />
-    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="10.0.20" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" Condition="'$(PitchLensDuo)' != 'true'" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="10.0.20" Condition="'$(PitchLensDuo)' != 'true'" />
     <PackageReference Include="GitHub.Copilot.SDK" Version="1.0.22" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'" />
     <ProjectReference Include="../PitchLens.Core/PitchLens.Core.csproj" />
   </ItemGroup>
+  <ItemGroup Condition="'$(PitchLensDuo)' == 'true'">
+    <MauiXaml Remove="App.xaml" />
+    <PartialAppManifest Include="Platforms/iOS/DuoScene.plist" />
+    <PackageReference Include="Microsoft.Maui.Resizetizer" Version="10.0.110" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Maui.Controls.Build.Tasks" Version="10.0.110" PrivateAssets="all" />
+    <ProjectReference Include="$(MauiSourceRoot)/src/Controls/src/Core/Controls.Core.csproj" />
+    <ProjectReference Include="$(MauiSourceRoot)/src/Controls/src/Xaml/Controls.Xaml.csproj" />
+    <ProjectReference Include="$(MauiSourceRoot)/src/Core/src/Core.csproj" />
+    <ProjectReference Include="$(MauiSourceRoot)/src/Essentials/src/Essentials.csproj" />
+    <ProjectReference Include="$(MauiSourceRoot)/src/Graphics/src/Graphics/Graphics.csproj" />
+    <ProjectReference Include="$(MauiSourceRoot)/src/Controls/Foldable/src/Controls.Foldable.csproj" />
+    <ProjectReference Include="$(MauiSourceRoot)/src/BlazorWebView/src/Maui/Microsoft.AspNetCore.Components.WebView.Maui.csproj" />
+  </ItemGroup>
+  <Target Name="ValidateDuoConfiguration" BeforeTargets="PrepareForBuild" Condition="'$(PitchLensDuo)' == 'true'">
+    <Error Condition="'$(TargetFramework)' != 'net10.0-ios27.1' or '$(RuntimeIdentifier)' != 'iossimulator-arm64'"
+           Text="The opt-in Duo experiment requires net10.0-ios27.1 / iossimulator-arm64." />
+    <Error Condition="!Exists('$(MauiSourceRoot)/src/Controls/Foldable/src/iOS/FoldableService.cs')"
+           Text="Set MauiSourceRoot to the pinned MAUI net11.0 source described in README." />
+  </Target>
+  <Import Project="$(MauiSourceRoot)/src/BlazorWebView/src/Maui/build/Microsoft.AspNetCore.Components.WebView.Maui.targets"
+          Condition="'$(PitchLensDuo)' == 'true' and Exists('$(MauiSourceRoot)/src/BlazorWebView/src/Maui/build/Microsoft.AspNetCore.Components.WebView.Maui.targets')" />
   <ItemGroup>
     <ProjectReference Include="..\PitchLens.Generation\PitchLens.Generation.csproj" />
   </ItemGroup>

@@ -6,7 +6,9 @@ public partial class App : Application
     public App(MatchService service)
     {
         this.service = service;
+#if !PITCHLENS_DUO
         InitializeComponent();
+#endif
     }
 
     protected override Window CreateWindow(IActivationState? activationState)
