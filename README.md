@@ -1,27 +1,69 @@
-# PitchLens
+<p align="center">
+  <img src="docs/media/pitchlens-hero.png" alt="PitchLens. Don't just watch the goal. Explore the match behind it. Built with .NET MAUI and GitHub Copilot SDK." width="100%" />
+</p>
 
-**Don't just watch the goal. Explore the match behind it.**
+<p align="center">
+  <strong>Native macOS · Synthetic football · Three collaborating AI agents</strong>
+</p>
 
-PitchLens is a native macOS football playground: follow a synthetic match, explore
-passing connections and player movement, then ask three collaborating AI agents
-to explain a moment against the events you can inspect on the pitch.
+<p align="center">
+  <a href="#demo">Watch the demo</a> &nbsp; / &nbsp;
+  <a href="#three-agents-one-captured-moment">Meet the agents</a> &nbsp; / &nbsp;
+  <a href="#try-it-locally">Quick start</a> &nbsp; / &nbsp;
+  <a href="#contributing">Contribute</a>
+</p>
 
-Built with **C# / .NET MAUI Blazor Hybrid** and the **GitHub Copilot SDK**.
-Real club and player identities; **synthetic match actions**, not broadcast footage
-or real performance analysis.
+---
 
-[![PitchLens Matchday: Arsenal and Manchester City with passing connections on the pitch](docs/media/matchday.png)](https://github.com/kubaflo/pitchlens/releases/download/demo-media-2026-10-25/pitchlens-demo-elevenlabs.mp4)
+## Football you can explore. Explanations you can inspect.
 
-### [Watch the 82-second demo](https://github.com/kubaflo/pitchlens/releases/download/demo-media-2026-10-25/pitchlens-demo-elevenlabs.mp4)
+PitchLens turns a synthetic match into an interactive football playground.
+Follow the play, uncover passing connections, explore a player's contribution,
+then ask **why this moment matters**. Three specialist agents work from the same
+captured evidence, and the answer takes you back to the action.
 
-[Video & captions on GitHub](https://github.com/kubaflo/pitchlens/releases/tag/demo-media-2026-10-25)
-&nbsp; / &nbsp;
-[English captions (.srt)](https://github.com/kubaflo/pitchlens/releases/download/demo-media-2026-10-25/pitchlens-demo.en.srt)
+| Play | Explore | Understand |
+|---|---|---|
+| A five-minute, 22-player synthetic match. Pause, seek and revisit the story. | Passing networks, movement, player lenses and Match Story, right on the pitch. | Evidence-led explanations with independent review and clickable supporting events. |
+
+**C# / .NET MAUI Blazor Hybrid + GitHub Copilot SDK.** Real club and player
+identities; synthetic match actions, not broadcast footage or real performance
+analysis.
+
+## Demo
+
+[![Watch the 82-second PitchLens demo: Arsenal and Manchester City with passing connections on the pitch](docs/media/matchday.png)](https://github.com/kubaflo/pitchlens/releases/download/demo-media-2026-10-25/pitchlens-demo-elevenlabs.mp4)
+
+<p align="center">
+  <strong><a href="https://github.com/kubaflo/pitchlens/releases/download/demo-media-2026-10-25/pitchlens-demo-elevenlabs.mp4">Watch the film · 82 seconds</a></strong><br />
+  <a href="https://github.com/kubaflo/pitchlens/releases/tag/demo-media-2026-10-25">GitHub video &amp; captions</a>
+  &nbsp; / &nbsp;
+  <a href="https://github.com/kubaflo/pitchlens/releases/download/demo-media-2026-10-25/pitchlens-demo.en.srt">English subtitles</a>
+</p>
+
+From the goal celebration to passing connections, player exploration and a
+three-agent explanation, the film follows the product all the way back to
+**Watch this evidence**.
+
+<details>
+<summary><strong>Inside the film: moments, narration &amp; media details</strong></summary>
+
+The film opens with Calafiori's Arsenal goal at match time 204s. Later, the
+full-time explanation concerns a **different event**: Cherki's carry ending at
+299s (`e61`), following Kovacic's pass. It shows the Fan answer and its evidence,
+not a Fan-to-Analyst toggle. Waiting time is shortened in the edit.
+
+The English voiceover is synthetic ElevenLabs George narration added to the
+video, **not in-app speech**. Pronunciation has not been listening-reviewed.
+Both app screenshots on this page are unscaled frames from that same video.
+The hero is original illustrative artwork, not an app screenshot.
 
 The exact demo is hosted as a GitHub release asset, not a large binary in source
 history. It is 1636 × 1078 at 60 fps, with no crop or resize. The release is
 **media-only**, not an app download. While this repository is private, the media
 requires repository access; the release page provides an authenticated download.
+
+</details>
 
 > **Publication status:** prepared for an open-source launch, but **not yet
 > open source**. No project code license has been selected. Third-party asset
@@ -41,19 +83,28 @@ requires repository access; the release page provides an authenticated download.
 4. **Go back to the evidence.** Inspect cited events and use **Watch this evidence**
    to pin the supporting action on the pitch.
 
-The film opens with Calafiori's Arsenal goal at match time 204s. Later, the
-full-time explanation concerns a **different event**: Cherki's carry ending at
-299s (`e61`), following Kovacic's pass. It shows the Fan answer and its evidence,
-not a Fan-to-Analyst toggle. Waiting time is shortened in the edit.
-
-The English voiceover is synthetic ElevenLabs George narration added to the
-video, **not in-app speech**. Pronunciation has not been listening-reviewed.
-Both screenshots on this page are unscaled frames from that same video.
-
 ## Three agents, one captured moment
 
 Fresh **Explain this moment** uses three separate Copilot SDK sessions on
 `gpt-6.1-sol`, connected by validated, typed handoffs:
+
+```mermaid
+flowchart LR
+    M["Captured moment"] --> A["EvidenceAnalyst<br/>Find the evidence"]
+    A --> E["AudienceEditor<br/>Write the explanation"]
+    E --> R["EvidenceReviewer<br/>Check the final claims"]
+    M -. "Canonical events" .-> R
+    R --> G{"Accepted?"}
+    G -->|Yes| V["Answer + inspectable evidence"]
+    G -->|No| K["Keep the previous valid answer"]
+    style M fill:#21162f,color:#f6f2ff,stroke:#9b7eb1
+    style A fill:#37003c,color:#f6f2ff,stroke:#b8a0cc
+    style E fill:#37003c,color:#f6f2ff,stroke:#b8a0cc
+    style R fill:#37003c,color:#f6f2ff,stroke:#b8a0cc
+    style G fill:#173d31,color:#d8ffeb,stroke:#65f5b4
+    style V fill:#173d31,color:#d8ffeb,stroke:#65f5b4
+    style K fill:#21162f,color:#f6f2ff,stroke:#9b7eb1
+```
 
 | Agent | Responsibility | Boundary |
 |---|---|---|
