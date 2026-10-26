@@ -32,6 +32,54 @@ analysis.
 
 ## Demo
 
+### On iPhone Duo · One app, two native display sizes
+
+<p align="center">
+  <a href="https://github.com/kubaflo/pitchlens/releases/download/demo-media-2026-10-25/PitchLens-MAUI-iPhone-Duo-LinkedIn.mp4"><img src="docs/media/duo-fully-folded.png" alt="PitchLens recorded demo on the fully folded iPhone Duo simulator" width="48%" /></a>
+  <a href="https://github.com/kubaflo/pitchlens/releases/download/demo-media-2026-10-25/PitchLens-MAUI-iPhone-Duo-LinkedIn.mp4"><img src="docs/media/duo-fully-open.png" alt="PitchLens recorded demo on the fully open iPhone Duo simulator" width="48%" /></a>
+</p>
+
+<p align="center">
+  <strong><a href="https://github.com/kubaflo/pitchlens/releases/download/demo-media-2026-10-25/PitchLens-MAUI-iPhone-Duo-LinkedIn.mp4">Watch the final Duo film · 43 seconds · Silent</a></strong><br />
+  <a href="https://github.com/kubaflo/pitchlens/pull/5">Experimental Duo source &amp; integration PR</a>
+</p>
+
+Experimental .NET MAUI running on the **iPhone Duo / iOS 27.1 simulator**:
+fully folded/closed for 0–16s, then fully open for 16–43s. Only those two
+states appear—no partially-open footage or folding transitions. The complete
+native Device Hub device frame is retained, not an illustrated skin or fake
+hinge. Click either preview to download/watch the exact film.
+
+This is a **recorded synthetic match**, not physical hardware or fresh
+three-agent inference. Fresh iOS AI still requires an authenticated backend.
+The film is silent, with burned-in titles and disclosures; it has no voiceover
+or subtitle sidecar. The Mac and narrated iPad films remain below.
+
+<details>
+<summary><strong>Duo film: source build, device frame &amp; integration status</strong></summary>
+
+43 seconds, 1080 × 1350, H.264/yuv420p, 30 fps, faststart. The capture is cropped
+outside the complete device chassis, then uniformly scaled and padded without
+stretching. The native app hosts use a 382 × 644 closed cover and an 867 × 635
+fully open single-pane viewport.
+
+The on-screen **MAUI net11.0 source build** disclosure refers to an experimental
+framework source branch, **not an app targeting .NET 11 or a shipped/GA package**.
+The app targets `net10.0-ios27.1`, using MAUI source `a561eaec` with the changes
+from [dotnet/maui#38915](https://github.com/dotnet/maui/pull/38915) and
+[dotnet/maui#38911](https://github.com/dotnet/maui/pull/38911), .NET SDK
+10.0.402, workload set 10.0.402.1, iOS pack 27.1.10018 and Xcode 27.1 (27A9275).
+This is separate from the Mac build instructions below.
+
+The [Duo source in PR #5](https://github.com/kubaflo/pitchlens/pull/5)
+is pushed on
+[`kubaflo-pitchlens-iphone-duo`](https://github.com/kubaflo/pitchlens/tree/kubaflo-pitchlens-iphone-duo)
+at `cecabfa7a14f0cf219b89f33d94f7f1a20763904`, stacked on the separate iOS branch.
+Neither is integrated into this showcase branch or `main`. No physical-device,
+App Store, shipped-package or fresh-AI certification is claimed.
+
+</details>
+
 ### On iPad · Understand the moment
 
 [![Watch the iPad-framed promo: PitchLens replaying Arsenal's synthetic goal](docs/media/ipad-framed-preview.png)](https://github.com/kubaflo/pitchlens/releases/download/demo-media-2026-10-25/pitchlens-ipad-framed-promo.mp4)
@@ -175,7 +223,10 @@ is on [`kubaflo-pitchlens-for-ios`](https://github.com/kubaflo/pitchlens/tree/ku
 not yet integrated here or into `main`. Its recorded/offline flow has been checked
 on iPhone 11 Pro and iPad mini simulators; physical-device provisioning and App
 Store distribution are not verified. Fresh iOS AI remains unavailable pending an
-authenticated backend. Windows, Linux, Android and Intel Mac app builds are not
+authenticated backend. The experimental iPhone Duo source is separately pushed
+in [PR #5](https://github.com/kubaflo/pitchlens/pull/5), stacked on that iOS branch;
+its source-build toolchain is described with the Duo film above.
+Windows, Linux, Android and Intel Mac app builds are not
 verified. The build instructions below are for **this Mac branch**.
 
 | Component | Repository pin / build baseline |
