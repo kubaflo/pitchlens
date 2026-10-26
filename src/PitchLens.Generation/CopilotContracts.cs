@@ -16,7 +16,7 @@ public sealed partial class CopilotMomentSource
     public static string Schema => """
         {"type":"object","additionalProperties":false,"required":["snapshotHash","fan","analyst"],"properties":{
         "snapshotHash":{"type":"string"},"fan":{"type":"array","minItems":1,"maxItems":4,"items":
-        """ + ClaimSchema + """ 
+        """ + ClaimSchema + """
         },"analyst":{"type":"array","minItems":1,"maxItems":4,"items":
         """ + ClaimSchema + "}}}";
 }
