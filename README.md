@@ -41,7 +41,7 @@ analysis.
 
 <p align="center">
   <strong><a href="https://github.com/kubaflo/pitchlens/releases/download/demo-media-2026-10-25/PitchLens-MAUI-iPhone-Duo-LinkedIn.mp4">Watch the final Duo film · 43 seconds · Silent</a></strong><br />
-  <a href="https://github.com/kubaflo/pitchlens/pull/5">Experimental Duo source &amp; integration PR</a>
+  <a href="eng/duo/build.sh">Experimental Duo source-build entry point</a>
 </p>
 
 Experimental .NET MAUI running on the **iPhone Duo / iOS 27.1 simulator**:
@@ -71,11 +71,8 @@ from [dotnet/maui#38915](https://github.com/dotnet/maui/pull/38915) and
 10.0.402, workload set 10.0.402.1, iOS pack 27.1.10018 and Xcode 27.1 (27A9275).
 This is separate from the Mac build instructions below.
 
-The [Duo source in PR #5](https://github.com/kubaflo/pitchlens/pull/5)
-is pushed on
-[`kubaflo-pitchlens-iphone-duo`](https://github.com/kubaflo/pitchlens/tree/kubaflo-pitchlens-iphone-duo)
-at `cecabfa7a14f0cf219b89f33d94f7f1a20763904`, stacked on the separate iOS branch.
-Neither is integrated into this showcase branch or `main`. No physical-device,
+The Duo source from `cecabfa7a14f0cf219b89f33d94f7f1a20763904` and the iOS
+foundation are integrated with this showcase on `main`. No physical-device,
 App Store, shipped-package or fresh-AI certification is claimed.
 
 </details>
@@ -88,7 +85,7 @@ App Store, shipped-package or fresh-AI certification is claimed.
   <strong><a href="https://github.com/kubaflo/pitchlens/releases/download/demo-media-2026-10-25/pitchlens-ipad-framed-promo.mp4">Watch the iPad promo · 60 seconds</a></strong><br />
   <a href="https://github.com/kubaflo/pitchlens/releases/download/demo-media-2026-10-25/pitchlens-ipad-framed.en.srt">English subtitles</a>
   &nbsp; / &nbsp;
-  <a href="https://github.com/kubaflo/pitchlens/pull/4">iOS source &amp; integration PR</a>
+  <a href="#ios-recorded-demo">Build the iOS recorded demo</a>
 </p>
 
 A recorded match, Fan and Analyst views, player lenses and Match Story.
@@ -217,15 +214,12 @@ specialists work against the same moment.
 
 ### Supported setup
 
-**This publication branch targets Apple Silicon macOS via Mac Catalyst.**
-The separately pushed [iOS implementation (PR #4)](https://github.com/kubaflo/pitchlens/pull/4)
-is on [`kubaflo-pitchlens-for-ios`](https://github.com/kubaflo/pitchlens/tree/kubaflo-pitchlens-for-ios),
-not yet integrated here or into `main`. Its recorded/offline flow has been checked
+**The source on `main` includes Mac Catalyst, iOS and the opt-in Duo experiment.**
+The iOS recorded/offline flow has been checked
 on iPhone 11 Pro and iPad mini simulators; physical-device provisioning and App
 Store distribution are not verified. Fresh iOS AI remains unavailable pending an
-authenticated backend. The experimental iPhone Duo source is separately pushed
-in [PR #5](https://github.com/kubaflo/pitchlens/pull/5), stacked on that iOS branch;
-its source-build toolchain is described with the Duo film above.
+authenticated backend. The experimental Duo source-build toolchain is described
+with the Duo film above and in the build section below.
 Windows, Linux, Android and Intel Mac app builds are not
 verified. The build instructions below are for **this Mac branch**.
 
@@ -247,14 +241,13 @@ notarized or verified as an external public installer**.
 Install [.NET SDK 10.0.402](https://dotnet.microsoft.com/download/dotnet/10.0)
 and [Xcode](https://developer.apple.com/xcode/) first. Cloning currently requires
 an authenticated GitHub account with access to this private repository.
-The default `main` branch currently contains only a README; the publication
-branch below contains the app and its source history.
+The default `main` branch contains the app, all three platform paths and this
+showcase.
 
 ```sh
 git clone https://github.com/kubaflo/pitchlens.git
 cd pitchlens
-# Until the publication PR is merged, the full source is on this branch:
-git switch kubaflo-pitchlens-github-launch
+git switch main
 
 dotnet --info
 dotnet workload --info
@@ -263,7 +256,7 @@ xcodebuild -version
 # If this workload is missing, install it with the pinned SDK selected:
 dotnet workload install maui-maccatalyst
 
-dotnet build src/PitchLens.App -c Debug \
+dotnet build src/PitchLens.App -f net10.0-maccatalyst -c Debug \
   -p:EnableCodeSigning=true -p:CodesignKey=- -p:CreatePackage=false
 ```
 
@@ -278,13 +271,62 @@ src/PitchLens.App/bin/Debug/net10.0-maccatalyst/maccatalyst-arm64/PitchLens.app
 Open that development bundle yourself when ready, or explicitly run:
 
 ```sh
-dotnet build src/PitchLens.App -c Debug -t:Run \
+dotnet build src/PitchLens.App -f net10.0-maccatalyst -c Debug -t:Run \
   -p:EnableCodeSigning=true -p:CodesignKey=- -p:CreatePackage=false
 ```
 
+### iOS recorded demo
+
+The normal iOS target uses MAUI 10.0.20 and the root SDK/workload pins.
+It excludes the Copilot SDK and desktop runtime, and provides recorded/offline
+replay, explanations, player lenses and story. No backend is connected.
+
+```sh
+dotnet workload install maui-ios maui-maccatalyst
+dotnet build src/PitchLens.App -f net10.0-ios -c Debug \
+  -p:RuntimeIdentifier=iossimulator-arm64
+```
+
+The bundle is at
+`src/PitchLens.App/bin/Debug/net10.0-ios/iossimulator-arm64/PitchLens.App.app`.
+Install it into your chosen Apple Silicon simulator with `xcrun simctl install`.
+iOS 17+ is the deployment target, not a claim of testing every OS. Physical-device
+signing and distribution need separate developer setup.
+
+### Experimental Duo source build
+
+Keep the Duo SDK and Xcode side-by-side with the normal toolchain. Obtain MAUI
+source at `a561eaec4aacbe962416c64491aa5ffbc6bde9ae` separately. The dedicated
+[`eng/duo/global.json`](eng/duo/global.json) selects workload set 10.0.402.1;
+the normal root pins remain unchanged.
+
+```sh
+export DEVELOPER_DIR=/Applications/Xcode-27.1.0.app/Contents/Developer
+export DOTNET_ROOT=/absolute/path/to/isolated-duo-dotnet
+export MauiSourceRoot=/absolute/path/to/maui-at-a561eaec
+# Install SDK 10.0.402 in this separate root first.
+(cd eng/duo && "$DOTNET_ROOT/dotnet" workload install maui-ios)
+bash eng/duo/build.sh -c Debug
+```
+
+This targets `net10.0-ios27.1` / `iossimulator-arm64`, with a separate
+`io.github.kubaflo.pitchlens.duo` app ID and `bin/Duo/` / `obj/Duo/` outputs.
+It uses upstream `UseFoldable()` and `TwoPaneView`: an active native division
+places the existing replay in pane 1 and guidance in pane 2; without a division,
+the replay uses the full safe-area canvas. It is not two synchronized Blazor
+panes. Closed/open single-pane views are shown in the film; live transitions
+and complete foldable-device behavior are not certified.
+
+Optional Debug ARM64 simulator inspection uses `-p:PitchLensDevFlow=true`
+and separate Inspector outputs. Normal, Release, physical-device and Mac builds
+exclude these tools. Do not expose inspection ports or distribute inspector
+builds. [`tests/duo/verify-host.mjs`](tests/duo/verify-host.mjs) checks the actual
+running native host when supplied a matching DevFlow CLI, port and simulator;
+it does not create or certify posture transitions.
+
 ### No-account exploration vs fresh AI
 
-The following fresh-request behavior applies to **Mac**. The separate iOS branch
+The following fresh-request behavior applies to **Mac**. The iOS target
 supports recorded/offline exploration, not fresh generation or explanation.
 
 | Mode | What you get | Account / usage |
@@ -348,7 +390,7 @@ boundaries and usage notices intact.
 Run the checks relevant to your change:
 
 ```sh
-dotnet test tests/PitchLens.Core.Tests -c Release
+dotnet test tests/PitchLens.Core.Tests -f net10.0 -c Release -p:TargetFrameworks=net10.0
 node --test tests/js/*.test.mjs
 ```
 

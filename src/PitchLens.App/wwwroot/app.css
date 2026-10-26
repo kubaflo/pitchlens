@@ -50,6 +50,7 @@ small, .caption { font-size: 0.77777778rem; line-height: 1.4; color: var(--muted
 .explain-usage { display: block; text-align: center; }
 .matchday-stage { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; margin: 0 24px; }
 .pitch-slot { position: relative; flex: 1; min-width: 0; min-height: 0; }
+.pitch-surface { position: absolute; inset: 0; }
 .pitch-slot canvas { position: absolute; inset: 0; width: 100%; height: 100%; min-width: 0; min-height: 0; display: block; border-radius: 5px; background: #23372f; touch-action: manipulation; }
 .pitch-players { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .pitch-players[hidden] { display: none; }
@@ -442,3 +443,47 @@ summary { cursor: pointer; font-weight: 600; }
 .request-activity .button { margin-left: auto; }
 @media(max-height:640px) { .more-dialog { top:16px; max-height:calc(100dvh - 32px); } }
 @media(max-width:760px) { .matchday-stage { flex: none; } }
+
+/* Keep the full tactical field and move dense overlays below it on phones. */
+@media(max-width:600px) {
+    .brand-bar { padding: 8px 12px; gap: 8px; }
+    .brand-bar .actions { gap: 8px; }
+    .brand-bar .reading-button, .brand-bar .new-match, .synthetic-badge { min-height: 44px; }
+    .wordmark span { display: none; }
+    .match-header { padding: 10px 12px; gap: 10px; }
+    .team { font-size: .88888889rem; }
+    .team img { width: 30px; height: 30px; }
+    .match-actions { align-items: start; }
+    .match-actions .button, .transport .button { min-height: 44px; }
+    .matchday-stage { margin: 0 12px; }
+    .pitch-slot { display: grid; flex: none; min-height: 0; aspect-ratio: auto; padding-top: calc(100% * 74 / 113); gap: 8px; }
+    .pitch-surface { bottom: auto; width: 100%; aspect-ratio: 113 / 74; }
+    .commentary-caption, .goal-banner, .film-heading { position: relative; inset: auto; transform: none; width: 100%; max-width: 100%; margin: 0; }
+    .commentary-caption { font-size: 1rem; }
+    .goal-banner { opacity: 1; }
+    .goal-copy strong { font-size: 1.22222222rem; }
+    .film-heading p { font-size: 1rem; }
+    .pitch-caption { align-items: start; gap: 8px; }
+    .transport { padding: 8px 12px 16px; gap: 8px; }
+    .transport .scrub-label { flex-basis: 100%; order: -1; }
+    .transport output { min-width: 0; }
+    .scrub-label input { min-height: 44px; margin: 0; }
+    .film-transport { padding: 12px; gap: 8px; }
+    dialog, .moment-dialog, .narrative-dialog, .player-dialog, .more-dialog, .analysis-dialog, .view-dialog, .reading-dialog, .fixture-dialog { width: calc(100vw - 16px); max-width: none; max-height: calc(100dvh - 16px); top: 8px; left: 8px; right: auto; margin: 0; transform: none; }
+    .dialog-head, .dialog-body { padding: 16px; }
+    .dialog-head h2 { font-size: 1.44444444rem; }
+    .close, .info-button, .info-close, .segments button, .more-actions button, summary { min-height: 44px; }
+    .info-button, .info-close { min-width: 44px; }
+    .segments { flex-wrap: wrap; }
+    .segments button { flex: 1 1 auto; padding-inline: 12px; }
+    .fixture-back { min-height: 44px; }
+    .player-stats { grid-template-columns: 1fr; }
+    .guided-demo > div { min-width: 0; flex-basis: 100%; }
+    .guided-demo { margin-inline: 12px; }
+    .movement-grid { grid-template-columns: repeat(7,minmax(44px,1fr)); overflow-x: auto; }
+}
+@media(pointer:coarse) {
+    button, select, summary { touch-action: manipulation; }
+    .info-button, .info-close { min-width: 44px; min-height: 44px; }
+    .lens-controls select, .lens-segments button, .analysis-dialog .lens-segments button { min-height: 44px; }
+}

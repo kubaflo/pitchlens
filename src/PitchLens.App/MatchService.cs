@@ -9,6 +9,8 @@ public enum SessionMode { Unchosen, Live, Test }
 
 public sealed partial class MatchService : IDisposable
 {
+    public const string MobileBackendRequirement = "Fresh AI is unavailable on iOS. Match creation, tailored explanations, three-agent review and new Director edits require a separately configured authenticated backend. No backend is connected. Use the recorded demo or guided demo; no account or AI calls are needed.";
+    public bool LiveGenerationAvailable { get; private set; } = true;
     private readonly object gate = new();
     private readonly ReplayPresentation presentation = new(DenseNarrationRecording.Create(), new MonotonicClock());
     private readonly GenerationService generation;
@@ -122,6 +124,7 @@ public sealed partial class MatchService : IDisposable
             if(!CanChooseFixture)
                 throw new InvalidOperationException("Finish or exit the current request, film or guided demo before creating a match.");
             if(!FixturePickerOpen)throw new InvalidOperationException("Choose teams before creating a match.");
+            if(!LiveGenerationAvailable)throw new InvalidOperationException(MobileBackendRequirement);
             var captured=FixtureChoice.Capture();
             if(Mode!=SessionMode.Live)
             {
@@ -137,12 +140,14 @@ public sealed partial class MatchService : IDisposable
         IDirectorSource? director = null, IMonotonicClock? filmClock = null, bool readyDemo = true, MatchVariety? variety = null,
         SessionMode mode=SessionMode.Live,Action<SessionMode>? saveMode=null,IMonotonicClock? replayClock=null,
         PitchViewSettings? viewSettings=null,Action<PitchViewSettings>? saveViewSettings=null,string? viewSettingsNotice=null,
-        ReadingSettings? reading=null,Action<ReadingSettings>? saveReading=null,string? readingNotice=null)
+        ReadingSettings? reading=null,Action<ReadingSettings>? saveReading=null,string? readingNotice=null,
+        bool liveGenerationAvailable=true)
     {
         if(replayClock is not null)presentation=new(DenseNarrationRecording.Create(),replayClock);
         generation = new(scenarios, presentation.Match, ScenarioOrigin.RecordedSdkExample, AuthoredMatchRecording.Model, variety);
         HasMatch = readyDemo;
-        Mode=mode;this.saveMode=saveMode;
+        LiveGenerationAvailable=liveGenerationAvailable;
+        Mode=liveGenerationAvailable?mode:SessionMode.Test;this.saveMode=saveMode;
         ViewSettings=viewSettings??PitchViewSettings.Default;ViewSettings.Validate();
         this.saveViewSettings=saveViewSettings;ViewSettingsNotice=viewSettingsNotice;
         Reading=reading??ReadingSettings.Default;Reading.Validate();this.saveReading=saveReading;ReadingNotice=readingNotice;
@@ -154,7 +159,7 @@ public sealed partial class MatchService : IDisposable
     }
     private void Initialize()
     {
-        if (!HasMatch) { FixturePickerOpen=true;Status = "Choose teams before creating a Live AI match. No request has started."; CurrentModel = null; }
+        if (!HasMatch) { FixturePickerOpen=true;Status = LiveGenerationAvailable?"Choose teams before creating a Live AI match. No request has started.":MobileBackendRequirement; CurrentModel = null; }
         Explainer.ChangeScene(presentation.Revision);
         Explainer.Changed += NotifyChanged;
         Director.ChangeScene(presentation.Revision);
@@ -181,7 +186,7 @@ public sealed partial class MatchService : IDisposable
             if (startupAdmitted) return submittedGeneration ?? Task.CompletedTask;
             startupAdmitted = true;
             if (HasMatch) return Task.CompletedTask;
-            FixturePickerOpen=true;Status="Choose teams, then Create match. No AI request has started.";
+            FixturePickerOpen=true;Status=LiveGenerationAvailable?"Choose teams, then Create match. No AI request has started.":MobileBackendRequirement;
             return Task.CompletedTask;
         }
     }
@@ -191,6 +196,7 @@ public sealed partial class MatchService : IDisposable
         {
             ObjectDisposedException.ThrowIf(disposed,this);
             if(mode is not(SessionMode.Live or SessionMode.Test))throw new ArgumentException("Choose Live or Test.");
+            if(mode==SessionMode.Live&&!LiveGenerationAvailable)throw new InvalidOperationException(MobileBackendRequirement);
             if(GuidedDemoActive)throw new InvalidOperationException("Exit the guided demo before changing modes.");
             if(mode==SessionMode.Live&&Mode==mode&&Generating)return submittedGeneration??Task.CompletedTask;
             if(Generating||Explainer.Busy||Director.Busy||CheckingConnection)throw new InvalidOperationException("Cancel or finish active requests before changing mode.");
@@ -352,6 +358,7 @@ public sealed partial class MatchService : IDisposable
         MomentEvidence captured;
         lock (gate)
         {
+            if(!LiveGenerationAvailable)throw new InvalidOperationException(MobileBackendRequirement);
             if (Mode!=SessionMode.Live)throw new InvalidOperationException("Test mode blocks AI requests. Switch to Live explicitly.");
             if (disposed || Generating || CheckingConnection || Explainer.Busy || Director.Busy || FilmActive) return;
             captured = ExplanationSnapshot ?? throw new InvalidOperationException("Capture an observed moment first.");
@@ -365,6 +372,7 @@ public sealed partial class MatchService : IDisposable
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             MomentIntentNotice = null;
+            if(!LiveGenerationAvailable){MomentIntentNotice=MobileBackendRequirement;NotifyChanged();return Task.CompletedTask;}
             if(Mode!=SessionMode.Live){MomentIntentNotice="Test mode blocks AI analysis. Use the labelled recorded analysis or switch to Live.";return Task.CompletedTask;}
             if (Generating || CheckingConnection || Director.Busy || FilmActive)
             {
@@ -420,6 +428,7 @@ public sealed partial class MatchService : IDisposable
         using var token = new CancellationTokenSource(TimeSpan.FromSeconds(45));
         lock (gate)
         {
+            if(!LiveGenerationAvailable){ConnectionStatus=MobileBackendRequirement;NotifyChanged();return;}
             if(Mode!=SessionMode.Live){ConnectionStatus="Test mode · SDK connection checks are blocked.";NotifyChanged();return;}
             if (disposed || Generating || CheckingConnection || Explainer.Busy || Director.Busy || FilmActive) return;
             connectionCancellation = token;
@@ -454,6 +463,7 @@ public sealed partial class MatchService : IDisposable
         CancellationTokenSource token;
         lock (gate)
         {
+            if(!LiveGenerationAvailable){Status=MobileBackendRequirement;NotifyChanged();return;}
             if(Mode!=SessionMode.Live){Status="Test mode · New AI match is disabled. Switch to Live explicitly.";NotifyChanged();return;}
             if (disposed || cancellation is not null || CheckingConnection || Explainer.Busy || Director.Busy || FilmActive) return;
             if(selectedFixture is not null)selectedFixture=FixtureCatalog.RequireKnown(selectedFixture);
@@ -550,6 +560,7 @@ public sealed partial class MatchService : IDisposable
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
+            if(!LiveGenerationAvailable){DirectorNotice=MobileBackendRequirement;NotifyChanged();return Task.CompletedTask;}
             if(Mode!=SessionMode.Live){DirectorNotice="Test mode blocks AI editing. Use the labelled recorded film preview or switch to Live.";return Task.CompletedTask;}
             if (Director.Busy) return directorRequest ?? Task.CompletedTask;
             if (!CanDirect) { DirectorNotice = "Observe a goal and at least a minute of the match. Finish other requests and exit any film first."; return Task.CompletedTask; }

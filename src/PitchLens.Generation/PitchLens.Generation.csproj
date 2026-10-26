@@ -1,13 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>net10.0;net10.0-ios</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <CopilotSkipCliDownload>true</CopilotSkipCliDownload>
+    <SupportedOSPlatformVersion Condition="'$(TargetFramework)' == 'net10.0-ios'">17.0</SupportedOSPlatformVersion>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="GitHub.Copilot.SDK" Version="1.0.22" />
+    <PackageReference Include="GitHub.Copilot.SDK" Version="1.0.22" Condition="'$(TargetFramework)' != 'net10.0-ios'" />
     <ProjectReference Include="../PitchLens.Core/PitchLens.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0-ios'">
+    <Compile Remove="CopilotScenarioSource.cs;CopilotMomentSource.cs;CopilotExplanationRoleRunner.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources/recorded_match.json" LogicalName="PitchLens.Generation.recorded_match.json" />

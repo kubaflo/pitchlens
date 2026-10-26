@@ -67,6 +67,10 @@ export class PopupHost {
     }
     position() {
         if (this.doc.hidden || this.floating?.id !== "player-dialog" || !this.floating.open || !this.anchor || !this.size) return;
+        if (this.win.innerWidth <= 600) {
+            this.floating.style.transform = "";
+            return;
+        }
         const p = popupPosition(this.anchor, this.size, { width: this.win.innerWidth, height: this.win.innerHeight }, this.bounds, this.gap);
         this.floating.style.transform = `translate(${p.left}px, ${p.top}px)`;
     }
